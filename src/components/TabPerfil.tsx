@@ -451,9 +451,9 @@ export default function TabPerfil() {
                         onClick={() => { setSelectedExternalId(l.id); setExternalSearch(''); }}
                         className="w-full text-left px-3 py-2 rounded-lg border border-border bg-card hover:bg-muted/30 active:scale-[0.98] transition-all"
                       >
-                        <p className="text-xs font-semibold text-foreground">{l.pessoas?.nome || '—'}</p>
+                        <p className="text-xs font-semibold text-foreground">{l.nome || '—'}</p>
                         <p className="text-[10px] text-muted-foreground">
-                          {l.tipo_lideranca || ''}{l.regiao_atuacao ? ` · ${l.regiao_atuacao}` : ''}
+                          {l.regiao_atuacao || ''}
                         </p>
                       </button>
                     ))}
