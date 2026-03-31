@@ -28,7 +28,6 @@ export default function BottomNav({ active, onChange }: Props) {
     if (tipoUsuario === 'super_admin' || tipoUsuario === 'coordenador') {
       tabs.push({ id: 'hierarquia', icon: GitBranch, label: 'Usuários' });
       tabs.push({ id: 'rede', icon: Network, label: 'Rede' });
-      tabs.push({ id: 'pagamentos', icon: DollarSign, label: 'Pgtos' });
     }
 
     if (tipoUsuario === 'super_admin') {
