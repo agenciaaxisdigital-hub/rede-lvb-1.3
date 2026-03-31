@@ -181,6 +181,17 @@ export default function TabFiscais({ refreshKey, onSaved }: Props) {
   const textareaCls = "w-full px-3 py-2 bg-card border border-border rounded-xl text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30 resize-none";
   const cpfBorderCls = cpfStatus === 'confirmado' ? 'border-emerald-500 ring-1 ring-emerald-500/30' : '';
 
+  const Info = ({ label, value, link }: { label: string; value?: string | null; link?: string }) => {
+    if (!value) return null;
+    return (
+      <div className="flex justify-between items-start py-1.5 border-b border-border/50 last:border-0">
+        <span className="text-[11px] text-muted-foreground shrink-0">{label}</span>
+        {link ? <a href={link} target="_blank" rel="noopener" className="text-sm text-primary text-right ml-2">{value}</a>
+          : <span className="text-sm text-foreground text-right ml-2 break-words">{value}</span>}
+      </div>
+    );
+  };
+
   // DETAIL VIEW
   if (mode === 'detail' && selected) {
     const f = selected;
@@ -200,14 +211,32 @@ export default function TabFiscais({ refreshKey, onSaved }: Props) {
           </div>
           <div className="flex gap-2 pt-2">
             {p.telefone && <a href={`tel:${p.telefone}`} className="flex items-center gap-1 px-3 py-1.5 bg-muted rounded-lg text-xs font-medium"><Phone size={14} /> Ligar</a>}
-            {p.whatsapp && <a href={`https://wa.me/55${p.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener" className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500/10 text-emerald-600 rounded-lg text-xs font-medium"><MessageCircle size={14} /> WhatsApp</a>}
+            {p.whatsapp && <a href={`https://wa.me/55${p.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener" className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-medium"><MessageCircle size={14} /> WhatsApp</a>}
           </div>
         </div>
         <div className="section-card">
-          <h3 className="section-title">🗳️ Dados de Fiscalização</h3>
-          {f.colegio_eleitoral && <div className="flex justify-between py-1.5 border-b border-border/50"><span className="text-[11px] text-muted-foreground">Colégio</span><span className="text-sm text-foreground">{f.colegio_eleitoral}</span></div>}
-          {f.zona_fiscal && <div className="flex justify-between py-1.5 border-b border-border/50"><span className="text-[11px] text-muted-foreground">Zona fiscal</span><span className="text-sm text-foreground">{f.zona_fiscal}</span></div>}
-          {f.secao_fiscal && <div className="flex justify-between py-1.5 border-b border-border/50"><span className="text-[11px] text-muted-foreground">Seção fiscal</span><span className="text-sm text-foreground">{f.secao_fiscal}</span></div>}
+          <h3 className="section-title">👤 Dados Pessoais</h3>
+          <Info label="CPF" value={p.cpf ? formatCPF(p.cpf) : null} />
+          <Info label="Telefone" value={p.telefone} link={p.telefone ? `tel:${p.telefone}` : undefined} />
+          <Info label="WhatsApp" value={p.whatsapp} />
+          <Info label="E-mail" value={p.email} link={p.email ? `mailto:${p.email}` : undefined} />
+          <Info label="Instagram" value={p.instagram} link={p.instagram ? `https://instagram.com/${p.instagram.replace('@', '')}` : undefined} />
+          <Info label="Facebook" value={p.facebook} />
+        </div>
+        <div className="section-card">
+          <h3 className="section-title">🗳️ Dados Eleitorais</h3>
+          <Info label="Título" value={p.titulo_eleitor} />
+          <Info label="Zona / Seção" value={p.zona_eleitoral || p.secao_eleitoral ? `${p.zona_eleitoral || '—'} / ${p.secao_eleitoral || '—'}` : null} />
+          <Info label="Município / UF" value={p.municipio_eleitoral || p.uf_eleitoral ? `${p.municipio_eleitoral || '—'} / ${p.uf_eleitoral || '—'}` : null} />
+          <Info label="Colégio" value={p.colegio_eleitoral} />
+          <Info label="End. colégio" value={p.endereco_colegio} />
+          <Info label="Situação" value={p.situacao_titulo} />
+        </div>
+        <div className="section-card">
+          <h3 className="section-title">🔍 Dados de Fiscalização</h3>
+          <Info label="Colégio fiscal" value={f.colegio_eleitoral} />
+          <Info label="Zona fiscal" value={f.zona_fiscal} />
+          <Info label="Seção fiscal" value={f.secao_fiscal} />
           {f.observacoes && <div className="pt-2"><p className="text-[11px] text-muted-foreground mb-1">Observações</p><p className="text-sm text-foreground bg-muted/50 rounded-lg p-3">{f.observacoes}</p></div>}
         </div>
         {isAdmin && (
