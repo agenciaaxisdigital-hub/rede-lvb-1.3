@@ -59,65 +59,50 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
 
     const [lidRes, fisRes, eleRes] = await Promise.all([
       supabase.from('liderancas')
-        .select('id, status, regiao_atuacao, zona_atuacao, criado_em, pessoas(nome, cpf, telefone, whatsapp, zona_eleitoral, secao_eleitoral), hierarquia_usuarios!liderancas_cadastrado_por_fkey(nome)')
+        .select('id, status, regiao_atuacao, zona_atuacao, observacoes, criado_em, pessoas(nome, cpf, telefone, whatsapp, email, instagram, facebook, zona_eleitoral, secao_eleitoral, colegio_eleitoral, municipio_eleitoral, titulo_eleitor, observacoes_gerais), hierarquia_usuarios!liderancas_cadastrado_por_fkey(nome)')
         .order('criado_em', { ascending: false }),
       supabase.from('fiscais')
-        .select('id, status, zona_fiscal, criado_em, pessoas(nome, cpf, telefone, whatsapp, zona_eleitoral, secao_eleitoral), hierarquia_usuarios!fiscais_cadastrado_por_fkey(nome)')
+        .select('id, status, zona_fiscal, observacoes, criado_em, pessoas(nome, cpf, telefone, whatsapp, email, instagram, facebook, zona_eleitoral, secao_eleitoral, colegio_eleitoral, municipio_eleitoral, titulo_eleitor, observacoes_gerais), hierarquia_usuarios!fiscais_cadastrado_por_fkey(nome)')
         .order('criado_em', { ascending: false }),
       supabase.from('possiveis_eleitores')
-        .select('id, compromisso_voto, criado_em, pessoas(nome, cpf, telefone, whatsapp, zona_eleitoral, secao_eleitoral), hierarquia_usuarios!possiveis_eleitores_cadastrado_por_fkey(nome)')
+        .select('id, compromisso_voto, observacoes, criado_em, pessoas(nome, cpf, telefone, whatsapp, email, instagram, facebook, zona_eleitoral, secao_eleitoral, colegio_eleitoral, municipio_eleitoral, titulo_eleitor, observacoes_gerais), hierarquia_usuarios!possiveis_eleitores_cadastrado_por_fkey(nome)')
         .order('criado_em', { ascending: false }),
     ]);
 
+    const mapPessoa = (item: any, tipo: CadastroUnificado['tipo'], regiao: string | null, status: string | null) => ({
+      id: item.id, tipo,
+      nome: item.pessoas?.nome || '—',
+      cpf: item.pessoas?.cpf || null,
+      telefone: item.pessoas?.telefone || null,
+      whatsapp: item.pessoas?.whatsapp || null,
+      email: item.pessoas?.email || null,
+      instagram: item.pessoas?.instagram || null,
+      facebook: item.pessoas?.facebook || null,
+      zona_eleitoral: item.pessoas?.zona_eleitoral || null,
+      secao_eleitoral: item.pessoas?.secao_eleitoral || null,
+      colegio_eleitoral: item.pessoas?.colegio_eleitoral || null,
+      municipio_eleitoral: item.pessoas?.municipio_eleitoral || null,
+      titulo_eleitor: item.pessoas?.titulo_eleitor || null,
+      observacoes: item.observacoes || item.pessoas?.observacoes_gerais || null,
+      status,
+      regiao,
+      cadastrado_por_nome: item.hierarquia_usuarios?.nome || null,
+      criado_em: item.criado_em,
+    });
+
     if (lidRes.data) {
       for (const l of lidRes.data as any[]) {
-        results.push({
-          id: l.id, tipo: 'lideranca',
-          nome: l.pessoas?.nome || '—',
-          cpf: l.pessoas?.cpf || null,
-          telefone: l.pessoas?.telefone || null,
-          whatsapp: l.pessoas?.whatsapp || null,
-          zona_eleitoral: l.pessoas?.zona_eleitoral || null,
-          secao_eleitoral: l.pessoas?.secao_eleitoral || null,
-          status: l.status,
-          regiao: l.regiao_atuacao || l.zona_atuacao || null,
-          cadastrado_por_nome: l.hierarquia_usuarios?.nome || null,
-          criado_em: l.criado_em,
-        });
+        results.push(mapPessoa(l, 'lideranca', l.regiao_atuacao || l.zona_atuacao || null, l.status));
       }
     }
     if (fisRes.data) {
       for (const f of fisRes.data as any[]) {
-        results.push({
-          id: f.id, tipo: 'fiscal',
-          nome: f.pessoas?.nome || '—',
-          cpf: f.pessoas?.cpf || null,
-          telefone: f.pessoas?.telefone || null,
-          whatsapp: f.pessoas?.whatsapp || null,
-          zona_eleitoral: f.pessoas?.zona_eleitoral || null,
-          secao_eleitoral: f.pessoas?.secao_eleitoral || null,
-          status: f.status,
-          regiao: f.zona_fiscal || null,
-          cadastrado_por_nome: f.hierarquia_usuarios?.nome || null,
-          criado_em: f.criado_em,
-        });
+        results.push(mapPessoa(f, 'fiscal', f.zona_fiscal || null, f.status));
       }
     }
     if (eleRes.data) {
       for (const e of eleRes.data as any[]) {
-        results.push({
-          id: e.id, tipo: 'eleitor',
-          nome: e.pessoas?.nome || '—',
-          cpf: e.pessoas?.cpf || null,
-          telefone: e.pessoas?.telefone || null,
-          whatsapp: e.pessoas?.whatsapp || null,
-          zona_eleitoral: e.pessoas?.zona_eleitoral || null,
-          secao_eleitoral: e.pessoas?.secao_eleitoral || null,
-          status: e.compromisso_voto,
-          regiao: null,
-          cadastrado_por_nome: e.hierarquia_usuarios?.nome || null,
-          criado_em: e.criado_em,
-        });
+        results.push(mapPessoa(e, 'eleitor', null, e.compromisso_voto));
       }
     }
 
