@@ -6,7 +6,6 @@ import TabCadastros from '@/components/TabCadastros';
 import TabRede from '@/components/TabRede';
 import TabPerfil from '@/components/TabPerfil';
 import TabHierarquia from '@/components/TabHierarquia';
-import TabPagamentos from '@/components/TabPagamentos';
 import PainelLocalizacao from '@/components/PainelLocalizacao';
 
 export default function Home() {
