@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useAuth, TipoUsuario } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { LogOut, Shield, User, UserPlus, Loader2, Crown, Users, Eye, Copy, X, Pencil, Trash2 } from 'lucide-react';
+import { LogOut, Shield, User, UserPlus, Loader2, Crown, Users, Eye, Copy, X, Pencil, Trash2, Settings } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import ModulosUsuario from '@/components/ModulosUsuario';
 
 const tipoLabels: Record<TipoUsuario, string> = {
   super_admin: 'Super Admin',
