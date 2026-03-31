@@ -91,11 +91,21 @@ export default function TabFiscais({ refreshKey, onSaved }: Props) {
         setPessoaExistenteId(pessoa.id);
         setCpfStatus('confirmado');
         setCpfNomePessoa(pessoa.nome);
-        toast({ title: '✅ Pessoa encontrada!', description: `Dados de ${pessoa.nome} preenchidos` });
-      } else { setCpfStatus('idle'); }
+        if (usuario?.id) {
+          const dup = await checkCpfDuplicateByUser(cpfClean, usuario.id);
+          setCpfDuplicado(dup);
+          if (dup.isDuplicate) {
+            toast({ title: '⚠️ CPF já cadastrado por você', description: `Cadastrado como: ${dup.tipos.join(', ')}`, variant: 'destructive' });
+          } else {
+            toast({ title: '✅ Pessoa encontrada!', description: `Dados de ${pessoa.nome} preenchidos` });
+          }
+        } else {
+          toast({ title: '✅ Pessoa encontrada!', description: `Dados de ${pessoa.nome} preenchidos` });
+        }
+      } else { setCpfStatus('idle'); setCpfDuplicado({ isDuplicate: false, tipos: [] }); }
     } catch (err) { console.error(err); }
     finally { setValidandoCPF(false); }
-  }, [validandoCPF]);
+  }, [validandoCPF, usuario?.id]);
 
   const handleCPFChange = (value: string) => {
     const cleaned = cleanCPF(value);
