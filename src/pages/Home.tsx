@@ -54,7 +54,6 @@ export default function Home() {
           {activeTab === 'rede' && <TabRede />}
           {activeTab === 'hierarquia' && <TabHierarquia />}
           {activeTab === 'rastreamento' && <PainelLocalizacao />}
-          {activeTab === 'rastreamento' && <PainelLocalizacao />}
           {activeTab === 'perfil' && <TabPerfil />}
         </div>
       </div>
