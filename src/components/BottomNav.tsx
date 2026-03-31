@@ -27,6 +27,7 @@ export default function BottomNav({ active, onChange }: Props) {
 
     if (tipoUsuario === 'super_admin' || tipoUsuario === 'coordenador') {
       tabs.push({ id: 'hierarquia', icon: GitBranch, label: 'Usuários' });
+      tabs.push({ id: 'criar_usuarios', icon: UserPlus, label: 'Importar' });
       tabs.push({ id: 'rede', icon: Network, label: 'Rede' });
     }
 
