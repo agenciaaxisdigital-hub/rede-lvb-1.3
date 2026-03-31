@@ -50,9 +50,9 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
       </div>
 
       {/* Content */}
-      {activeSubTab === 'liderancas' && <TabLiderancas refreshKey={refreshKey} />}
-      {activeSubTab === 'fiscais' && <TabFiscais refreshKey={refreshKey} onSaved={onSaved} />}
-      {activeSubTab === 'eleitores' && <TabEleitores refreshKey={refreshKey} onSaved={onSaved} />}
+      {activeSubTab === 'liderancas' && <TabLiderancas refreshKey={refreshKey} viewOnly />}
+      {activeSubTab === 'fiscais' && <TabFiscais refreshKey={refreshKey} onSaved={onSaved} viewOnly />}
+      {activeSubTab === 'eleitores' && <TabEleitores refreshKey={refreshKey} onSaved={onSaved} viewOnly />}
     </div>
   );
 }
