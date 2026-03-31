@@ -73,8 +73,8 @@ export default function PainelLocalizacao() {
   };
 
   const fonteIcon = (fonte: string | null) => {
-    if (fonte === 'gps') return <Navigation size={10} className="text-emerald-400" />;
-    if (fonte === 'ip' || fonte === 'ip_background') return <Wifi size={10} className="text-amber-400" />;
+    if (fonte === 'gps') return <Navigation size={10} className="text-primary" />;
+    if (fonte === 'ip' || fonte === 'ip_background') return <Wifi size={10} className="text-muted-foreground" />;
     return <MapPin size={10} className="text-muted-foreground" />;
   };
 

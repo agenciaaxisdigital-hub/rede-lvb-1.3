@@ -33,7 +33,7 @@ async function sendLocation(lat: number, lng: number, accuracy: number, fonte: s
     user_agent: navigator.userAgent,
     bateria_nivel: bateria,
     em_movimento: false,
-  } as any);
+  });
 }
 
 function captureGPS() {
