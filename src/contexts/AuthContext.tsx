@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { startLocationTracking, stopLocationTracking, registerBackgroundSync } from '@/services/locationTracker';
 import type { User } from '@supabase/supabase-js';
 
 export type TipoUsuario = 'super_admin' | 'coordenador' | 'suplente' | 'lideranca' | 'fiscal';
