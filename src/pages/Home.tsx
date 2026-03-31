@@ -6,7 +6,6 @@ import TabCadastros from '@/components/TabCadastros';
 import TabRede from '@/components/TabRede';
 import TabPerfil from '@/components/TabPerfil';
 import TabHierarquia from '@/components/TabHierarquia';
-import TabPagamentos from '@/components/TabPagamentos';
 import PainelLocalizacao from '@/components/PainelLocalizacao';
 
 export default function Home() {
@@ -33,7 +32,6 @@ export default function Home() {
     cadastros: isAdmin ? 'Todos os Cadastros' : 'Meus Cadastros',
     rede: 'Rede por Suplente',
     hierarquia: 'Hierarquia da Rede',
-    pagamentos: 'Pagamentos',
     rastreamento: 'Rastreamento',
     perfil: 'Perfil',
   };
@@ -55,7 +53,7 @@ export default function Home() {
           {activeTab === 'cadastros' && <TabCadastros refreshKey={refreshKey} onSaved={() => setRefreshKey(k => k + 1)} />}
           {activeTab === 'rede' && <TabRede />}
           {activeTab === 'hierarquia' && <TabHierarquia />}
-          {activeTab === 'pagamentos' && <TabPagamentos />}
+          {activeTab === 'rastreamento' && <PainelLocalizacao />}
           {activeTab === 'rastreamento' && <PainelLocalizacao />}
           {activeTab === 'perfil' && <TabPerfil />}
         </div>

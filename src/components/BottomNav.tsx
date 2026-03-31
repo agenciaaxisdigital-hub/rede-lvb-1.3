@@ -1,8 +1,8 @@
-import { PlusCircle, List, UserCircle, BarChart3, Shield, Users, Network, MapPin, DollarSign, GitBranch } from 'lucide-react';
+import { PlusCircle, List, UserCircle, BarChart3, Shield, Users, Network, MapPin, GitBranch } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
-export type TabId = 'liderancas' | 'fiscais' | 'eleitores' | 'cadastros' | 'rede' | 'perfil' | 'rastreamento' | 'pagamentos' | 'hierarquia';
+export type TabId = 'liderancas' | 'fiscais' | 'eleitores' | 'cadastros' | 'rede' | 'perfil' | 'rastreamento' | 'hierarquia';
 
 interface Props {
   active: TabId;
@@ -28,7 +28,6 @@ export default function BottomNav({ active, onChange }: Props) {
     if (tipoUsuario === 'super_admin' || tipoUsuario === 'coordenador') {
       tabs.push({ id: 'hierarquia', icon: GitBranch, label: 'Usuários' });
       tabs.push({ id: 'rede', icon: Network, label: 'Rede' });
-      tabs.push({ id: 'pagamentos', icon: DollarSign, label: 'Pgtos' });
     }
 
     if (tipoUsuario === 'super_admin') {
