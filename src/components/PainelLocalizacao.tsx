@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { CAPTURE_INTERVALS, getCaptureIntervalMinutes, setCaptureIntervalMinutes, type CaptureIntervalMinutes } from '@/services/locationTracker';
+import { CAPTURE_INTERVALS, getCaptureIntervalMinutes, getLiveTrackingEventName, setCaptureIntervalMinutes, type CaptureIntervalMinutes, type LiveTrackingPoint } from '@/services/locationTracker';
 import { MapPin, Clock, Battery, Wifi, ChevronDown, ChevronUp, RefreshCw, Loader2, Navigation, Map, List, Route } from 'lucide-react';
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -43,6 +43,7 @@ interface LocationRecord {
   bateria_nivel: number | null;
   em_movimento: boolean;
   criado_em: string;
+  pending?: boolean;
 }
 
 interface UserLocationGroup {
@@ -81,6 +82,24 @@ function getDateFilterISO(filter: DateFilter): string | null {
     case '30d': return new Date(now.getTime() - 30 * 24 * 60 * 60_000).toISOString();
     default: return null;
   }
+}
+
+const LIVE_POINT_ID_PREFIX = 'live-';
+
+function buildLiveLocationRecord(point: LiveTrackingPoint): LocationRecord | null {
+  if (!point.usuario_id) return null;
+  return {
+    id: `${LIVE_POINT_ID_PREFIX}${point.usuario_id}`,
+    usuario_id: point.usuario_id,
+    latitude: point.latitude,
+    longitude: point.longitude,
+    precisao: point.precisao,
+    fonte: point.fonte,
+    bateria_nivel: point.bateria_nivel,
+    em_movimento: point.em_movimento,
+    criado_em: point.criado_em,
+    pending: point.pending,
+  };
 }
 
 export default function PainelLocalizacao() {
@@ -139,6 +158,25 @@ export default function PainelLocalizacao() {
       fetchData();
     }
   }, [fetchData]);
+
+  useEffect(() => {
+    const eventName = getLiveTrackingEventName();
+
+    const handleLiveTracking = (event: Event) => {
+      const point = buildLiveLocationRecord((event as CustomEvent<LiveTrackingPoint>).detail);
+      if (!point) return;
+
+      setLocations((prev) => {
+        const withoutSameUser = prev.filter((item) => item.usuario_id !== point.usuario_id || !item.pending);
+        return [point, ...withoutSameUser].sort(
+          (a, b) => new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime()
+        ).slice(0, 300);
+      });
+    };
+
+    window.addEventListener(eventName, handleLiveTracking as EventListener);
+    return () => window.removeEventListener(eventName, handleLiveTracking as EventListener);
+  }, []);
 
   const handleDateFilterChange = (f: DateFilter) => {
     setDateFilter(f);

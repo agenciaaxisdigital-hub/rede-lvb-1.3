@@ -8,6 +8,8 @@ const DEFAULT_CAPTURE_INTERVAL: CaptureIntervalMinutes = 5;
 const CAPTURE_INTERVAL_STORAGE_KEY = 'rastro-capture-interval';
 const MOVEMENT_THRESHOLD_METERS = 50;
 const USER_ID_CACHE_TTL_MS = 5 * 60_000;
+const INSTANT_UI_THROTTLE_MS = 1_500;
+const LIVE_TRACKING_EVENT = 'location-tracking-update';
 
 // ─── STATE ─────────────────────────────────────────────────────────
 let watchId: number | null = null;
@@ -15,6 +17,7 @@ let intervalId: ReturnType<typeof setInterval> | null = null;
 let lastSentTimestamp = 0;
 let lastSentLat = 0;
 let lastSentLng = 0;
+let lastBroadcastTimestamp = 0;
 let isTrackingActive = false;
 let backgroundLocationHandler: ((event: Event) => void) | null = null;
 let visibilityHandler: (() => void) | null = null;
@@ -30,6 +33,28 @@ function resetLastSentState() {
   lastSentTimestamp = 0;
   lastSentLat = 0;
   lastSentLng = 0;
+  lastBroadcastTimestamp = 0;
+}
+
+export interface LiveTrackingPoint {
+  usuario_id: string | null;
+  latitude: number;
+  longitude: number;
+  precisao: number;
+  fonte: string;
+  bateria_nivel: number | null;
+  em_movimento: boolean;
+  criado_em: string;
+  pending?: boolean;
+}
+
+function emitLiveTrackingUpdate(point: LiveTrackingPoint) {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent(LIVE_TRACKING_EVENT, { detail: point }));
+}
+
+export function getLiveTrackingEventName() {
+  return LIVE_TRACKING_EVENT;
 }
 
 // ─── INTERVAL HELPERS ──────────────────────────────────────────────
@@ -126,6 +151,10 @@ async function sendLocation(
   const now = Date.now();
   const interval = getCaptureIntervalMs();
   const timeSinceLast = now - lastSentTimestamp;
+  const timeSinceBroadcast = now - lastBroadcastTimestamp;
+  const movedEnoughForUi = lastSentLat !== 0 && lastSentLng !== 0
+    ? distanceMeters(lastSentLat, lastSentLng, lat, lng) > 3
+    : true;
 
   // Skip if too soon, UNLESS forced or moved significantly
   if (!force && timeSinceLast < interval) {
@@ -148,6 +177,23 @@ async function sendLocation(
   const emMovimento = lastSentLat !== 0 && lastSentLng !== 0
     ? distanceMeters(lastSentLat, lastSentLng, lat, lng) > 10
     : false;
+
+  const livePoint: LiveTrackingPoint = {
+    usuario_id: usuarioId,
+    latitude: lat,
+    longitude: lng,
+    precisao: accuracy,
+    fonte,
+    bateria_nivel: bateria,
+    em_movimento: emMovimento,
+    criado_em: new Date(now).toISOString(),
+    pending: true,
+  };
+
+  if (force || movedEnoughForUi || timeSinceBroadcast > INSTANT_UI_THROTTLE_MS) {
+    lastBroadcastTimestamp = now;
+    emitLiveTrackingUpdate(livePoint);
+  }
 
   const payload = {
     usuario_id: usuarioId,
@@ -185,6 +231,7 @@ async function sendLocation(
   lastSentTimestamp = now;
   lastSentLat = lat;
   lastSentLng = lng;
+  emitLiveTrackingUpdate({ ...livePoint, pending: false });
   console.info('[locationTracker] localização salva', { usuarioId, fonte, precisao: accuracy });
   return true;
 }
@@ -338,7 +385,7 @@ export function startLocationTracking() {
         );
       },
       () => { void captureByIP(); },
-      { enableHighAccuracy: true, maximumAge: 60000 }
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
     );
   }
 
