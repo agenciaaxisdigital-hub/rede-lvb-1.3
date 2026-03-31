@@ -425,7 +425,7 @@ export default function TabLiderancas({ refreshKey, onSaved }: Props) {
         <div className="section-card">
           <h2 className="section-title">⭐ Perfil e Status</h2>
           <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">Ligação política</label><input type="text" value={form.tipo_lideranca} onChange={e => update('tipo_lideranca', e.target.value)} className={inputCls} /></div>
-          <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">Posição da ligação</label><input type="text" value={form.nivel} onChange={e => update('nivel', e.target.value)} className={inputCls} /></div>
+          
           <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">Região de atuação</label><textarea value={form.regiao_atuacao} onChange={e => update('regiao_atuacao', e.target.value)} rows={2} className={textareaCls} /></div>
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">Apoiadores</label><input type="number" value={form.apoiadores_estimados} onChange={e => update('apoiadores_estimados', e.target.value)} className={inputCls} /></div>
