@@ -3,8 +3,8 @@ import { Loader2, CheckCircle2, Search, ChevronRight, ArrowLeft, Phone, MessageC
 import { exportAllCadastros } from '@/lib/exportXlsx';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { formatCPF, cleanCPF, validateCPF } from '@/lib/cpf';
-import { maskCPF } from '@/lib/cpf';
+import { formatCPF, cleanCPF, validateCPF, maskCPF } from '@/lib/cpf';
+import { checkCpfDuplicateByUser } from '@/lib/cpfDuplicateCheck';
 import { toast } from '@/hooks/use-toast';
 import StatusBadge from '@/components/StatusBadge';
 

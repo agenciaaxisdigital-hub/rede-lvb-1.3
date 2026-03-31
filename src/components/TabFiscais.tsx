@@ -4,6 +4,7 @@ import { exportAllCadastros } from '@/lib/exportXlsx';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatCPF, cleanCPF, validateCPF } from '@/lib/cpf';
+import { checkCpfDuplicateByUser } from '@/lib/cpfDuplicateCheck';
 import { toast } from '@/hooks/use-toast';
 import StatusBadge from '@/components/StatusBadge';
 
