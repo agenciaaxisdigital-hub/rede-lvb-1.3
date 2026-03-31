@@ -93,9 +93,16 @@ function formatDateTime(iso: string) {
 function formatRelative(iso: string) {
   const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
   if (diff < 1) return 'Agora';
-  if (diff < 60) return `${diff}min`;
-  if (diff < 1440) return `${Math.floor(diff / 60)}h`;
+  if (diff < 60) return `${diff}min atrás`;
+  if (diff < 1440) return `${Math.floor(diff / 60)}h atrás`;
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+}
+
+function getOnlineStatus(iso: string): { label: string; color: string; dotClass: string } {
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (diff < 15) return { label: 'Online', color: 'text-emerald-600', dotClass: 'bg-emerald-500 animate-pulse' };
+  if (diff < 60) return { label: 'Recente', color: 'text-amber-600', dotClass: 'bg-amber-500' };
+  return { label: 'Offline', color: 'text-muted-foreground', dotClass: 'bg-muted-foreground/40' };
 }
 
 function mapsLink(lat: number, lng: number) {
