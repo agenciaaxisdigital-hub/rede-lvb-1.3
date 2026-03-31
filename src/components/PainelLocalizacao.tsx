@@ -2,20 +2,40 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { supabase } from '@/integrations/supabase/client';
 import { CAPTURE_INTERVALS, getCaptureIntervalMinutes, getLiveTrackingEventName, setCaptureIntervalMinutes, type CaptureIntervalMinutes, type LiveTrackingPoint } from '@/services/locationTracker';
 import { MapPin, Clock, Battery, Wifi, ChevronDown, ChevronUp, RefreshCw, Loader2, Navigation, Map, List, Route } from 'lucide-react';
-import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import type L from 'leaflet';
 
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-});
+// Lazy-load Leaflet and react-leaflet to prevent top-level crashes
+let leafletModule: typeof import('leaflet') | null = null;
+let reactLeafletModule: typeof import('react-leaflet') | null = null;
+let leafletReady = false;
+
+async function ensureLeaflet() {
+  if (leafletReady) return;
+  try {
+    const [lMod, rlMod] = await Promise.all([
+      import('leaflet'),
+      import('react-leaflet'),
+    ]);
+    await import('leaflet/dist/leaflet.css');
+    leafletModule = lMod;
+    reactLeafletModule = rlMod;
+    delete (lMod.default.Icon.Default.prototype as any)._getIconUrl;
+    lMod.default.Icon.Default.mergeOptions({
+      iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+      iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+    });
+    leafletReady = true;
+  } catch (err) {
+    console.error('[PainelLocalizacao] Failed to load leaflet', err);
+  }
+}
 
 const COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
 
 function createUserIcon(initial: string, color: string) {
+  if (!leafletModule) return undefined as any;
+  const L = leafletModule.default;
   return L.divIcon({
     className: '',
     html: `<div style="background:${color};color:#fff;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3)">${initial}</div>`,
@@ -25,6 +45,8 @@ function createUserIcon(initial: string, color: string) {
 }
 
 function createDotIcon(color: string) {
+  if (!leafletModule) return undefined as any;
+  const L = leafletModule.default;
   return L.divIcon({
     className: '',
     html: `<div style="background:${color};width:8px;height:8px;border-radius:50%;border:1.5px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.3)"></div>`,
@@ -55,8 +77,8 @@ interface UserLocationGroup {
   color: string;
 }
 
-function FitBounds({ bounds }: { bounds: L.LatLngBoundsExpression | null }) {
-  const map = useMap();
+function FitBounds({ bounds }: { bounds: any | null }) {
+  const map = reactLeafletModule!.useMap();
   useEffect(() => {
     if (bounds) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 15 });
   }, [bounds, map]);
@@ -105,13 +127,19 @@ function buildLiveLocationRecord(point: LiveTrackingPoint): LocationRecord | nul
 export default function PainelLocalizacao() {
   const [locations, setLocations] = useState<LocationRecord[]>([]);
   const [usuarios, setUsuarios] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [mapReady, setMapReady] = useState(false);
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [view, setView] = useState<'map' | 'list'>('map');
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [captureInterval, setCaptureInterval] = useState<CaptureIntervalMinutes>(() => getCaptureIntervalMinutes());
   const [dateFilter, setDateFilter] = useState<DateFilter>('24h');
   const hasFetched = useRef(false);
+
+  // Lazy-load leaflet on mount
+  useEffect(() => {
+    ensureLeaflet().then(() => setMapReady(true));
+  }, []);
 
   const fetchData = useCallback(async (filter?: DateFilter) => {
     setLoading(true);
@@ -226,6 +254,8 @@ export default function PainelLocalizacao() {
   }, [userGroups, selectedUserId]);
 
   const mapBounds = useMemo(() => {
+    if (!leafletModule) return null;
+    const L = leafletModule.default;
     const pts = displayGroups.flatMap(g => g.locations.map(l => [l.latitude, l.longitude] as [number, number]));
     return pts.length ? L.latLngBounds(pts) : null;
   }, [displayGroups]);
@@ -330,7 +360,10 @@ export default function PainelLocalizacao() {
           <MapPin size={32} className="mx-auto text-muted-foreground mb-2" />
           <p className="text-sm text-muted-foreground">Nenhuma localização registrada</p>
         </div>
-      ) : view === 'map' ? (
+      ) : view === 'map' && mapReady && reactLeafletModule ? (
+        (() => {
+          const { MapContainer, TileLayer, Polyline, Marker, Popup } = reactLeafletModule!;
+          return (
         <div className="rounded-2xl overflow-hidden border border-border relative" style={{ height: 400 }}>
           {loading && (
             <div className="absolute inset-0 z-[1000] bg-background/50 flex items-center justify-center">
@@ -373,6 +406,12 @@ export default function PainelLocalizacao() {
               );
             })}
           </MapContainer>
+        </div>
+          );
+        })()
+      ) : view === 'map' && !mapReady ? (
+        <div className="flex justify-center py-8">
+          <Loader2 size={24} className="animate-spin text-primary" />
         </div>
       ) : (
         <div className="space-y-2">
