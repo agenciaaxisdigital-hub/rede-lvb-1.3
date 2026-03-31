@@ -7,6 +7,7 @@ import TabEleitores from '@/components/TabEleitores';
 import TabCadastros from '@/components/TabCadastros';
 import TabRede from '@/components/TabRede';
 import TabPerfil from '@/components/TabPerfil';
+import PainelLocalizacao from '@/components/PainelLocalizacao';
 
 export default function Home() {
   const { isAdmin, tipoUsuario, usuario } = useAuth();
