@@ -419,7 +419,7 @@ export default function TabPerfil() {
                   <div className="bg-primary/5 border border-primary/20 rounded-xl p-2.5 flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                       <span className="text-xs font-bold text-primary">
-                        {(selectedSuplente?.nome || selectedLideranca?.pessoas?.nome || '?').charAt(0).toUpperCase()}
+                        {(selectedSuplente?.nome || selectedLideranca?.nome || '?').charAt(0).toUpperCase()}
                       </span>
                     </div>
                     <div className="flex-1 min-w-0">
