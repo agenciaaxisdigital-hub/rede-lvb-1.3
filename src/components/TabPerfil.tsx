@@ -141,7 +141,7 @@ export default function TabPerfil() {
   const filteredLiderancas = useMemo(() => {
     if (!externalSearch) return liderancas;
     const q = externalSearch.toLowerCase();
-    return liderancas.filter(l => (l.pessoas?.nome || '').toLowerCase().includes(q));
+    return liderancas.filter(l => (l.nome || '').toLowerCase().includes(q));
   }, [liderancas, externalSearch]);
 
   // Filtered users list
