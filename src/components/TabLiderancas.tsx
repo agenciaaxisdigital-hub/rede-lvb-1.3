@@ -61,8 +61,6 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
   const [statusFilter, setStatusFilter] = useState('Todas');
   const [searchQuery, setSearchQuery] = useState('');
   const [selected, setSelected] = useState<LiderancaRow | null>(null);
-  const [agentes, setAgentes] = useState<{ id: string; nome: string }[]>([]);
-  const [agenteFilter, setAgenteFilter] = useState('');
 
   // Form state
   const [saving, setSaving] = useState(false);
