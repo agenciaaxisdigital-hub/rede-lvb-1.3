@@ -1,13 +1,29 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Search, ChevronRight, Phone, MessageCircle, Trash2, ArrowLeft, XCircle, Download } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Search, ChevronRight, Phone, MessageCircle, Trash2, ArrowLeft, XCircle, Download, Loader2, CheckCircle2, ExternalLink, PlusCircle } from 'lucide-react';
 import { exportAllCadastros } from '@/lib/exportXlsx';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { maskCPF } from '@/lib/cpf';
+import { maskCPF, formatCPF, cleanCPF, validateCPF } from '@/lib/cpf';
 import { toast } from '@/hooks/use-toast';
 import StatusBadge from '@/components/StatusBadge';
 
 const statusFilters = ['Todas', 'Ativa', 'Potencial', 'Em negociação', 'Fraca', 'Descartada'];
+const statusOptions = ['Ativa', 'Potencial', 'Em negociação', 'Fraca', 'Descartada'];
+const comprometimentos = ['Alto', 'Médio', 'Baixo'];
+const situacoesTitulo = ['Regular', 'Cancelado', 'Suspenso', 'Não informado'];
+
+const emptyForm = {
+  cpf: '', nome: '', telefone: '', whatsapp: '', email: '',
+  instagram: '', facebook: '',
+  titulo_eleitor: '', zona_eleitoral: '', secao_eleitoral: '',
+  municipio_eleitoral: '', uf_eleitoral: '', colegio_eleitoral: '',
+  endereco_colegio: '', situacao_titulo: '',
+  tipo_lideranca: '', nivel: '', regiao_atuacao: '',
+  zona_atuacao: '', bairros_influencia: '', comunidades_influencia: '',
+  lider_principal_id: '', origem_captacao: '',
+  apoiadores_estimados: '', meta_votos: '',
+  status: 'Ativa', nivel_comprometimento: '', observacoes: '',
+};
 
 interface LiderancaRow {
   id: string;
@@ -32,10 +48,12 @@ interface LiderancaRow {
 
 interface Props {
   refreshKey: number;
+  onSaved?: () => void;
 }
 
-export default function TabLiderancas({ refreshKey }: Props) {
+export default function TabLiderancas({ refreshKey, onSaved }: Props) {
   const { usuario, isAdmin } = useAuth();
+  const [mode, setMode] = useState<'list' | 'form' | 'detail'>('list');
   const [data, setData] = useState<LiderancaRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('Todas');
@@ -43,6 +61,18 @@ export default function TabLiderancas({ refreshKey }: Props) {
   const [selected, setSelected] = useState<LiderancaRow | null>(null);
   const [agentes, setAgentes] = useState<{ id: string; nome: string }[]>([]);
   const [agenteFilter, setAgenteFilter] = useState('');
+
+  // Form state
+  const [saving, setSaving] = useState(false);
+  const [validandoCPF, setValidandoCPF] = useState(false);
+  const [cpfStatus, setCpfStatus] = useState<'idle' | 'validando' | 'confirmado'>('idle');
+  const [cpfNomePessoa, setCpfNomePessoa] = useState('');
+  const [pessoaExistenteId, setPessoaExistenteId] = useState<string | null>(null);
+  const [liderancasExistentes, setLiderancasExistentes] = useState<{ id: string; nome: string }[]>([]);
+  const [form, setForm] = useState({ ...emptyForm });
+  const cpfTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const update = useCallback((field: string, value: string) => setForm(f => ({ ...f, [field]: value })), []);
 
   const fetchData = useCallback(async () => {
     if (!usuario) return;
@@ -56,14 +86,137 @@ export default function TabLiderancas({ refreshKey }: Props) {
   }, [usuario]);
 
   useEffect(() => { fetchData(); }, [fetchData, refreshKey]);
-  
-  useEffect(() => { 
+
+  useEffect(() => {
     if (isAdmin) {
-      supabase.from('hierarquia_usuarios').select('id, nome').in('tipo', ['suplente', 'lideranca', 'coordenador']).then(({ data }) => { 
-        if (data) setAgentes(data); 
-      }); 
+      supabase.from('hierarquia_usuarios').select('id, nome').in('tipo', ['suplente', 'lideranca', 'coordenador']).then(({ data }) => {
+        if (data) setAgentes(data);
+      });
     }
+    supabase.from('liderancas').select('id, pessoas(nome)').eq('status', 'Ativa')
+      .then(({ data }) => {
+        if (data) setLiderancasExistentes(data.map((l: any) => ({ id: l.id, nome: l.pessoas?.nome || '—' })));
+      });
   }, [isAdmin]);
+
+  const validarCPF = useCallback(async (cpfClean: string) => {
+    if (cpfClean.length !== 11 || !validateCPF(cpfClean)) {
+      if (cpfClean.length === 11) toast({ title: 'CPF inválido', variant: 'destructive' });
+      return;
+    }
+    if (validandoCPF) return;
+    setValidandoCPF(true);
+    setCpfStatus('validando');
+    setCpfNomePessoa('');
+    setPessoaExistenteId(null);
+    try {
+      const { data: pessoa } = await supabase.from('pessoas').select('*').eq('cpf', cpfClean).maybeSingle();
+      if (pessoa) {
+        setForm(f => ({
+          ...f, cpf: pessoa.cpf || cpfClean,
+          nome: pessoa.nome || f.nome, telefone: pessoa.telefone || f.telefone,
+          whatsapp: pessoa.whatsapp || f.whatsapp, email: pessoa.email || f.email,
+          instagram: pessoa.instagram || f.instagram, facebook: pessoa.facebook || f.facebook,
+          titulo_eleitor: pessoa.titulo_eleitor || f.titulo_eleitor,
+          zona_eleitoral: pessoa.zona_eleitoral || f.zona_eleitoral,
+          secao_eleitoral: pessoa.secao_eleitoral || f.secao_eleitoral,
+          municipio_eleitoral: pessoa.municipio_eleitoral || f.municipio_eleitoral,
+          uf_eleitoral: pessoa.uf_eleitoral || f.uf_eleitoral,
+          colegio_eleitoral: pessoa.colegio_eleitoral || f.colegio_eleitoral,
+          endereco_colegio: pessoa.endereco_colegio || f.endereco_colegio,
+          situacao_titulo: pessoa.situacao_titulo || f.situacao_titulo,
+        }));
+        setPessoaExistenteId(pessoa.id);
+        setCpfStatus('confirmado');
+        setCpfNomePessoa(pessoa.nome);
+        toast({ title: '✅ Pessoa encontrada!', description: `Dados de ${pessoa.nome} preenchidos` });
+      } else {
+        setCpfStatus('idle');
+      }
+    } catch (err) { console.error(err); }
+    finally { setValidandoCPF(false); }
+  }, [validandoCPF]);
+
+  const handleCPFChange = (value: string) => {
+    const cleaned = cleanCPF(value);
+    update('cpf', cleaned);
+    setCpfStatus('idle');
+    setCpfNomePessoa('');
+    setPessoaExistenteId(null);
+    if (cpfTimeoutRef.current) clearTimeout(cpfTimeoutRef.current);
+    if (cleaned.length === 11) {
+      cpfTimeoutRef.current = setTimeout(() => validarCPF(cleaned), 500);
+    }
+  };
+
+  const getSuplementeId = (): string | null => {
+    if (!usuario) return null;
+    if (usuario.tipo === 'suplente') return usuario.suplente_id;
+    return usuario.suplente_id || null;
+  };
+
+  const handleSave = async () => {
+    if (!form.nome.trim()) { toast({ title: 'Preencha o nome', variant: 'destructive' }); return; }
+    if (!form.telefone.trim() && !form.whatsapp.trim()) { toast({ title: 'Informe telefone ou WhatsApp', variant: 'destructive' }); return; }
+    if (form.cpf && form.cpf.length === 11 && !validateCPF(form.cpf)) { toast({ title: 'CPF inválido', variant: 'destructive' }); return; }
+
+    setSaving(true);
+    try {
+      let pessoaId: string;
+      if (pessoaExistenteId) {
+        pessoaId = pessoaExistenteId;
+        await supabase.from('pessoas').update({
+          nome: form.nome, telefone: form.telefone || null, whatsapp: form.whatsapp || null,
+          email: form.email || null, instagram: form.instagram || null, facebook: form.facebook || null,
+          titulo_eleitor: form.titulo_eleitor || null, zona_eleitoral: form.zona_eleitoral || null,
+          secao_eleitoral: form.secao_eleitoral || null, municipio_eleitoral: form.municipio_eleitoral || null,
+          uf_eleitoral: form.uf_eleitoral || null, colegio_eleitoral: form.colegio_eleitoral || null,
+          endereco_colegio: form.endereco_colegio || null, situacao_titulo: form.situacao_titulo || null,
+          atualizado_em: new Date().toISOString(),
+        }).eq('id', pessoaId);
+      } else {
+        const { data: novaPessoa, error } = await supabase.from('pessoas').insert({
+          cpf: form.cpf || null, nome: form.nome, telefone: form.telefone || null,
+          whatsapp: form.whatsapp || null, email: form.email || null,
+          instagram: form.instagram || null, facebook: form.facebook || null,
+          titulo_eleitor: form.titulo_eleitor || null, zona_eleitoral: form.zona_eleitoral || null,
+          secao_eleitoral: form.secao_eleitoral || null, municipio_eleitoral: form.municipio_eleitoral || null,
+          uf_eleitoral: form.uf_eleitoral || null, colegio_eleitoral: form.colegio_eleitoral || null,
+          endereco_colegio: form.endereco_colegio || null, situacao_titulo: form.situacao_titulo || null,
+        }).select('id').single();
+        if (error) throw error;
+        pessoaId = novaPessoa!.id;
+      }
+
+      const suplenteId = getSuplementeId();
+      const { error: lError } = await supabase.from('liderancas').insert({
+        pessoa_id: pessoaId, tipo_lideranca: form.tipo_lideranca || null,
+        nivel: form.nivel || null, regiao_atuacao: form.regiao_atuacao || null,
+        zona_atuacao: form.zona_atuacao || null, bairros_influencia: form.bairros_influencia || null,
+        comunidades_influencia: form.comunidades_influencia || null,
+        lider_principal_id: form.lider_principal_id || null,
+        origem_captacao: form.origem_captacao || null,
+        apoiadores_estimados: form.apoiadores_estimados ? parseInt(form.apoiadores_estimados) : null,
+        meta_votos: form.meta_votos ? parseInt(form.meta_votos) : null,
+        status: form.status, nivel_comprometimento: form.nivel_comprometimento || null,
+        observacoes: form.observacoes || null,
+        cadastrado_por: usuario?.id || null,
+        suplente_id: suplenteId,
+      });
+      if (lError) throw lError;
+
+      toast({ title: '✅ Liderança cadastrada!' });
+      setForm({ ...emptyForm });
+      setPessoaExistenteId(null);
+      setCpfStatus('idle');
+      setCpfNomePessoa('');
+      setMode('list');
+      fetchData();
+      onSaved?.();
+    } catch (err: any) {
+      toast({ title: 'Erro ao salvar', description: err.message, variant: 'destructive' });
+    } finally { setSaving(false); }
+  };
 
   const filtered = data.filter(l => {
     if (statusFilter !== 'Todas' && l.status !== statusFilter) return false;
@@ -83,6 +236,7 @@ export default function TabLiderancas({ refreshKey }: Props) {
     await supabase.from('liderancas').delete().eq('id', id);
     toast({ title: 'Liderança excluída' });
     setSelected(null);
+    setMode('list');
     fetchData();
   };
 
@@ -90,41 +244,42 @@ export default function TabLiderancas({ refreshKey }: Props) {
     await supabase.from('liderancas').update({ status: 'Descartada', atualizado_em: new Date().toISOString() }).eq('id', id);
     toast({ title: 'Liderança descartada' });
     setSelected(null);
+    setMode('list');
     fetchData();
   };
 
+  const inputCls = "w-full h-11 px-3 bg-card border border-border rounded-xl text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30";
+  const selectCls = inputCls;
+  const textareaCls = "w-full px-3 py-2 bg-card border border-border rounded-xl text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30 resize-none";
+  const cpfBorderCls = cpfStatus === 'confirmado' ? 'border-emerald-500 ring-1 ring-emerald-500/30' : '';
+
+  const Info = ({ label, value, link }: { label: string; value?: string | null; link?: string }) => {
+    if (!value) return null;
+    return (
+      <div className="flex justify-between items-start py-1.5 border-b border-border/50 last:border-0">
+        <span className="text-[11px] text-muted-foreground shrink-0">{label}</span>
+        {link ? <a href={link} target="_blank" rel="noopener" className="text-sm text-primary text-right ml-2">{value}</a>
+          : <span className="text-sm text-foreground text-right ml-2 break-words">{value}</span>}
+      </div>
+    );
+  };
+
   // ===== DETAIL VIEW =====
-  if (selected) {
+  if (mode === 'detail' && selected) {
     const l = selected;
     const p = l.pessoas;
-    const canEdit = isAdmin || l.cadastrado_por === usuario?.id;
-
-    const Info = ({ label, value, link }: { label: string; value?: string | null; link?: string }) => {
-      if (!value) return null;
-      return (
-        <div className="flex justify-between items-start py-1.5 border-b border-border/50 last:border-0">
-          <span className="text-[11px] text-muted-foreground shrink-0">{label}</span>
-          {link ? <a href={link} target="_blank" rel="noopener" className="text-sm text-primary text-right ml-2">{value}</a>
-            : <span className="text-sm text-foreground text-right ml-2 break-words">{value}</span>}
-        </div>
-      );
-    };
-
     return (
       <div className="space-y-4 pb-24">
-        <button onClick={() => setSelected(null)} className="flex items-center gap-1 text-sm text-muted-foreground active:scale-95">
-          <ArrowLeft size={16} /> Voltar à lista
+        <button onClick={() => { setSelected(null); setMode('list'); }} className="flex items-center gap-1 text-sm text-muted-foreground active:scale-95">
+          <ArrowLeft size={16} /> Voltar
         </button>
-
         <div className="section-card">
           <div className="flex items-start justify-between">
             <div>
               <h2 className="text-lg font-bold text-foreground">{p.nome}</h2>
               <p className="text-sm text-muted-foreground">{l.tipo_lideranca}{l.nivel ? ` · ${l.nivel}` : ''}</p>
               {isAdmin && l.hierarquia_usuarios && (
-                <p className="text-[10px] text-primary/70 mt-1">
-                  Por: {l.hierarquia_usuarios.nome} · {new Date(l.criado_em).toLocaleDateString('pt-BR')}
-                </p>
+                <p className="text-[10px] text-primary/70 mt-1">Por: {l.hierarquia_usuarios.nome} · {new Date(l.criado_em).toLocaleDateString('pt-BR')}</p>
               )}
             </div>
             <StatusBadge status={l.status} />
@@ -134,7 +289,6 @@ export default function TabLiderancas({ refreshKey }: Props) {
             {p.whatsapp && <a href={`https://wa.me/55${p.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener" className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-medium"><MessageCircle size={14} /> WhatsApp</a>}
           </div>
         </div>
-
         <div className="section-card">
           <h3 className="section-title">👤 Dados Pessoais</h3>
           <Info label="CPF" value={p.cpf ? maskCPF(p.cpf) : null} />
@@ -144,7 +298,6 @@ export default function TabLiderancas({ refreshKey }: Props) {
           <Info label="Instagram" value={p.instagram} link={p.instagram ? `https://instagram.com/${p.instagram.replace('@', '')}` : undefined} />
           <Info label="Facebook" value={p.facebook} />
         </div>
-
         <div className="section-card">
           <h3 className="section-title">🗳️ Dados Eleitorais</h3>
           <Info label="Título" value={p.titulo_eleitor} />
@@ -154,7 +307,6 @@ export default function TabLiderancas({ refreshKey }: Props) {
           <Info label="End. colégio" value={p.endereco_colegio} />
           <Info label="Situação" value={p.situacao_titulo} />
         </div>
-
         <div className="section-card">
           <h3 className="section-title">⭐ Perfil</h3>
           <Info label="Tipo" value={l.tipo_lideranca} />
@@ -174,17 +326,14 @@ export default function TabLiderancas({ refreshKey }: Props) {
             </div>
           )}
         </div>
-
         <div className="space-y-2">
           {isAdmin && l.status !== 'Descartada' && (
-            <button onClick={() => handleDiscard(l.id)}
-              className="w-full h-11 border border-border rounded-xl text-muted-foreground font-medium flex items-center justify-center gap-2 active:scale-[0.97]">
+            <button onClick={() => handleDiscard(l.id)} className="w-full h-11 border border-border rounded-xl text-muted-foreground font-medium flex items-center justify-center gap-2 active:scale-[0.97]">
               <XCircle size={16} /> Descartar
             </button>
           )}
           {isAdmin && (
-            <button onClick={() => handleDelete(l.id)}
-              className="w-full h-11 border border-destructive/30 rounded-xl text-destructive font-medium flex items-center justify-center gap-2 active:scale-[0.97]">
+            <button onClick={() => handleDelete(l.id)} className="w-full h-11 border border-destructive/30 rounded-xl text-destructive font-medium flex items-center justify-center gap-2 active:scale-[0.97]">
               <Trash2 size={16} /> Excluir
             </button>
           )}
@@ -193,24 +342,117 @@ export default function TabLiderancas({ refreshKey }: Props) {
     );
   }
 
+  // ===== FORM VIEW =====
+  if (mode === 'form') {
+    return (
+      <div className="space-y-4 pb-24">
+        <button onClick={() => setMode('list')} className="flex items-center gap-1 text-sm text-muted-foreground active:scale-95">
+          <ArrowLeft size={16} /> Voltar
+        </button>
+        <div className="section-card">
+          <h2 className="section-title">👤 Dados Pessoais</h2>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Nome completo <span className="text-primary">*</span></label>
+            <input type="text" value={form.nome} onChange={e => update('nome', e.target.value)} placeholder="Nome da liderança" className={inputCls} />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground flex items-center gap-2">
+              CPF
+              {cpfStatus === 'validando' && <Loader2 size={12} className="animate-spin text-muted-foreground" />}
+              {cpfStatus === 'confirmado' && <CheckCircle2 size={12} className="text-emerald-500" />}
+            </label>
+            <input type="text" inputMode="numeric" value={formatCPF(form.cpf)} onChange={e => handleCPFChange(e.target.value)} placeholder="000.000.000-00" className={`${inputCls} ${cpfBorderCls}`} maxLength={14} />
+            {cpfStatus === 'confirmado' && cpfNomePessoa && <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">✅ {cpfNomePessoa}</p>}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">Telefone</label><input type="tel" value={form.telefone} onChange={e => update('telefone', e.target.value)} placeholder="(00) 0000-0000" className={inputCls} /></div>
+            <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">WhatsApp</label><input type="tel" value={form.whatsapp} onChange={e => update('whatsapp', e.target.value)} placeholder="(00) 00000-0000" className={inputCls} /></div>
+          </div>
+          <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">E-mail</label><input type="email" value={form.email} onChange={e => update('email', e.target.value)} placeholder="email@exemplo.com" className={inputCls} /></div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">Instagram</label><input type="text" value={form.instagram} onChange={e => update('instagram', e.target.value)} placeholder="@usuario" className={inputCls} /></div>
+            <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">Facebook</label><input type="text" value={form.facebook} onChange={e => update('facebook', e.target.value)} placeholder="Nome ou link" className={inputCls} /></div>
+          </div>
+        </div>
+
+        <div className="section-card">
+          <h2 className="section-title">🗳️ Dados Eleitorais</h2>
+          <button type="button" onClick={() => window.open('https://www.tse.jus.br/servicos-eleitorais/autoatendimento-eleitoral#/atendimento-eleitor', '_blank')}
+            className="w-full flex items-center justify-center gap-2 h-10 px-4 border border-border rounded-xl text-sm font-medium text-primary bg-primary/5 hover:bg-primary/10 active:scale-[0.97] transition-all">
+            <ExternalLink size={16} /> Consultar dados no TSE
+          </button>
+          <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">Título de eleitor</label><input type="text" value={form.titulo_eleitor} onChange={e => update('titulo_eleitor', e.target.value)} className={inputCls} /></div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">Zona</label><input type="text" value={form.zona_eleitoral} onChange={e => update('zona_eleitoral', e.target.value)} className={inputCls} /></div>
+            <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">Seção</label><input type="text" value={form.secao_eleitoral} onChange={e => update('secao_eleitoral', e.target.value)} className={inputCls} /></div>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="col-span-2 space-y-1"><label className="text-xs font-medium text-muted-foreground">Município</label><input type="text" value={form.municipio_eleitoral} onChange={e => update('municipio_eleitoral', e.target.value)} className={inputCls} /></div>
+            <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">UF</label><input type="text" value={form.uf_eleitoral} onChange={e => update('uf_eleitoral', e.target.value)} className={inputCls} maxLength={2} /></div>
+          </div>
+          <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">Colégio eleitoral</label><input type="text" value={form.colegio_eleitoral} onChange={e => update('colegio_eleitoral', e.target.value)} className={inputCls} /></div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Situação do título</label>
+            <select value={form.situacao_titulo} onChange={e => update('situacao_titulo', e.target.value)} className={selectCls}>
+              <option value="">Selecione...</option>
+              {situacoesTitulo.map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div className="section-card">
+          <h2 className="section-title">⭐ Perfil e Status</h2>
+          <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">Ligação política</label><input type="text" value={form.tipo_lideranca} onChange={e => update('tipo_lideranca', e.target.value)} className={inputCls} /></div>
+          <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">Posição da ligação</label><input type="text" value={form.nivel} onChange={e => update('nivel', e.target.value)} className={inputCls} /></div>
+          <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">Região de atuação</label><textarea value={form.regiao_atuacao} onChange={e => update('regiao_atuacao', e.target.value)} rows={2} className={textareaCls} /></div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">Apoiadores</label><input type="number" value={form.apoiadores_estimados} onChange={e => update('apoiadores_estimados', e.target.value)} className={inputCls} /></div>
+            <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">Meta votos</label><input type="number" value={form.meta_votos} onChange={e => update('meta_votos', e.target.value)} className={inputCls} /></div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Status</label>
+              <select value={form.status} onChange={e => update('status', e.target.value)} className={selectCls}>
+                {statusOptions.map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Comprometimento</label>
+              <select value={form.nivel_comprometimento} onChange={e => update('nivel_comprometimento', e.target.value)} className={selectCls}>
+                <option value="">Selecione...</option>
+                {comprometimentos.map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">Observações</label><textarea value={form.observacoes} onChange={e => update('observacoes', e.target.value)} rows={3} className={textareaCls} /></div>
+        </div>
+
+        <button onClick={handleSave} disabled={saving}
+          className="w-full h-14 gradient-primary text-white text-base font-semibold rounded-2xl shadow-lg shadow-pink-500/25 active:scale-[0.97] transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+          {saving ? <><Loader2 size={20} className="animate-spin" /> Salvando...</> : '✅ Cadastrar Liderança'}
+        </button>
+      </div>
+    );
+  }
+
   // ===== LIST VIEW =====
   return (
     <div className="space-y-3 pb-24">
+      <button onClick={() => { setForm({ ...emptyForm }); setPessoaExistenteId(null); setCpfStatus('idle'); setMode('form'); }}
+        className="w-full h-12 gradient-primary text-white font-semibold rounded-xl active:scale-[0.97] transition-all flex items-center justify-center gap-2">
+        <PlusCircle size={18} /> Cadastrar Liderança
+      </button>
+
       <div className="relative">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <input
-          value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-          placeholder="Buscar por nome, CPF ou telefone..."
-          className="w-full h-11 pl-9 pr-3 bg-card border border-border rounded-xl text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30"
-        />
+        <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Buscar por nome, CPF ou telefone..."
+          className="w-full h-11 pl-9 pr-3 bg-card border border-border rounded-xl text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30" />
       </div>
 
       <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
         {statusFilters.map(s => (
           <button key={s} onClick={() => setStatusFilter(s)}
-            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium active:scale-95 transition-all ${
-              statusFilter === s ? 'gradient-primary text-white' : 'bg-muted text-muted-foreground'
-            }`}>
+            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium active:scale-95 transition-all ${statusFilter === s ? 'gradient-primary text-white' : 'bg-muted text-muted-foreground'}`}>
             {s}
           </button>
         ))}
@@ -253,13 +495,11 @@ export default function TabLiderancas({ refreshKey }: Props) {
           {[1,2,3].map(i => <div key={i} className="section-card animate-pulse"><div className="h-4 bg-muted rounded w-2/3" /><div className="h-3 bg-muted rounded w-1/2 mt-2" /></div>)}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <p className="text-sm">Nenhuma liderança encontrada</p>
-        </div>
+        <div className="text-center py-12 text-muted-foreground"><p className="text-sm">Nenhuma liderança encontrada</p></div>
       ) : (
         <div className="space-y-2">
           {filtered.map(l => (
-            <button key={l.id} onClick={() => setSelected(l)}
+            <button key={l.id} onClick={() => { setSelected(l); setMode('detail'); }}
               className="w-full text-left bg-card rounded-xl border border-border p-3 flex items-center gap-3 active:scale-[0.98] transition-transform">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">

@@ -1,18 +1,17 @@
 import { useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import BottomNav, { type TabId } from '@/components/BottomNav';
-import TabCadastrar from '@/components/TabCadastrar';
+import TabLiderancas from '@/components/TabLiderancas';
+import TabFiscais from '@/components/TabFiscais';
+import TabEleitores from '@/components/TabEleitores';
 import TabCadastros from '@/components/TabCadastros';
-import TabRede from '@/components/TabRede';
+import TabUsuarios from '@/components/TabUsuarios';
 import TabPerfil from '@/components/TabPerfil';
-import TabHierarquia from '@/components/TabHierarquia';
 import PainelLocalizacao from '@/components/PainelLocalizacao';
-import TabSuplentes from '@/components/TabSuplentes';
 
 export default function Home() {
-  const { isAdmin, tipoUsuario, usuario } = useAuth();
-  const isAgenteCampo = tipoUsuario === 'lideranca' && !usuario?.suplente_id;
-  const [activeTab, setActiveTab] = useState<TabId>(isAgenteCampo ? 'cadastros' : 'cadastrar');
+  const { isAdmin, tipoUsuario } = useAuth();
+  const [activeTab, setActiveTab] = useState<TabId>('liderancas');
   const [refreshKey, setRefreshKey] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -26,12 +25,12 @@ export default function Home() {
   };
 
   const titles: Record<TabId, string> = {
-    cadastrar: tipoUsuario === 'fiscal' ? 'Cadastrar Eleitor' : tipoUsuario === 'lideranca' ? 'Cadastrar Fiscal' : 'Novo Cadastro',
+    liderancas: 'Cadastro de Lideranças',
+    fiscais: 'Cadastro de Fiscais',
+    eleitores: 'Cadastro de Eleitores',
     cadastros: isAdmin ? 'Todos os Cadastros' : 'Meus Cadastros',
-    suplentes: 'Suplentes & Acesso',
-    arvore: 'Árvore Hierárquica',
-    rede: 'Rede por Suplente',
     rastreamento: 'Rastreamento',
+    usuarios: 'Gerenciar Usuários',
     perfil: 'Perfil',
   };
 
@@ -48,12 +47,12 @@ export default function Home() {
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain">
         <div key={activeTab} className="max-w-[672px] mx-auto px-4 py-4 animate-in">
-          {activeTab === 'cadastrar' && <TabCadastrar onSaved={handleSaved} />}
+          {activeTab === 'liderancas' && <TabLiderancas refreshKey={refreshKey} onSaved={handleSaved} />}
+          {activeTab === 'fiscais' && <TabFiscais refreshKey={refreshKey} onSaved={handleSaved} />}
+          {activeTab === 'eleitores' && <TabEleitores refreshKey={refreshKey} onSaved={handleSaved} />}
           {activeTab === 'cadastros' && <TabCadastros refreshKey={refreshKey} onSaved={handleSaved} />}
-          {activeTab === 'suplentes' && <TabSuplentes refreshKey={refreshKey} />}
-          {activeTab === 'arvore' && <TabHierarquia />}
-          {activeTab === 'rede' && <TabRede />}
           {activeTab === 'rastreamento' && <PainelLocalizacao />}
+          {activeTab === 'usuarios' && <TabUsuarios />}
           {activeTab === 'perfil' && <TabPerfil />}
         </div>
       </div>

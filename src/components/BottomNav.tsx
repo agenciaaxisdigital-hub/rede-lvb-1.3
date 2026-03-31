@@ -1,41 +1,69 @@
-import { PlusCircle, Users, UserCircle, BarChart3, Network, MapPin, GitBranch, List } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Users, UserCircle, BarChart3, MapPin, Shield, Target, List, UserCog } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 
-export type TabId = 'cadastrar' | 'cadastros' | 'suplentes' | 'arvore' | 'rede' | 'perfil' | 'rastreamento';
+export type TabId = 'liderancas' | 'fiscais' | 'eleitores' | 'cadastros' | 'rastreamento' | 'usuarios' | 'perfil';
 
 interface Props {
   active: TabId;
   onChange: (tab: TabId) => void;
 }
 
+const ALL_TABS: { id: TabId; icon: typeof Users; label: string; module?: string }[] = [
+  { id: 'liderancas', icon: Users, label: 'Lideranças', module: 'cadastrar_liderancas' },
+  { id: 'fiscais', icon: Shield, label: 'Fiscais', module: 'cadastrar_fiscais' },
+  { id: 'eleitores', icon: Target, label: 'Eleitores', module: 'cadastrar_eleitores' },
+  { id: 'cadastros', icon: List, label: 'Cadastros' },
+  { id: 'rastreamento', icon: MapPin, label: 'Rastro' },
+  { id: 'usuarios', icon: UserCog, label: 'Usuários' },
+  { id: 'perfil', icon: UserCircle, label: 'Perfil' },
+];
+
 export default function BottomNav({ active, onChange }: Props) {
   const { isAdmin, tipoUsuario, usuario } = useAuth();
   const navigate = useNavigate();
+  const [modulos, setModulos] = useState<Set<string>>(new Set());
+  const [loaded, setLoaded] = useState(false);
 
-  const isAgenteCampo = tipoUsuario === 'lideranca' && !usuario?.suplente_id;
-
-  const tabs: { id: TabId; icon: typeof PlusCircle; label: string }[] = [];
-
-  if (isAgenteCampo) {
-    tabs.push({ id: 'cadastros', icon: List, label: 'Eleitores' });
-    tabs.push({ id: 'perfil', icon: UserCircle, label: 'Perfil' });
-  } else {
-    tabs.push({ id: 'cadastrar', icon: PlusCircle, label: 'Cadastrar' });
-    tabs.push({ id: 'cadastros', icon: List, label: 'Cadastros' });
-
+  useEffect(() => {
+    if (!usuario?.id) return;
+    // Super admin / coordenador see everything
     if (tipoUsuario === 'super_admin' || tipoUsuario === 'coordenador') {
-      tabs.push({ id: 'suplentes', icon: Users, label: 'Suplentes' });
-      tabs.push({ id: 'arvore', icon: GitBranch, label: 'Árvore' });
-      tabs.push({ id: 'rede', icon: Network, label: 'Rede' });
+      setModulos(new Set(['cadastrar_liderancas', 'cadastrar_fiscais', 'cadastrar_eleitores', 'ver_rede']));
+      setLoaded(true);
+      return;
     }
+    // Fetch modules for this user
+    supabase.from('usuario_modulos').select('modulo').eq('usuario_id', usuario.id)
+      .then(({ data }) => {
+        if (data) setModulos(new Set(data.map((d: any) => d.modulo)));
+        setLoaded(true);
+      });
+  }, [usuario?.id, tipoUsuario]);
 
-    if (tipoUsuario === 'super_admin') {
-      tabs.push({ id: 'rastreamento', icon: MapPin, label: 'Rastro' });
+  const isSuperAdmin = tipoUsuario === 'super_admin';
+  const isAdminOrCoord = tipoUsuario === 'super_admin' || tipoUsuario === 'coordenador';
+
+  const tabs = ALL_TABS.filter(tab => {
+    // Perfil always visible
+    if (tab.id === 'perfil') return true;
+    // Cadastros (meus cadastros) - visible to everyone
+    if (tab.id === 'cadastros') return true;
+    // Rastreamento - super_admin only
+    if (tab.id === 'rastreamento') return isSuperAdmin;
+    // Usuarios - admin/coordenador only
+    if (tab.id === 'usuarios') return isAdminOrCoord;
+    // Module-based tabs
+    if (tab.module) {
+      if (isAdminOrCoord) return true;
+      return modulos.has(tab.module);
     }
+    return false;
+  });
 
-    tabs.push({ id: 'perfil', icon: UserCircle, label: 'Perfil' });
-  }
+  if (!loaded) return null;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-xl border-t border-border safe-bottom">
