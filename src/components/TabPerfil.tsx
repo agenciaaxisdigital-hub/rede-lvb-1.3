@@ -37,7 +37,6 @@ const MODULOS_OPTIONS = [
   { id: 'cadastrar_liderancas', label: '👥 Lideranças' },
   { id: 'cadastrar_fiscais', label: '🛡️ Fiscais' },
   { id: 'cadastrar_eleitores', label: '🎯 Eleitores' },
-  { id: 'ver_rede', label: '🌐 Rede' },
 ];
 
 interface SuplenteOption {
