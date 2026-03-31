@@ -69,7 +69,7 @@ export default function TabFiscais({ refreshKey, onSaved }: Props) {
     setLoading(true);
     const { data: fiscais } = await supabase
       .from('fiscais')
-      .select('id, status, colegio_eleitoral, zona_fiscal, secao_fiscal, lideranca_id, cadastrado_por, observacoes, criado_em, pessoas(nome, cpf, telefone, whatsapp, email, zona_eleitoral, secao_eleitoral)')
+      .select('id, status, colegio_eleitoral, zona_fiscal, secao_fiscal, lideranca_id, cadastrado_por, observacoes, criado_em, pessoas(nome, cpf, telefone, whatsapp, email, instagram, facebook, zona_eleitoral, secao_eleitoral, titulo_eleitor, municipio_eleitoral, uf_eleitoral, colegio_eleitoral, endereco_colegio, situacao_titulo)')
       .order('criado_em', { ascending: false });
     if (fiscais) setData(fiscais as unknown as FiscalRow[]);
     setLoading(false);
