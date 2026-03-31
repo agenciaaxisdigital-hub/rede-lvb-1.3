@@ -52,6 +52,7 @@ function UsuarioModal({ info, onClose, onUpdated }: { info: UsuarioModalInfo; on
   const [salvando, setSalvando] = useState(false);
   const [deletando, setDeletando] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showModulos, setShowModulos] = useState(false);
 
   const copiar = (texto: string, label: string) => {
     navigator.clipboard.writeText(texto);
