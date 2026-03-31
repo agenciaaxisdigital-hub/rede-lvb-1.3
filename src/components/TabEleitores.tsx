@@ -132,12 +132,14 @@ export default function TabEleitores({ refreshKey, onSaved }: Props) {
     update('cpf', cleaned);
     setCpfStatus('idle');
     setPessoaExistenteId(null);
+    setCpfDuplicado({ isDuplicate: false, tipos: [] });
     if (cpfTimeoutRef.current) clearTimeout(cpfTimeoutRef.current);
     if (cleaned.length === 11) cpfTimeoutRef.current = setTimeout(() => validarCPF(cleaned), 500);
   };
 
   const handleSave = async () => {
     if (!form.nome.trim()) { toast({ title: 'Preencha o nome', variant: 'destructive' }); return; }
+    if (cpfDuplicado.isDuplicate) { toast({ title: '❌ CPF já cadastrado por você', description: `Você já cadastrou este CPF como: ${cpfDuplicado.tipos.join(', ')}`, variant: 'destructive' }); return; }
     setSaving(true);
     try {
       let pessoaId: string;
