@@ -1,8 +1,8 @@
-import { PlusCircle, Users, Eye, UserCircle, BarChart3, Network, MapPin, GitBranch, UserPlus, List } from 'lucide-react';
+import { PlusCircle, Users, UserCircle, BarChart3, Network, MapPin, GitBranch, List } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
-export type TabId = 'cadastrar' | 'suplentes' | 'liderancas' | 'fiscais' | 'eleitores' | 'arvore' | 'rede' | 'perfil' | 'rastreamento' | 'importar';
+export type TabId = 'cadastrar' | 'cadastros' | 'suplentes' | 'arvore' | 'rede' | 'perfil' | 'rastreamento';
 
 interface Props {
   active: TabId;
@@ -18,28 +18,15 @@ export default function BottomNav({ active, onChange }: Props) {
   const tabs: { id: TabId; icon: typeof PlusCircle; label: string }[] = [];
 
   if (isAgenteCampo) {
-    tabs.push({ id: 'eleitores', icon: Users, label: 'Eleitores' });
+    tabs.push({ id: 'cadastros', icon: List, label: 'Eleitores' });
     tabs.push({ id: 'perfil', icon: UserCircle, label: 'Perfil' });
   } else {
     tabs.push({ id: 'cadastrar', icon: PlusCircle, label: 'Cadastrar' });
+    tabs.push({ id: 'cadastros', icon: List, label: 'Cadastros' });
 
     if (tipoUsuario === 'super_admin' || tipoUsuario === 'coordenador') {
       tabs.push({ id: 'suplentes', icon: Users, label: 'Suplentes' });
-    }
-
-    if (tipoUsuario === 'super_admin' || tipoUsuario === 'coordenador' || tipoUsuario === 'suplente') {
-      tabs.push({ id: 'liderancas', icon: List, label: 'Lideranças' });
-    }
-
-    if (tipoUsuario !== 'fiscal') {
-      tabs.push({ id: 'fiscais', icon: Eye, label: 'Fiscais' });
-    }
-
-    tabs.push({ id: 'eleitores', icon: Users, label: 'Eleitores' });
-
-    if (tipoUsuario === 'super_admin' || tipoUsuario === 'coordenador') {
       tabs.push({ id: 'arvore', icon: GitBranch, label: 'Árvore' });
-      tabs.push({ id: 'importar', icon: UserPlus, label: 'Importar' });
       tabs.push({ id: 'rede', icon: Network, label: 'Rede' });
     }
 

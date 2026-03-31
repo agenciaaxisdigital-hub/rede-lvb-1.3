@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Search, ChevronRight, ArrowLeft, Phone, MessageCircle, Loader2, Users, Eye, ChevronDown } from 'lucide-react';
+import { Search, ChevronRight, ArrowLeft, Phone, MessageCircle, Loader2, Users, ChevronDown, UserPlus, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from '@/hooks/use-toast';
 
 interface SuplenteRow {
   id: string;
@@ -13,6 +14,13 @@ interface SuplenteRow {
   base_politica: string | null;
   expectativa_votos: number | null;
   total_votos: number | null;
+}
+
+interface HierarchyUser {
+  id: string;
+  nome: string;
+  tipo: string;
+  suplente_id: string | null;
 }
 
 interface TreeNode {
@@ -33,27 +41,43 @@ interface Props {
 export default function TabSuplentes({ refreshKey }: Props) {
   const { isAdmin } = useAuth();
   const [suplentes, setSuplentes] = useState<SuplenteRow[]>([]);
+  const [usuarios, setUsuarios] = useState<HierarchyUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<SuplenteRow | null>(null);
   const [tree, setTree] = useState<TreeNode[]>([]);
   const [loadingTree, setLoadingTree] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-
-  // Stats for selected suplente
   const [stats, setStats] = useState({ liderancas: 0, fiscais: 0, eleitores: 0 });
 
-  const fetchSuplentes = useCallback(async () => {
+  // Create access state
+  const [creatingAccess, setCreatingAccess] = useState<SuplenteRow | null>(null);
+  const [accessNome, setAccessNome] = useState('');
+  const [accessSenha, setAccessSenha] = useState('');
+  const [showSenha, setShowSenha] = useState(false);
+  const [superiorId, setSuperiorId] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const fetchAll = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('suplentes')
-      .select('id, nome, regiao_atuacao, telefone, partido, situacao, base_politica, expectativa_votos, total_votos')
-      .order('nome');
-    if (data) setSuplentes(data);
+    const [supRes, usrRes] = await Promise.all([
+      supabase.functions.invoke('buscar-suplentes'),
+      supabase.from('hierarquia_usuarios').select('id, nome, tipo, suplente_id').eq('ativo', true).order('nome'),
+    ]);
+    if (!supRes.error && supRes.data) setSuplentes(supRes.data);
+    setUsuarios((usrRes.data || []) as HierarchyUser[]);
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchSuplentes(); }, [fetchSuplentes, refreshKey]);
+  useEffect(() => { fetchAll(); }, [fetchAll, refreshKey]);
+
+  const suplentesComUsuario = useMemo(() => {
+    return new Set(usuarios.filter(u => u.suplente_id).map(u => u.suplente_id));
+  }, [usuarios]);
+
+  const possiveisSuperior = useMemo(() => {
+    return usuarios.filter(u => ['super_admin', 'coordenador', 'suplente'].includes(u.tipo));
+  }, [usuarios]);
 
   const filtered = useMemo(() => {
     if (!search) return suplentes;
@@ -74,151 +98,122 @@ export default function TabSuplentes({ refreshKey }: Props) {
     setLoadingTree(true);
     setExpandedIds(new Set());
 
-    // Fetch all lideranças for this suplente
-    const { data: lids } = await supabase
-      .from('liderancas')
-      .select('id, status, tipo_lideranca, pessoas(nome, telefone, whatsapp)')
-      .eq('suplente_id', sup.id)
-      .order('criado_em', { ascending: false });
+    const [lRes, fRes, eRes] = await Promise.all([
+      supabase.from('liderancas').select('id, status, tipo_lideranca, pessoas(nome, telefone, whatsapp)').eq('suplente_id', sup.id).order('criado_em', { ascending: false }),
+      supabase.from('fiscais').select('id, status, zona_fiscal, secao_fiscal, lideranca_id, pessoas(nome, telefone, whatsapp)').eq('suplente_id', sup.id).order('criado_em', { ascending: false }),
+      supabase.from('possiveis_eleitores').select('id, compromisso_voto, lideranca_id, fiscal_id, pessoas(nome, telefone, whatsapp)').eq('suplente_id', sup.id).order('criado_em', { ascending: false }),
+    ]);
 
-    // Fetch all fiscais for this suplente  
-    const { data: fiscs } = await supabase
-      .from('fiscais')
-      .select('id, status, zona_fiscal, secao_fiscal, lideranca_id, pessoas(nome, telefone, whatsapp)')
-      .eq('suplente_id', sup.id)
-      .order('criado_em', { ascending: false });
+    const liderancas = (lRes.data || []) as any[];
+    const fiscais = (fRes.data || []) as any[];
+    const eleitores = (eRes.data || []) as any[];
 
-    // Fetch all eleitores for this suplente
-    const { data: eleits } = await supabase
-      .from('possiveis_eleitores')
-      .select('id, compromisso_voto, lideranca_id, fiscal_id, pessoas(nome, telefone, whatsapp)')
-      .eq('suplente_id', sup.id)
-      .order('criado_em', { ascending: false });
+    setStats({ liderancas: liderancas.length, fiscais: fiscais.length, eleitores: eleitores.length });
 
-    const liderancas = (lids || []) as any[];
-    const fiscais = (fiscs || []) as any[];
-    const eleitores = (eleits || []) as any[];
-
-    setStats({
-      liderancas: liderancas.length,
-      fiscais: fiscais.length,
-      eleitores: eleitores.length,
-    });
-
-    // Build tree: Suplente → Lideranças → Fiscais → Eleitores
     const treeNodes: TreeNode[] = [];
 
-    // Lideranças
     for (const lid of liderancas) {
       const lidNode: TreeNode = {
-        tipo: 'lideranca',
-        id: lid.id,
-        nome: lid.pessoas?.nome || '—',
-        status: lid.status,
-        telefone: lid.pessoas?.telefone,
-        whatsapp: lid.pessoas?.whatsapp,
-        detalhes: lid.tipo_lideranca || '—',
-        children: [],
+        tipo: 'lideranca', id: lid.id, nome: lid.pessoas?.nome || '—',
+        status: lid.status, telefone: lid.pessoas?.telefone, whatsapp: lid.pessoas?.whatsapp,
+        detalhes: lid.tipo_lideranca || '—', children: [],
       };
 
-      // Fiscais under this liderança
-      const lidFiscais = fiscais.filter(f => f.lideranca_id === lid.id);
+      const lidFiscais = fiscais.filter((f: any) => f.lideranca_id === lid.id);
       for (const fisc of lidFiscais) {
         const fiscNode: TreeNode = {
-          tipo: 'fiscal',
-          id: fisc.id,
-          nome: fisc.pessoas?.nome || '—',
-          status: fisc.status,
-          telefone: fisc.pessoas?.telefone,
-          whatsapp: fisc.pessoas?.whatsapp,
-          detalhes: `Z${fisc.zona_fiscal || '—'} S${fisc.secao_fiscal || '—'}`,
-          children: [],
+          tipo: 'fiscal', id: fisc.id, nome: fisc.pessoas?.nome || '—',
+          status: fisc.status, telefone: fisc.pessoas?.telefone, whatsapp: fisc.pessoas?.whatsapp,
+          detalhes: `Z${fisc.zona_fiscal || '—'} S${fisc.secao_fiscal || '—'}`, children: [],
         };
-
-        // Eleitores under this fiscal
-        const fiscEleitores = eleitores.filter(e => e.fiscal_id === fisc.id);
+        const fiscEleitores = eleitores.filter((e: any) => e.fiscal_id === fisc.id);
         for (const el of fiscEleitores) {
           fiscNode.children.push({
-            tipo: 'eleitor',
-            id: el.id,
-            nome: el.pessoas?.nome || '—',
-            status: el.compromisso_voto,
-            telefone: el.pessoas?.telefone,
-            whatsapp: el.pessoas?.whatsapp,
-            detalhes: el.compromisso_voto || 'Indefinido',
-            children: [],
+            tipo: 'eleitor', id: el.id, nome: el.pessoas?.nome || '—',
+            status: el.compromisso_voto, telefone: el.pessoas?.telefone, whatsapp: el.pessoas?.whatsapp,
+            detalhes: el.compromisso_voto || 'Indefinido', children: [],
           });
         }
-
         lidNode.children.push(fiscNode);
       }
 
-      // Eleitores directly under liderança (no fiscal)
-      const lidEleitores = eleitores.filter(e => e.lideranca_id === lid.id && !e.fiscal_id);
+      const lidEleitores = eleitores.filter((e: any) => e.lideranca_id === lid.id && !e.fiscal_id);
       for (const el of lidEleitores) {
         lidNode.children.push({
-          tipo: 'eleitor',
-          id: el.id,
-          nome: el.pessoas?.nome || '—',
-          status: el.compromisso_voto,
-          telefone: el.pessoas?.telefone,
-          whatsapp: el.pessoas?.whatsapp,
-          detalhes: el.compromisso_voto || 'Indefinido',
-          children: [],
+          tipo: 'eleitor', id: el.id, nome: el.pessoas?.nome || '—',
+          status: el.compromisso_voto, telefone: el.pessoas?.telefone, whatsapp: el.pessoas?.whatsapp,
+          detalhes: el.compromisso_voto || 'Indefinido', children: [],
         });
       }
-
       treeNodes.push(lidNode);
     }
 
-    // Fiscais not linked to any liderança
-    const orphanFiscais = fiscais.filter(f => !f.lideranca_id);
+    const orphanFiscais = fiscais.filter((f: any) => !f.lideranca_id);
     for (const fisc of orphanFiscais) {
       const fiscNode: TreeNode = {
-        tipo: 'fiscal',
-        id: fisc.id,
-        nome: fisc.pessoas?.nome || '—',
-        status: fisc.status,
-        telefone: fisc.pessoas?.telefone,
-        whatsapp: fisc.pessoas?.whatsapp,
-        detalhes: `Z${fisc.zona_fiscal || '—'} S${fisc.secao_fiscal || '—'}`,
-        children: [],
+        tipo: 'fiscal', id: fisc.id, nome: fisc.pessoas?.nome || '—',
+        status: fisc.status, telefone: fisc.pessoas?.telefone, whatsapp: fisc.pessoas?.whatsapp,
+        detalhes: `Z${fisc.zona_fiscal || '—'} S${fisc.secao_fiscal || '—'}`, children: [],
       };
-
-      const fiscEleitores = eleitores.filter(e => e.fiscal_id === fisc.id && !e.lideranca_id);
+      const fiscEleitores = eleitores.filter((e: any) => e.fiscal_id === fisc.id && !e.lideranca_id);
       for (const el of fiscEleitores) {
         fiscNode.children.push({
-          tipo: 'eleitor',
-          id: el.id,
-          nome: el.pessoas?.nome || '—',
-          status: el.compromisso_voto,
-          telefone: el.pessoas?.telefone,
-          whatsapp: el.pessoas?.whatsapp,
-          detalhes: el.compromisso_voto || 'Indefinido',
-          children: [],
+          tipo: 'eleitor', id: el.id, nome: el.pessoas?.nome || '—',
+          status: el.compromisso_voto, telefone: el.pessoas?.telefone, whatsapp: el.pessoas?.whatsapp,
+          detalhes: el.compromisso_voto || 'Indefinido', children: [],
         });
       }
-
       treeNodes.push(fiscNode);
     }
 
-    // Eleitores not linked to anyone
-    const orphanEleitores = eleitores.filter(e => !e.lideranca_id && !e.fiscal_id);
+    const orphanEleitores = eleitores.filter((e: any) => !e.lideranca_id && !e.fiscal_id);
     for (const el of orphanEleitores) {
       treeNodes.push({
-        tipo: 'eleitor',
-        id: el.id,
-        nome: el.pessoas?.nome || '—',
-        status: el.compromisso_voto,
-        telefone: el.pessoas?.telefone,
-        whatsapp: el.pessoas?.whatsapp,
-        detalhes: el.compromisso_voto || 'Indefinido',
-        children: [],
+        tipo: 'eleitor', id: el.id, nome: el.pessoas?.nome || '—',
+        status: el.compromisso_voto, telefone: el.pessoas?.telefone, whatsapp: el.pessoas?.whatsapp,
+        detalhes: el.compromisso_voto || 'Indefinido', children: [],
       });
     }
 
     setTree(treeNodes);
     setLoadingTree(false);
+  };
+
+  const openCreateAccess = (sup: SuplenteRow) => {
+    setCreatingAccess(sup);
+    setAccessNome(sup.nome);
+    setAccessSenha('');
+    setSuperiorId('');
+    setShowSenha(false);
+  };
+
+  const handleCreateAccess = async () => {
+    if (!accessNome.trim()) { toast({ title: 'Informe o nome', variant: 'destructive' }); return; }
+    if (!accessSenha.trim() || accessSenha.length < 4) { toast({ title: 'Senha deve ter ao menos 4 caracteres', variant: 'destructive' }); return; }
+    if (!creatingAccess) return;
+
+    setSaving(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('criar-usuario', {
+        body: {
+          nome: accessNome.trim(),
+          senha: accessSenha.trim(),
+          tipo: 'suplente',
+          superior_id: superiorId || null,
+          suplente_id: creatingAccess.id,
+        },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+
+      toast({ title: '✅ Acesso criado!', description: `${accessNome} pode acessar o sistema` });
+      setCreatingAccess(null);
+      fetchAll();
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const typeConfig = {
@@ -230,8 +225,8 @@ export default function TabSuplentes({ refreshKey }: Props) {
   const renderTreeNode = (node: TreeNode, depth: number = 0) => {
     const config = typeConfig[node.tipo];
     const hasChildren = node.children.length > 0;
-    const isExpanded = expandedIds.has(`${node.tipo}-${node.id}`);
     const nodeKey = `${node.tipo}-${node.id}`;
+    const isExpanded = expandedIds.has(nodeKey);
 
     return (
       <div key={nodeKey}>
@@ -272,8 +267,77 @@ export default function TabSuplentes({ refreshKey }: Props) {
     );
   };
 
-  // DETAIL VIEW - Tree for selected suplente
+  const inputCls = "w-full h-11 px-3 bg-card border border-border rounded-xl text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30";
+
+  // CREATE ACCESS VIEW
+  if (creatingAccess) {
+    return (
+      <div className="space-y-4 pb-24">
+        <button onClick={() => setCreatingAccess(null)} className="flex items-center gap-1 text-sm text-muted-foreground active:scale-95">
+          <ArrowLeft size={16} /> Voltar
+        </button>
+
+        <div className="section-card">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+              <UserPlus size={24} className="text-primary" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-foreground">Criar Acesso</h2>
+              <p className="text-xs text-muted-foreground">Suplente: {creatingAccess.nome}</p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Nome de acesso</label>
+              <input type="text" value={accessNome} onChange={e => setAccessNome(e.target.value)} className={inputCls} placeholder="Nome completo" />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Senha</label>
+              <div className="relative">
+                <input
+                  type={showSenha ? 'text' : 'password'}
+                  value={accessSenha}
+                  onChange={e => setAccessSenha(e.target.value)}
+                  className={inputCls}
+                  placeholder="Mínimo 4 caracteres"
+                />
+                <button onClick={() => setShowSenha(!showSenha)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  {showSenha ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Superior hierárquico</label>
+              <select value={superiorId} onChange={e => setSuperiorId(e.target.value)} className={inputCls}>
+                <option value="">Nenhum (raiz)</option>
+                {possiveisSuperior.map(u => (
+                  <option key={u.id} value={u.id}>{u.nome} ({u.tipo})</option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              onClick={handleCreateAccess}
+              disabled={saving}
+              className="w-full h-12 gradient-primary text-white text-sm font-semibold rounded-xl shadow-lg active:scale-[0.97] transition-all disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
+            >
+              {saving ? <Loader2 size={18} className="animate-spin" /> : <UserPlus size={18} />}
+              {saving ? 'Criando...' : 'Criar Acesso'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // DETAIL VIEW - tree
   if (selected) {
+    const temAcesso = suplentesComUsuario.has(selected.id);
     return (
       <div className="space-y-3 pb-24">
         <button onClick={() => setSelected(null)} className="flex items-center gap-1 text-sm text-muted-foreground active:scale-95">
@@ -281,10 +345,26 @@ export default function TabSuplentes({ refreshKey }: Props) {
         </button>
 
         <div className="section-card">
-          <h2 className="text-lg font-bold text-foreground">{selected.nome}</h2>
-          <p className="text-xs text-muted-foreground">
-            {selected.partido || '—'} · {selected.regiao_atuacao || '—'} · {selected.situacao || '—'}
-          </p>
+          <div className="flex items-start justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-foreground">{selected.nome}</h2>
+              <p className="text-xs text-muted-foreground">
+                {selected.partido || '—'} · {selected.regiao_atuacao || '—'} · {selected.situacao || '—'}
+              </p>
+            </div>
+            {temAcesso ? (
+              <span className="flex items-center gap-1 text-[10px] text-emerald-500 font-semibold bg-emerald-500/10 px-2 py-1 rounded-full">
+                <CheckCircle2 size={12} /> Ativo
+              </span>
+            ) : (
+              <button
+                onClick={() => openCreateAccess(selected)}
+                className="flex items-center gap-1 px-3 py-1.5 bg-primary/10 text-primary text-xs font-semibold rounded-lg active:scale-95"
+              >
+                <UserPlus size={14} /> Criar Acesso
+              </button>
+            )}
+          </div>
           {selected.telefone && (
             <div className="flex gap-2 pt-2">
               <a href={`tel:${selected.telefone}`} className="flex items-center gap-1 px-3 py-1.5 bg-muted rounded-lg text-xs font-medium">
@@ -313,12 +393,12 @@ export default function TabSuplentes({ refreshKey }: Props) {
           </div>
         ) : tree.length === 0 ? (
           <div className="section-card text-center py-6">
-            <p className="text-sm text-muted-foreground">Nenhum cadastro vinculado a este suplente</p>
+            <p className="text-sm text-muted-foreground">Nenhum cadastro vinculado</p>
           </div>
         ) : (
           <div className="section-card !p-2">
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold px-2 py-1">
-              Árvore: Suplente → Lideranças → Fiscais → Eleitores
+              Árvore: Lideranças → Fiscais → Eleitores
             </p>
             {tree.map(node => renderTreeNode(node, 0))}
           </div>
@@ -339,6 +419,21 @@ export default function TabSuplentes({ refreshKey }: Props) {
         />
       </div>
 
+      <div className="grid grid-cols-3 gap-2">
+        <div className="bg-card rounded-xl border border-border p-2.5 text-center">
+          <p className="text-lg font-bold text-foreground">{suplentes.length}</p>
+          <p className="text-[9px] text-muted-foreground">Total</p>
+        </div>
+        <div className="bg-card rounded-xl border border-border p-2.5 text-center">
+          <p className="text-lg font-bold text-emerald-500">{suplentes.filter(s => suplentesComUsuario.has(s.id)).length}</p>
+          <p className="text-[9px] text-muted-foreground">Com acesso</p>
+        </div>
+        <div className="bg-card rounded-xl border border-border p-2.5 text-center">
+          <p className="text-lg font-bold text-amber-500">{suplentes.filter(s => !suplentesComUsuario.has(s.id)).length}</p>
+          <p className="text-[9px] text-muted-foreground">Sem acesso</p>
+        </div>
+      </div>
+
       <p className="text-xs text-muted-foreground">{filtered.length} suplente{filtered.length !== 1 ? 's' : ''}</p>
 
       {loading ? (
@@ -351,21 +446,39 @@ export default function TabSuplentes({ refreshKey }: Props) {
         </div>
       ) : (
         <div className="space-y-2">
-          {filtered.map(s => (
-            <button key={s.id} onClick={() => openDetail(s)}
-              className="w-full text-left bg-card rounded-xl border border-border p-3 flex items-center gap-3 active:scale-[0.98] transition-transform">
-              <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center shrink-0">
-                <Users size={18} className="text-purple-500" />
+          {filtered.map(s => {
+            const temAcesso = suplentesComUsuario.has(s.id);
+            return (
+              <div key={s.id} className="bg-card rounded-xl border border-border p-3 flex items-center gap-3">
+                <button onClick={() => openDetail(s)} className="flex items-center gap-3 flex-1 min-w-0 text-left active:scale-[0.98] transition-transform">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                    temAcesso ? 'bg-emerald-500/10' : 'bg-amber-500/10'
+                  }`}>
+                    {temAcesso ? <CheckCircle2 size={18} className="text-emerald-500" /> : <Users size={18} className="text-amber-500" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="font-semibold text-foreground text-sm truncate block">{s.nome}</span>
+                    <p className="text-[10px] text-muted-foreground truncate">
+                      {s.partido || '—'} · {s.regiao_atuacao || '—'}
+                    </p>
+                  </div>
+                </button>
+                {temAcesso ? (
+                  <span className="text-[10px] text-emerald-500 font-medium shrink-0">Ativo</span>
+                ) : (
+                  <button
+                    onClick={() => openCreateAccess(s)}
+                    className="px-3 py-1.5 bg-primary/10 text-primary text-xs font-semibold rounded-lg active:scale-95 shrink-0"
+                  >
+                    Criar
+                  </button>
+                )}
+                <button onClick={() => openDetail(s)} className="shrink-0">
+                  <ChevronRight size={16} className="text-muted-foreground" />
+                </button>
               </div>
-              <div className="flex-1 min-w-0">
-                <span className="font-semibold text-foreground text-sm truncate block">{s.nome}</span>
-                <p className="text-xs text-muted-foreground truncate">
-                  {s.partido || '—'} · {s.regiao_atuacao || '—'}
-                </p>
-              </div>
-              <ChevronRight size={16} className="text-muted-foreground shrink-0" />
-            </button>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
