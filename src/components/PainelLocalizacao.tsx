@@ -269,7 +269,7 @@ export default function PainelLocalizacao() {
             className="p-2 rounded-xl bg-muted hover:bg-muted/80 active:scale-95 transition-all">
             {view === 'map' ? <List size={16} className="text-foreground" /> : <Map size={16} className="text-foreground" />}
           </button>
-          <button onClick={fetchData} disabled={refreshing}
+          <button onClick={() => fetchData()} disabled={refreshing}
             className="p-2 rounded-xl bg-muted hover:bg-muted/80 active:scale-95 transition-all">
             <RefreshCw size={16} className={`text-foreground ${refreshing ? 'animate-spin' : ''}`} />
           </button>
