@@ -49,6 +49,7 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
   const [tipoFiltro, setTipoFiltro] = useState<TipoFiltro>('todos');
   const [searchQuery, setSearchQuery] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const isSuperAdmin = tipoUsuario === 'super_admin';
 
