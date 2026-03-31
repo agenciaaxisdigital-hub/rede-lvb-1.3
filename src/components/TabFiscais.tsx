@@ -51,6 +51,7 @@ export default function TabFiscais({ refreshKey, onSaved }: Props) {
   const [pessoaExistenteId, setPessoaExistenteId] = useState<string | null>(null);
   const [cpfStatus, setCpfStatus] = useState<'idle' | 'validando' | 'confirmado'>('idle');
   const [cpfNomePessoa, setCpfNomePessoa] = useState('');
+  const [cpfDuplicado, setCpfDuplicado] = useState<{ isDuplicate: boolean; tipos: string[] }>({ isDuplicate: false, tipos: [] });
   const [validandoCPF, setValidandoCPF] = useState(false);
   const [form, setForm] = useState({ ...emptyForm });
   const [liderancas, setLiderancas] = useState<{ id: string; nome: string }[]>([]);
