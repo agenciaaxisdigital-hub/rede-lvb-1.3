@@ -35,6 +35,8 @@ interface LiderancaReg {
   id: string; criado_em: string; cadastrado_por: string | null;
   suplente_id: string | null; status: string | null; regiao_atuacao: string | null;
   tipo_lideranca: string | null; municipio_id: string | null; origem_captacao: string | null;
+  apoiadores_estimados: number | null; meta_votos: number | null; nivel_comprometimento: string | null;
+  observacoes: string | null;
   pessoas: Pessoa | null;
 }
 
