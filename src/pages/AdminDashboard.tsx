@@ -236,20 +236,6 @@ export default function AdminDashboard() {
 
       <div className="max-w-3xl mx-auto px-4 py-4 space-y-4">
 
-        {/* ── Summary cards ── */}
-        <div className="grid grid-cols-3 gap-2">
-          {[
-            { icon: Users, label: 'Lideranças', value: totais.l, cls: 'text-primary' },
-            { icon: Shield, label: 'Fiscais', value: totais.f, cls: 'text-accent-foreground' },
-            { icon: Target, label: 'Eleitores', value: totais.e, cls: 'text-secondary-foreground' },
-          ].map(({ icon: Icon, label, value, cls }) => (
-            <div key={label} className="section-card text-center py-3">
-              <Icon size={16} className={`mx-auto mb-1 ${cls}`} />
-              <p className="text-xl font-bold text-foreground">{value}</p>
-              <p className="text-[9px] text-muted-foreground uppercase tracking-wider">{label}</p>
-            </div>
-          ))}
-        </div>
 
         {/* ── Period filter ── */}
         <div className="flex gap-1.5">
