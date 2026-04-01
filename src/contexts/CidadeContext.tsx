@@ -44,18 +44,27 @@ export function CidadeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     (async () => {
       await carregarMunicipios();
-
-      try {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          setCidadeAtivaState(parsed);
-        }
-      } catch {}
-
       setCarregando(false);
     })();
   }, [carregarMunicipios]);
+
+  // Set default city after municipios load
+  useEffect(() => {
+    if (municipios.length === 0 || cidadeAtiva !== null) return;
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed) { setCidadeAtivaState(parsed); return; }
+      }
+    } catch {}
+    // Default: Aparecida de Goiânia
+    const aparecida = municipios.find(m => m.nome.toLowerCase().includes('aparecida'));
+    if (aparecida) {
+      setCidadeAtivaState({ id: aparecida.id, nome: aparecida.nome });
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ id: aparecida.id, nome: aparecida.nome })); } catch {}
+    }
+  }, [municipios, cidadeAtiva]);
 
   const setCidadeAtiva = useCallback((cidade: { id: string; nome: string } | null) => {
     setCidadeAtivaState(cidade);
