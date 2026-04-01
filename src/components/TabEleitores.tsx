@@ -69,6 +69,15 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
   const [fiscais, setFiscais] = useState<{ id: string; nome: string }[]>([]);
   const cpfTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Ligação política
+  const [ligBloqueado, setLigBloqueado] = useState(false);
+  const [ligNomeFixo, setLigNomeFixo] = useState<string | null>(null);
+  const [ligSubtitulo, setLigSubtitulo] = useState<string | null>(null);
+  const [ligSuplenteId, setLigSuplenteId] = useState<string | null>(null);
+  const [ligLiderancaId, setLigLiderancaId] = useState<string | null>(null);
+  const [ligMunicipioId, setLigMunicipioId] = useState<string | null>(null);
+  const [ligErro, setLigErro] = useState<string | null>(null);
+
   const update = useCallback((field: string, value: string) => setForm(f => ({ ...f, [field]: value })), []);
 
   const fetchData = useCallback(async () => {
