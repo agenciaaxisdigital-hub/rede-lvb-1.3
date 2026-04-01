@@ -181,6 +181,11 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
   const handleSave = async () => {
     if (!form.nome.trim()) { toast({ title: 'Preencha o nome', variant: 'destructive' }); return; }
     if (cpfDuplicado.isDuplicate) { toast({ title: '❌ CPF já cadastrado por você', description: `Você já cadastrou este CPF como: ${cpfDuplicado.tipos.join(', ')}`, variant: 'destructive' }); return; }
+    if (!ligBloqueado && tipoUsuario !== 'super_admin' && tipoUsuario !== 'coordenador' && !ligSuplenteId && !ligLiderancaId) {
+      setLigErro('Selecione um suplente ou liderança');
+      toast({ title: 'Selecione uma ligação política', variant: 'destructive' });
+      return;
+    }
     setSaving(true);
     try {
       let pessoaId: string;

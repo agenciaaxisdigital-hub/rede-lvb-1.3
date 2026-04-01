@@ -210,6 +210,12 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
     if (!form.telefone.trim() && !form.whatsapp.trim()) { toast({ title: 'Informe telefone ou WhatsApp', variant: 'destructive' }); return; }
     if (form.cpf && form.cpf.length === 11 && !validateCPF(form.cpf)) { toast({ title: 'CPF inválido', variant: 'destructive' }); return; }
     if (cpfDuplicado.isDuplicate) { toast({ title: '❌ CPF já cadastrado por você', description: `Você já cadastrou este CPF como: ${cpfDuplicado.tipos.join(', ')}`, variant: 'destructive' }); return; }
+    // Validar ligação política obrigatória para avulsos
+    if (!ligBloqueado && tipoUsuario !== 'super_admin' && tipoUsuario !== 'coordenador' && !ligSuplenteId && !ligLiderancaId) {
+      setLigErro('Selecione um suplente ou liderança');
+      toast({ title: 'Selecione uma ligação política', variant: 'destructive' });
+      return;
+    }
 
     setSaving(true);
     try {

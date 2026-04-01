@@ -99,13 +99,26 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!isAdmin) { navigate('/'); return; }
     fetchData();
-  }, [isAdmin]);
+  }, [isAdmin, cidadeAtiva]);
 
   const fetchData = async () => {
+    setLoading(true);
+    const filtroMunicipioId = isTodasCidades ? null : cidadeAtiva?.id || null;
+
+    let lQuery = (supabase as any).from('liderancas').select('id, criado_em, cadastrado_por, suplente_id, status, regiao_atuacao, tipo_lideranca, municipio_id, pessoas(nome, cpf, telefone, whatsapp, zona_eleitoral, secao_eleitoral)');
+    let fQuery = (supabase as any).from('fiscais').select('id, criado_em, cadastrado_por, suplente_id, status, zona_fiscal, secao_fiscal, colegio_eleitoral, municipio_id, pessoas(nome, cpf, telefone, whatsapp, zona_eleitoral, secao_eleitoral)');
+    let eQuery = (supabase as any).from('possiveis_eleitores').select('id, criado_em, cadastrado_por, suplente_id, compromisso_voto, municipio_id, pessoas(nome, cpf, telefone, whatsapp, zona_eleitoral, secao_eleitoral)');
+
+    if (filtroMunicipioId) {
+      lQuery = lQuery.eq('municipio_id', filtroMunicipioId);
+      fQuery = fQuery.eq('municipio_id', filtroMunicipioId);
+      eQuery = eQuery.eq('municipio_id', filtroMunicipioId);
+    }
+
     const [lRes, fRes, eRes, uRes] = await Promise.all([
-      supabase.from('liderancas').select('id, criado_em, cadastrado_por, suplente_id, status, regiao_atuacao, tipo_lideranca, pessoas(nome, cpf, telefone, whatsapp, zona_eleitoral, secao_eleitoral)'),
-      supabase.from('fiscais').select('id, criado_em, cadastrado_por, suplente_id, status, zona_fiscal, secao_fiscal, colegio_eleitoral, pessoas(nome, cpf, telefone, whatsapp, zona_eleitoral, secao_eleitoral)'),
-      supabase.from('possiveis_eleitores').select('id, criado_em, cadastrado_por, suplente_id, compromisso_voto, pessoas(nome, cpf, telefone, whatsapp, zona_eleitoral, secao_eleitoral)'),
+      lQuery,
+      fQuery,
+      eQuery,
       supabase.from('hierarquia_usuarios').select('id, nome, tipo, suplente_id, ativo').eq('ativo', true),
     ]);
 
@@ -716,27 +729,45 @@ export default function AdminDashboard() {
               </button>
             </div>
 
-            {municipios.map(m => (
-              <div key={m.id} className="section-card">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <Building2 size={18} className="text-primary" />
-                    <div>
-                      <p className="text-sm font-bold text-foreground">{m.nome}</p>
-                      <p className="text-[10px] text-muted-foreground">{m.uf}</p>
+            {municipios.map(m => {
+              // Count registros per city
+              const lidCount = liderancas.filter((l: any) => l.municipio_id === m.id).length;
+              const fisCount = fiscais.filter((f: any) => f.municipio_id === m.id).length;
+              const eleCount = eleitores.filter((e: any) => e.municipio_id === m.id).length;
+              const totalCity = lidCount + fisCount + eleCount;
+
+              return (
+                <div key={m.id} className="section-card">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-2">
+                      <Building2 size={18} className="text-primary" />
+                      <div>
+                        <p className="text-sm font-bold text-foreground">{m.nome}</p>
+                        <p className="text-[10px] text-muted-foreground">{m.uf}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-1.5">
+                      <button
+                        onClick={() => { setCidadeAtiva({ id: m.id, nome: m.nome }); navigate('/'); }}
+                        className="text-[10px] text-primary font-semibold px-2 py-1 rounded-lg bg-primary/5 active:scale-95"
+                      >
+                        Ver →
+                      </button>
                     </div>
                   </div>
-                  <div className="flex gap-1.5">
-                    <button
-                      onClick={() => { setCidadeAtiva({ id: m.id, nome: m.nome }); navigate('/'); }}
-                      className="text-[10px] text-primary font-semibold px-2 py-1 rounded-lg bg-primary/5 active:scale-95"
-                    >
-                      Ver →
-                    </button>
-                  </div>
+                  {totalCity > 0 ? (
+                    <div className="flex items-center gap-3 mt-2 pt-2 border-t border-border">
+                      <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><Users size={10} /> {lidCount} lid.</span>
+                      <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><Shield size={10} /> {fisCount} fisc.</span>
+                      <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><Target size={10} /> {eleCount} eleit.</span>
+                      <span className="ml-auto text-xs font-bold text-primary">{totalCity}</span>
+                    </div>
+                  ) : (
+                    <p className="text-[10px] text-muted-foreground/60 mt-2 pt-2 border-t border-border">Nenhum cadastro ainda nesta cidade</p>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {municipios.length === 0 && (
               <div className="text-center py-8">
                 <p className="text-sm text-muted-foreground">Nenhum município cadastrado</p>
