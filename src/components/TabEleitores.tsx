@@ -426,7 +426,7 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">UF</label>
-              <input type="text" value={form.uf_eleitoral} onChange={e => update('uf_eleitoral', e.target.value)} placeholder="GO" className={inputCls} maxLength={2} />
+              <input type="text" value="GO" readOnly className={`${inputCls} bg-muted cursor-not-allowed`} />
             </div>
           </div>
           <div className="space-y-1">

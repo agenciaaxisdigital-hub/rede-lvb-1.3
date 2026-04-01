@@ -450,7 +450,7 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
           </div>
           <div className="grid grid-cols-3 gap-2">
             <div className="col-span-2 space-y-1"><label className="text-xs font-medium text-muted-foreground">Município</label><input type="text" value={form.municipio_eleitoral} onChange={e => update('municipio_eleitoral', e.target.value)} className={inputCls} /></div>
-            <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">UF</label><input type="text" value={form.uf_eleitoral} onChange={e => update('uf_eleitoral', e.target.value)} className={inputCls} maxLength={2} /></div>
+            <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">UF</label><input type="text" value="GO" readOnly className={`${inputCls} bg-muted cursor-not-allowed`} /></div>
           </div>
           <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">Colégio eleitoral</label><input type="text" value={form.colegio_eleitoral} onChange={e => update('colegio_eleitoral', e.target.value)} className={inputCls} /></div>
           <div className="space-y-1">
