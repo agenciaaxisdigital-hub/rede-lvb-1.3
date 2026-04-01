@@ -499,6 +499,22 @@ export default function TabUsuarios() {
               </select>
             </div>
 
+            {/* Cidade */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Cidade *</label>
+              <select
+                value={cidadeSelecionada}
+                onChange={e => { setCidadeSelecionada(e.target.value); setCidadeErro(''); }}
+                className={`${inputCls} ${cidadeErro ? 'border-destructive ring-1 ring-destructive/30' : ''}`}
+              >
+                <option value="">Selecione a cidade...</option>
+                {municipios.map(m => (
+                  <option key={m.id} value={m.id}>{m.nome} – {m.uf}</option>
+                ))}
+              </select>
+              {cidadeErro && <p className="text-xs text-destructive mt-1">{cidadeErro}</p>}
+            </div>
+
             {/* Módulos / Permissões inline */}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Permissões de acesso</label>
