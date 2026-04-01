@@ -20,7 +20,7 @@ const emptyForm = {
   cpf: '', nome: '', telefone: '', whatsapp: '', email: '',
   instagram: '', facebook: '',
   titulo_eleitor: '', zona_eleitoral: '', secao_eleitoral: '',
-  municipio_eleitoral: '', uf_eleitoral: '', colegio_eleitoral: '',
+  municipio_eleitoral: '', uf_eleitoral: 'GO', colegio_eleitoral: '',
   endereco_colegio: '', situacao_titulo: '',
   lideranca_id: '', fiscal_id: '',
   compromisso_voto: 'Indefinido', observacoes: '',
