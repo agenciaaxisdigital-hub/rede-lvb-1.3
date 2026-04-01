@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCidade } from '@/contexts/CidadeContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,6 +7,7 @@ import { exportAllCadastros } from '@/lib/exportXlsx';
 import { formatCPF } from '@/lib/cpf';
 import { toast } from '@/hooks/use-toast';
 import StatusBadge from '@/components/StatusBadge';
+import SkeletonLista from '@/components/SkeletonLista';
 
 type TipoFiltro = 'todos' | 'lideranca' | 'fiscal' | 'eleitor';
 
@@ -52,12 +53,17 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
   const [searchQuery, setSearchQuery] = useState('');
   const [exporting, setExporting] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [temMais, setTemMais] = useState(true);
+  const [carregandoMais, setCarregandoMais] = useState(false);
+  const paginaRef = useRef(0);
 
   const isSuperAdmin = tipoUsuario === 'super_admin';
 
-  const fetchAll = useCallback(async () => {
+  const PAGE_SIZE = 20;
+
+  const fetchAll = useCallback(async (reset = true) => {
     if (!usuario) return;
-    setLoading(true);
+    if (reset) { setLoading(true); paginaRef.current = 0; } else { setCarregandoMais(true); }
     const results: CadastroUnificado[] = [];
 
     const filtroMunicipioId = (tipoUsuario === 'super_admin' || tipoUsuario === 'coordenador')
@@ -66,15 +72,18 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
 
     const isAdminUser = tipoUsuario === 'super_admin' || tipoUsuario === 'coordenador';
 
+    const from = paginaRef.current * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
     let lidQuery = (supabase as any).from('liderancas')
-      .select('id, status, regiao_atuacao, zona_atuacao, observacoes, criado_em, municipio_id, pessoas(nome, cpf, telefone, whatsapp, email, instagram, facebook, zona_eleitoral, secao_eleitoral, colegio_eleitoral, municipio_eleitoral, titulo_eleitor, observacoes_gerais), hierarquia_usuarios!liderancas_cadastrado_por_fkey(nome)')
-      .order('criado_em', { ascending: false });
+      .select('id, status, regiao_atuacao, zona_atuacao, criado_em, municipio_id, pessoas(nome, cpf, telefone, whatsapp, email, instagram, facebook, zona_eleitoral, secao_eleitoral, colegio_eleitoral, municipio_eleitoral, titulo_eleitor, observacoes_gerais), hierarquia_usuarios!liderancas_cadastrado_por_fkey(nome)')
+      .order('criado_em', { ascending: false }).range(from, to);
     let fisQuery = (supabase as any).from('fiscais')
-      .select('id, status, zona_fiscal, observacoes, criado_em, municipio_id, pessoas(nome, cpf, telefone, whatsapp, email, instagram, facebook, zona_eleitoral, secao_eleitoral, colegio_eleitoral, municipio_eleitoral, titulo_eleitor, observacoes_gerais), hierarquia_usuarios!fiscais_cadastrado_por_fkey(nome)')
-      .order('criado_em', { ascending: false });
+      .select('id, status, zona_fiscal, criado_em, municipio_id, pessoas(nome, cpf, telefone, whatsapp, email, instagram, facebook, zona_eleitoral, secao_eleitoral, colegio_eleitoral, municipio_eleitoral, titulo_eleitor, observacoes_gerais), hierarquia_usuarios!fiscais_cadastrado_por_fkey(nome)')
+      .order('criado_em', { ascending: false }).range(from, to);
     let eleQuery = (supabase as any).from('possiveis_eleitores')
-      .select('id, compromisso_voto, observacoes, criado_em, municipio_id, pessoas(nome, cpf, telefone, whatsapp, email, instagram, facebook, zona_eleitoral, secao_eleitoral, colegio_eleitoral, municipio_eleitoral, titulo_eleitor, observacoes_gerais), hierarquia_usuarios!possiveis_eleitores_cadastrado_por_fkey(nome)')
-      .order('criado_em', { ascending: false });
+      .select('id, compromisso_voto, criado_em, municipio_id, pessoas(nome, cpf, telefone, whatsapp, email, instagram, facebook, zona_eleitoral, secao_eleitoral, colegio_eleitoral, municipio_eleitoral, titulo_eleitor, observacoes_gerais), hierarquia_usuarios!possiveis_eleitores_cadastrado_por_fkey(nome)')
+      .order('criado_em', { ascending: false }).range(from, to);
 
     if (filtroMunicipioId) {
       lidQuery = lidQuery.eq('municipio_id', filtroMunicipioId);
@@ -127,11 +136,19 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
     }
 
     results.sort((a, b) => new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime());
-    setCadastros(results);
+    
+    if (reset) {
+      setCadastros(results);
+    } else {
+      setCadastros(prev => [...prev, ...results]);
+    }
+    paginaRef.current += 1;
+    setTemMais(results.length >= PAGE_SIZE);
     setLoading(false);
+    setCarregandoMais(false);
   }, [usuario, tipoUsuario, cidadeAtiva, isTodasCidades, authMunicipioId]);
 
-  useEffect(() => { fetchAll(); }, [fetchAll, refreshKey]);
+  useEffect(() => { fetchAll(true); }, [fetchAll, refreshKey]);
 
   const stats = useMemo(() => {
     const total = cadastros.length;
@@ -172,8 +189,8 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
     return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
   };
 
-  if (loading) {
-    return <div className="flex justify-center py-12"><Loader2 size={24} className="animate-spin text-primary" /></div>;
+  if (loading && cadastros.length === 0) {
+    return <SkeletonLista />;
   }
 
   return (
@@ -395,10 +412,17 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
           );
         })}
 
-        {filtered.length === 0 && (
+        {filtered.length === 0 && !loading && (
           <div className="text-center py-8">
             <p className="text-sm text-muted-foreground">Nenhum cadastro encontrado</p>
           </div>
+        )}
+
+        {temMais && (
+          <button onClick={() => fetchAll(false)} disabled={carregandoMais}
+            className="w-full py-3 text-sm text-primary font-medium flex items-center justify-center gap-2 active:scale-[0.97]">
+            {carregandoMais ? <Loader2 size={16} className="animate-spin" /> : 'Carregar mais'}
+          </button>
         )}
       </div>
     </div>
