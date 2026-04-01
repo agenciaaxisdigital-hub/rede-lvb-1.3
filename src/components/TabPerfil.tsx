@@ -629,6 +629,19 @@ export default function TabPerfil() {
               </div>
             </div>
 
+            {/* Cidade */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                <MapPin size={12} /> Cidade *
+              </label>
+              <select value={createCidade} onChange={e => setCreateCidade(e.target.value)} className={inputCls}>
+                <option value="">Selecione a cidade...</option>
+                {municipios.map(m => (
+                  <option key={m.id} value={m.id}>{m.nome} – {m.uf}</option>
+                ))}
+              </select>
+            </div>
+
             {/* Módulos */}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Módulos / Permissões</label>
