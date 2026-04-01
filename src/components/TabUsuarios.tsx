@@ -171,6 +171,7 @@ export default function TabUsuarios() {
         senha: senha.trim(),
         tipo: tipoUsuario,
         superior_id: superiorId || null,
+        municipio_id: cidadeSelecionada,
       };
       if (creating.tipo === 'suplente' && creating.suplenteId) {
         payload.suplente_id = creating.suplenteId;
