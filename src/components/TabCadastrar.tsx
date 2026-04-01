@@ -133,6 +133,11 @@ export default function TabCadastrar({ onSaved }: Props) {
     if (!form.nome.trim()) { toast({ title: 'Preencha o nome', variant: 'destructive' }); return; }
     if (!form.telefone.trim() && !form.whatsapp.trim()) { toast({ title: 'Informe telefone ou WhatsApp', variant: 'destructive' }); return; }
     if (form.cpf && form.cpf.length === 11 && !validateCPF(form.cpf)) { toast({ title: 'CPF inválido', variant: 'destructive' }); return; }
+    if (!ligBloqueado && tipoUsuario !== 'super_admin' && tipoUsuario !== 'coordenador' && !ligSuplenteId && !ligLiderancaId) {
+      setLigErro('Selecione um suplente ou liderança');
+      toast({ title: 'Selecione uma ligação política', variant: 'destructive' });
+      return;
+    }
 
     setSaving(true);
     try {
