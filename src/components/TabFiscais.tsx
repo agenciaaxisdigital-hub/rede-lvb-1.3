@@ -6,8 +6,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCidade } from '@/contexts/CidadeContext';
 import { formatCPF, cleanCPF, validateCPF } from '@/lib/cpf';
 import { checkCpfDuplicateByUser } from '@/lib/cpfDuplicateCheck';
+import { resolverLigacaoPolitica } from '@/lib/resolverLigacaoPolitica';
 import { toast } from '@/hooks/use-toast';
 import StatusBadge from '@/components/StatusBadge';
+import CampoLigacaoPolitica from '@/components/CampoLigacaoPolitica';
 
 const situacoesTitulo = ['Regular', 'Cancelado', 'Suspenso', 'Não informado'];
 
@@ -64,6 +66,28 @@ export default function TabFiscais({ refreshKey, onSaved, viewOnly }: Props) {
   const [form, setForm] = useState({ ...emptyForm });
   const [liderancas, setLiderancas] = useState<{ id: string; nome: string }[]>([]);
   const cpfTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Ligação política
+  const [ligBloqueado, setLigBloqueado] = useState(false);
+  const [ligNomeFixo, setLigNomeFixo] = useState<string | null>(null);
+  const [ligSubtitulo, setLigSubtitulo] = useState<string | null>(null);
+  const [ligSuplenteId, setLigSuplenteId] = useState<string | null>(null);
+  const [ligLiderancaId, setLigLiderancaId] = useState<string | null>(null);
+  const [ligMunicipioId, setLigMunicipioId] = useState<string | null>(null);
+  const [ligErro, setLigErro] = useState<string | null>(null);
+
+  // Resolver ligação política
+  useEffect(() => {
+    if (!usuario) return;
+    resolverLigacaoPolitica(usuario).then(res => {
+      setLigBloqueado(res.bloqueado);
+      setLigNomeFixo(res.nomeFixo);
+      setLigSubtitulo(res.subtitulo);
+      setLigSuplenteId(res.suplenteId);
+      setLigMunicipioId(res.municipioId);
+      if (res.liderancaId) setLigLiderancaId(res.liderancaId);
+    });
+  }, [usuario]);
 
   const update = useCallback((field: string, value: string) => setForm(f => ({ ...f, [field]: value })), []);
 
@@ -154,15 +178,16 @@ export default function TabFiscais({ refreshKey, onSaved, viewOnly }: Props) {
         pessoaId = novaPessoa!.id;
       }
 
-      const { error } = await supabase.from('fiscais').insert({
+      const { error } = await (supabase as any).from('fiscais').insert({
         pessoa_id: pessoaId,
         cadastrado_por: usuario?.id || null,
-        suplente_id: usuario?.suplente_id || null,
-        lideranca_id: form.lideranca_id || null,
+        suplente_id: ligSuplenteId || usuario?.suplente_id || null,
+        lideranca_id: ligLiderancaId || form.lideranca_id || null,
         colegio_eleitoral: form.colegio_eleitoral || null,
         zona_fiscal: form.zona_fiscal || null,
         secao_fiscal: form.secao_fiscal || null,
         observacoes: form.observacoes || null,
+        municipio_id: ligMunicipioId || null,
       });
       if (error) throw error;
 
@@ -333,16 +358,23 @@ export default function TabFiscais({ refreshKey, onSaved, viewOnly }: Props) {
           </div>
         </div>
 
+        {/* Ligação Política */}
+        <CampoLigacaoPolitica
+          bloqueado={ligBloqueado}
+          nomeFixo={ligNomeFixo}
+          subtituloFixo={ligSubtitulo}
+          suplenteIdSelecionado={ligSuplenteId}
+          liderancaIdSelecionada={ligLiderancaId}
+          onSuplenteChange={(id, _nome, munId) => { setLigSuplenteId(id); setLigLiderancaId(null); setLigMunicipioId(munId); setLigErro(null); }}
+          onLiderancaChange={(id, _nome, supId, munId) => { setLigLiderancaId(id); setLigSuplenteId(supId); setLigMunicipioId(munId); setLigErro(null); }}
+          obrigatorio={tipoUsuario !== 'super_admin' && tipoUsuario !== 'coordenador'}
+          erro={ligErro}
+          cidadeAtivaId={cidadeAtiva?.id || null}
+        />
+
         {/* Dados de Fiscalização */}
         <div className="section-card">
           <h2 className="section-title">🔍 Dados de Fiscalização</h2>
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Vincular a uma liderança</label>
-            <select value={form.lideranca_id} onChange={e => update('lideranca_id', e.target.value)} className={selectCls}>
-              <option value="">Nenhuma (direto do suplente)</option>
-              {liderancas.map(l => <option key={l.id} value={l.id}>{l.nome}</option>)}
-            </select>
-          </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">Zona fiscal</label><input type="text" value={form.zona_fiscal} onChange={e => update('zona_fiscal', e.target.value)} className={inputCls} /></div>
             <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">Seção fiscal</label><input type="text" value={form.secao_fiscal} onChange={e => update('secao_fiscal', e.target.value)} className={inputCls} /></div>

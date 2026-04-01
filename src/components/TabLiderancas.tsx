@@ -239,8 +239,8 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
         pessoaId = novaPessoa!.id;
       }
 
-      const suplenteId = getSuplementeId();
-      const { error: lError } = await supabase.from('liderancas').insert({
+      const suplenteId = ligSuplenteId || getSuplementeId();
+      const { error: lError } = await (supabase as any).from('liderancas').insert({
         pessoa_id: pessoaId, tipo_lideranca: form.tipo_lideranca || null,
         nivel: form.nivel || null, regiao_atuacao: form.regiao_atuacao || null,
         zona_atuacao: form.zona_atuacao || null, bairros_influencia: form.bairros_influencia || null,
@@ -253,6 +253,7 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
         observacoes: form.observacoes || null,
         cadastrado_por: usuario?.id || null,
         suplente_id: suplenteId,
+        municipio_id: ligMunicipioId || null,
       });
       if (lError) throw lError;
 
@@ -459,7 +460,6 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
 
         <div className="section-card">
           <h2 className="section-title">⭐ Perfil e Status</h2>
-          <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">Ligação política</label><input type="text" value={form.tipo_lideranca} onChange={e => update('tipo_lideranca', e.target.value)} className={inputCls} /></div>
           
           <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">Região de atuação</label><textarea value={form.regiao_atuacao} onChange={e => update('regiao_atuacao', e.target.value)} rows={2} className={textareaCls} /></div>
           <div className="grid grid-cols-2 gap-2">
@@ -483,6 +483,19 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
           </div>
           <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">Observações</label><textarea value={form.observacoes} onChange={e => update('observacoes', e.target.value)} rows={3} className={textareaCls} /></div>
         </div>
+
+        <CampoLigacaoPolitica
+          bloqueado={ligBloqueado}
+          nomeFixo={ligNomeFixo}
+          subtituloFixo={ligSubtitulo}
+          suplenteIdSelecionado={ligSuplenteId}
+          liderancaIdSelecionada={ligLiderancaId}
+          onSuplenteChange={(id, _nome, munId) => { setLigSuplenteId(id); setLigLiderancaId(null); setLigMunicipioId(munId); setLigErro(null); }}
+          onLiderancaChange={(id, _nome, supId, munId) => { setLigLiderancaId(id); setLigSuplenteId(supId); setLigMunicipioId(munId); setLigErro(null); }}
+          obrigatorio={tipoUsuario !== 'super_admin' && tipoUsuario !== 'coordenador'}
+          erro={ligErro}
+          cidadeAtivaId={cidadeAtiva?.id || null}
+        />
 
         <button onClick={handleSave} disabled={saving}
           className="w-full h-14 gradient-primary text-white text-base font-semibold rounded-2xl shadow-lg shadow-pink-500/25 active:scale-[0.97] transition-all disabled:opacity-50 flex items-center justify-center gap-2">

@@ -2,8 +2,11 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Loader2, CheckCircle2, ExternalLink } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCidade } from '@/contexts/CidadeContext';
 import { formatCPF, cleanCPF, validateCPF } from '@/lib/cpf';
+import { resolverLigacaoPolitica } from '@/lib/resolverLigacaoPolitica';
 import { toast } from '@/hooks/use-toast';
+import CampoLigacaoPolitica from '@/components/CampoLigacaoPolitica';
 
 const statusOptions = ['Ativa', 'Potencial', 'Em negociação', 'Fraca', 'Descartada'];
 const comprometimentos = ['Alto', 'Médio', 'Baixo'];
@@ -27,7 +30,8 @@ interface Props {
 }
 
 export default function TabCadastrar({ onSaved }: Props) {
-  const { usuario } = useAuth();
+  const { usuario, tipoUsuario } = useAuth();
+  const { cidadeAtiva } = useCidade();
   const [saving, setSaving] = useState(false);
   const [validandoCPF, setValidandoCPF] = useState(false);
   const [cpfStatus, setCpfStatus] = useState<'idle' | 'validando' | 'confirmado'>('idle');
@@ -35,6 +39,27 @@ export default function TabCadastrar({ onSaved }: Props) {
   const [pessoaExistenteId, setPessoaExistenteId] = useState<string | null>(null);
   const [liderancasExistentes, setLiderancasExistentes] = useState<{ id: string; nome: string }[]>([]);
   const [form, setForm] = useState({ ...emptyForm });
+
+  // Ligação política
+  const [ligBloqueado, setLigBloqueado] = useState(false);
+  const [ligNomeFixo, setLigNomeFixo] = useState<string | null>(null);
+  const [ligSubtitulo, setLigSubtitulo] = useState<string | null>(null);
+  const [ligSuplenteId, setLigSuplenteId] = useState<string | null>(null);
+  const [ligLiderancaId, setLigLiderancaId] = useState<string | null>(null);
+  const [ligMunicipioId, setLigMunicipioId] = useState<string | null>(null);
+  const [ligErro, setLigErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!usuario) return;
+    resolverLigacaoPolitica(usuario).then(res => {
+      setLigBloqueado(res.bloqueado);
+      setLigNomeFixo(res.nomeFixo);
+      setLigSubtitulo(res.subtitulo);
+      setLigSuplenteId(res.suplenteId);
+      setLigMunicipioId(res.municipioId);
+      if (res.liderancaId) setLigLiderancaId(res.liderancaId);
+    });
+  }, [usuario]);
 
   useEffect(() => {
     supabase.from('liderancas').select('id, pessoas(nome)').eq('status', 'Ativa')
@@ -137,9 +162,9 @@ export default function TabCadastrar({ onSaved }: Props) {
         pessoaId = novaPessoa!.id;
       }
 
-      const suplenteId = getSuplementeId();
+      const suplenteId = ligSuplenteId || getSuplementeId();
 
-      const { error: lError } = await supabase.from('liderancas').insert({
+      const { error: lError } = await (supabase as any).from('liderancas').insert({
         pessoa_id: pessoaId, tipo_lideranca: form.tipo_lideranca || null,
         nivel: form.nivel || null, regiao_atuacao: form.regiao_atuacao || null,
         zona_atuacao: form.zona_atuacao || null, bairros_influencia: form.bairros_influencia || null,
@@ -152,6 +177,7 @@ export default function TabCadastrar({ onSaved }: Props) {
         observacoes: form.observacoes || null, 
         cadastrado_por: usuario?.id || null,
         suplente_id: suplenteId,
+        municipio_id: ligMunicipioId || null,
       });
       if (lError) throw lError;
 
@@ -270,13 +296,23 @@ export default function TabCadastrar({ onSaved }: Props) {
         </div>
       </div>
 
+      {/* Ligação Política */}
+      <CampoLigacaoPolitica
+        bloqueado={ligBloqueado}
+        nomeFixo={ligNomeFixo}
+        subtituloFixo={ligSubtitulo}
+        suplenteIdSelecionado={ligSuplenteId}
+        liderancaIdSelecionada={ligLiderancaId}
+        onSuplenteChange={(id, _nome, munId) => { setLigSuplenteId(id); setLigLiderancaId(null); setLigMunicipioId(munId); setLigErro(null); }}
+        onLiderancaChange={(id, _nome, supId, munId) => { setLigLiderancaId(id); setLigSuplenteId(supId); setLigMunicipioId(munId); setLigErro(null); }}
+        obrigatorio={tipoUsuario !== 'super_admin' && tipoUsuario !== 'coordenador'}
+        erro={ligErro}
+        cidadeAtivaId={cidadeAtiva?.id || null}
+      />
+
       {/* Perfil + Status */}
       <div className="section-card">
         <h2 className="section-title">⭐ Perfil e Status</h2>
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">Ligação política</label>
-          <input type="text" value={form.tipo_lideranca} onChange={e => update('tipo_lideranca', e.target.value)} placeholder="A quem é ligado politicamente" className={inputCls} />
-        </div>
         <div className="space-y-1">
           <label className="text-xs font-medium text-muted-foreground">Região de atuação</label>
           <textarea value={form.regiao_atuacao} onChange={e => update('regiao_atuacao', e.target.value)} rows={2} placeholder="Bairro X, Comunidade Y..." className={textareaCls} />

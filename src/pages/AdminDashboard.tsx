@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCidade } from '@/contexts/CidadeContext';
@@ -7,7 +7,7 @@ import { toast } from '@/hooks/use-toast';
 import {
   ArrowLeft, Users, TrendingUp, Shield, Target, Filter, Search,
   ChevronDown, ChevronUp, UserCheck, Loader2, Download, Eye, Trophy,
-  BarChart3, UserCog, Building2
+  BarChart3, UserCog, Building2, Plus, Trash2
 } from 'lucide-react';
 import { exportAllCadastros } from '@/lib/exportXlsx';
 import {
@@ -691,9 +691,34 @@ export default function AdminDashboard() {
         {/* ══════════ CIDADES ══════════ */}
         {vistaAtiva === 'cidades' && (
           <div className="space-y-3">
+            {/* Adicionar cidade */}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Nome da nova cidade..."
+                id="nova-cidade-input"
+                className="flex-1 h-10 px-3 bg-card border border-border rounded-xl text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              <button
+                onClick={async () => {
+                  const input = document.getElementById('nova-cidade-input') as HTMLInputElement;
+                  const nome = input?.value?.trim();
+                  if (!nome) return;
+                  const { error } = await (supabase as any).from('municipios').insert({ nome, uf: 'GO' });
+                  if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
+                  toast({ title: `✅ ${nome} adicionada!` });
+                  input.value = '';
+                  fetchData();
+                }}
+                className="h-10 px-4 gradient-primary text-white rounded-xl text-sm font-semibold flex items-center gap-1 active:scale-95"
+              >
+                <Plus size={14} /> Adicionar
+              </button>
+            </div>
+
             {municipios.map(m => (
               <div key={m.id} className="section-card">
-                <div className="flex items-start justify-between mb-2">
+                <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2">
                     <Building2 size={18} className="text-primary" />
                     <div>
@@ -701,12 +726,14 @@ export default function AdminDashboard() {
                       <p className="text-[10px] text-muted-foreground">{m.uf}</p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => { setCidadeAtiva({ id: m.id, nome: m.nome }); navigate('/'); }}
-                    className="text-[10px] text-primary font-semibold px-2 py-1 rounded-lg bg-primary/5 active:scale-95"
-                  >
-                    Ver cidade →
-                  </button>
+                  <div className="flex gap-1.5">
+                    <button
+                      onClick={() => { setCidadeAtiva({ id: m.id, nome: m.nome }); navigate('/'); }}
+                      className="text-[10px] text-primary font-semibold px-2 py-1 rounded-lg bg-primary/5 active:scale-95"
+                    >
+                      Ver →
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
