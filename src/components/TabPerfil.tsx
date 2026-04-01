@@ -162,6 +162,7 @@ function SelfPasswordChange() {
 
 export default function TabPerfil() {
   const { usuario, isAdmin, tipoUsuario, signOut } = useAuth();
+  const { municipios } = useCidade();
 
   // Data
   const [usuarios, setUsuarios] = useState<UsuarioItem[]>([]);
