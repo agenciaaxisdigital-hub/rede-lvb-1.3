@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Loader2, CheckCircle2, Search, ChevronRight, ArrowLeft, Phone, MessageCircle, Trash2, ExternalLink, Download } from 'lucide-react';
 import { exportAllCadastros } from '@/lib/exportXlsx';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,6 +10,7 @@ import { resolverLigacaoPolitica } from '@/lib/resolverLigacaoPolitica';
 import { toast } from '@/hooks/use-toast';
 import StatusBadge from '@/components/StatusBadge';
 import CampoLigacaoPolitica from '@/components/CampoLigacaoPolitica';
+import SkeletonLista from '@/components/SkeletonLista';
 
 const compromissoOptions = ['Confirmado', 'Provável', 'Indefinido', 'Improvável'];
 const situacoesTitulo = ['Regular', 'Cancelado', 'Suspenso', 'Não informado'];
@@ -58,6 +59,9 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selected, setSelected] = useState<EleitorRow | null>(null);
+  const [temMais, setTemMais] = useState(true);
+  const [carregandoMais, setCarregandoMais] = useState(false);
+  const paginaRef = useRef(0);
   const [saving, setSaving] = useState(false);
   const [pessoaExistenteId, setPessoaExistenteId] = useState<string | null>(null);
   const [cpfStatus, setCpfStatus] = useState<'idle' | 'validando' | 'confirmado'>('idle');
@@ -93,32 +97,41 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
 
   const update = useCallback((field: string, value: string) => setForm(f => ({ ...f, [field]: value })), []);
 
-  const fetchData = useCallback(async () => {
+  const PAGE_SIZE = 20;
+  const QUERY_LISTA_ELE = 'id, compromisso_voto, lideranca_id, fiscal_id, cadastrado_por, criado_em, municipio_id, pessoas(nome, cpf, telefone, whatsapp), liderancas:lideranca_id(id, pessoas(nome)), fiscais:fiscal_id(id, pessoas(nome))';
+
+  const fetchData = useCallback(async (reset = true) => {
     if (!usuario) return;
-    setLoading(true);
+    if (reset) { setLoading(true); paginaRef.current = 0; } else { setCarregandoMais(true); }
 
     const filtroMunicipioId = (tipoUsuario === 'super_admin' || tipoUsuario === 'coordenador')
       ? (isTodasCidades ? null : cidadeAtiva?.id)
       : authMunicipioId;
 
+    const from = paginaRef.current * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
     let query = (supabase as any)
       .from('possiveis_eleitores')
-      .select('id, compromisso_voto, lideranca_id, fiscal_id, cadastrado_por, observacoes, criado_em, municipio_id, pessoas(nome, cpf, telefone, whatsapp, email, instagram, facebook, zona_eleitoral, secao_eleitoral, titulo_eleitor, municipio_eleitoral, uf_eleitoral, colegio_eleitoral, endereco_colegio, situacao_titulo), liderancas:lideranca_id(id, pessoas(nome)), fiscais:fiscal_id(id, pessoas(nome))')
-      .order('criado_em', { ascending: false });
+      .select(QUERY_LISTA_ELE, { count: 'exact' })
+      .order('criado_em', { ascending: false })
+      .range(from, to);
 
-    if (filtroMunicipioId) {
-      query = query.eq('municipio_id', filtroMunicipioId);
-    }
-    if (tipoUsuario !== 'super_admin' && tipoUsuario !== 'coordenador') {
-      query = query.eq('cadastrado_por', usuario.id);
-    }
+    if (filtroMunicipioId) query = query.eq('municipio_id', filtroMunicipioId);
+    if (tipoUsuario !== 'super_admin' && tipoUsuario !== 'coordenador') query = query.eq('cadastrado_por', usuario.id);
 
     const { data: eleitores } = await query;
-    if (eleitores) setData(eleitores as unknown as EleitorRow[]);
+    if (eleitores) {
+      if (reset) setData(eleitores as unknown as EleitorRow[]);
+      else setData(prev => [...prev, ...(eleitores as unknown as EleitorRow[])]);
+      paginaRef.current += 1;
+      setTemMais(eleitores.length === PAGE_SIZE);
+    }
     setLoading(false);
+    setCarregandoMais(false);
   }, [usuario, tipoUsuario, cidadeAtiva, isTodasCidades, authMunicipioId]);
 
-  useEffect(() => { fetchData(); }, [fetchData, refreshKey]);
+  useEffect(() => { fetchData(true); }, [fetchData, refreshKey]);
 
   useEffect(() => {
     supabase.from('liderancas').select('id, pessoas(nome)').eq('status', 'Ativa')
@@ -232,12 +245,19 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
       setCpfStatus('idle');
       setCpfNomePessoa('');
       setMode('list');
-      fetchData();
+      fetchData(true);
       onSaved?.();
     } catch (err: any) {
       toast({ title: 'Erro ao salvar', description: err.message, variant: 'destructive' });
     } finally { setSaving(false); }
   };
+
+  const QUERY_DETALHE_ELE = 'id, compromisso_voto, lideranca_id, fiscal_id, cadastrado_por, observacoes, criado_em, municipio_id, pessoas(*), liderancas:lideranca_id(id, pessoas(nome)), fiscais:fiscal_id(id, pessoas(nome))';
+
+  const fetchDetalhe = useCallback(async (id: string) => {
+    const { data } = await (supabase as any).from('possiveis_eleitores').select(QUERY_DETALHE_ELE).eq('id', id).single();
+    if (data) setSelected(data as unknown as EleitorRow);
+  }, []);
 
   const handleDelete = async (id: string) => {
     if (!confirm('Excluir este registro?')) return;
@@ -245,14 +265,14 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
     toast({ title: 'Registro excluído' });
     setSelected(null);
     setMode('list');
-    fetchData();
+    fetchData(true);
   };
 
-  const filtered = data.filter(e => {
+  const filtered = useMemo(() => data.filter(e => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (e.pessoas?.nome?.toLowerCase() || '').includes(q) || (e.pessoas?.cpf || '').includes(q);
-  });
+  }), [data, searchQuery]);
 
   const inputCls = "w-full h-11 px-3 bg-card border border-border rounded-xl text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30";
   const selectCls = inputCls;

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Search, ChevronRight, Phone, MessageCircle, Trash2, ArrowLeft, XCircle, Download, Loader2, CheckCircle2, ExternalLink, PlusCircle } from 'lucide-react';
 import { exportAllCadastros } from '@/lib/exportXlsx';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,6 +10,7 @@ import { resolverLigacaoPolitica } from '@/lib/resolverLigacaoPolitica';
 import { toast } from '@/hooks/use-toast';
 import StatusBadge from '@/components/StatusBadge';
 import CampoLigacaoPolitica from '@/components/CampoLigacaoPolitica';
+import SkeletonLista from '@/components/SkeletonLista';
 
 const statusFilters = ['Todas', 'Ativa', 'Potencial', 'Em negociação', 'Fraca', 'Descartada'];
 const statusOptions = ['Ativa', 'Potencial', 'Em negociação', 'Fraca', 'Descartada'];
@@ -65,8 +66,9 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
   const [statusFilter, setStatusFilter] = useState('Todas');
   const [searchQuery, setSearchQuery] = useState('');
   const [selected, setSelected] = useState<LiderancaRow | null>(null);
-
-  // Form state
+  const [temMais, setTemMais] = useState(true);
+  const [carregandoMais, setCarregandoMais] = useState(false);
+  const paginaRef = useRef(0);
   const [saving, setSaving] = useState(false);
   const [validandoCPF, setValidandoCPF] = useState(false);
   const [cpfStatus, setCpfStatus] = useState<'idle' | 'validando' | 'confirmado'>('idle');
@@ -101,18 +103,30 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
     });
   }, [usuario]);
 
-  const fetchData = useCallback(async () => {
+  const PAGE_SIZE = 20;
+  const QUERY_LISTA = 'id, status, tipo_lideranca, zona_atuacao, apoiadores_estimados, cadastrado_por, criado_em, municipio_id, pessoas(nome, telefone, whatsapp, cpf), hierarquia_usuarios!liderancas_cadastrado_por_fkey(nome)';
+
+  const fetchData = useCallback(async (reset = true) => {
     if (!usuario) return;
-    setLoading(true);
+    if (reset) {
+      setLoading(true);
+      paginaRef.current = 0;
+    } else {
+      setCarregandoMais(true);
+    }
 
     const filtroMunicipioId = (tipoUsuario === 'super_admin' || tipoUsuario === 'coordenador')
       ? (isTodasCidades ? null : cidadeAtiva?.id)
       : authMunicipioId;
 
+    const from = paginaRef.current * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
     let query = (supabase as any)
       .from('liderancas')
-      .select('id, status, tipo_lideranca, nivel, zona_atuacao, apoiadores_estimados, cadastrado_por, suplente_id, criado_em, regiao_atuacao, bairros_influencia, comunidades_influencia, origem_captacao, meta_votos, nivel_comprometimento, observacoes, municipio_id, pessoas(*), hierarquia_usuarios!liderancas_cadastrado_por_fkey(nome)')
-      .order('criado_em', { ascending: false });
+      .select(QUERY_LISTA, { count: 'exact' })
+      .order('criado_em', { ascending: false })
+      .range(from, to);
 
     if (filtroMunicipioId) {
       query = query.eq('municipio_id', filtroMunicipioId);
@@ -121,12 +135,21 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
       query = query.eq('cadastrado_por', usuario.id);
     }
 
-    const { data, error } = await query;
-    if (!error && data) setData(data as unknown as LiderancaRow[]);
+    const { data: rows, error } = await query;
+    if (!error && rows) {
+      if (reset) {
+        setData(rows as unknown as LiderancaRow[]);
+      } else {
+        setData(prev => [...prev, ...(rows as unknown as LiderancaRow[])]);
+      }
+      paginaRef.current += 1;
+      setTemMais(rows.length === PAGE_SIZE);
+    }
     setLoading(false);
+    setCarregandoMais(false);
   }, [usuario, tipoUsuario, cidadeAtiva, isTodasCidades, authMunicipioId]);
 
-  useEffect(() => { fetchData(); }, [fetchData, refreshKey]);
+  useEffect(() => { fetchData(true); }, [fetchData, refreshKey]);
 
 
   useEffect(() => {
@@ -269,16 +292,15 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
       setCpfStatus('idle');
       setCpfNomePessoa('');
       setMode('list');
-      fetchData();
+      fetchData(true);
       onSaved?.();
     } catch (err: any) {
       toast({ title: 'Erro ao salvar', description: err.message, variant: 'destructive' });
     } finally { setSaving(false); }
   };
 
-  const filtered = data.filter(l => {
+  const filtered = useMemo(() => data.filter(l => {
     if (statusFilter !== 'Todas' && l.status !== statusFilter) return false;
-    
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       const nome = l.pessoas?.nome?.toLowerCase() || '';
@@ -287,7 +309,14 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
       if (!nome.includes(q) && !cpf.includes(q) && !tel.includes(q)) return false;
     }
     return true;
-  });
+  }), [data, statusFilter, searchQuery]);
+
+  const QUERY_DETALHE = 'id, status, tipo_lideranca, nivel, zona_atuacao, apoiadores_estimados, cadastrado_por, suplente_id, criado_em, regiao_atuacao, bairros_influencia, comunidades_influencia, origem_captacao, meta_votos, nivel_comprometimento, observacoes, municipio_id, pessoas(*), hierarquia_usuarios!liderancas_cadastrado_por_fkey(nome)';
+
+  const fetchDetalhe = useCallback(async (id: string) => {
+    const { data } = await (supabase as any).from('liderancas').select(QUERY_DETALHE).eq('id', id).single();
+    if (data) setSelected(data as unknown as LiderancaRow);
+  }, []);
 
   const handleDelete = async (id: string) => {
     if (!confirm('Excluir esta liderança permanentemente?')) return;
@@ -295,7 +324,7 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
     toast({ title: 'Liderança excluída' });
     setSelected(null);
     setMode('list');
-    fetchData();
+    fetchData(true);
   };
 
   const handleDiscard = async (id: string) => {
@@ -303,7 +332,7 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
     toast({ title: 'Liderança descartada' });
     setSelected(null);
     setMode('list');
-    fetchData();
+    fetchData(true);
   };
 
   const inputCls = "w-full h-11 px-3 bg-card border border-border rounded-xl text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30";
@@ -554,15 +583,13 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
       )}
 
       {loading ? (
-        <div className="space-y-3">
-          {[1,2,3].map(i => <div key={i} className="section-card animate-pulse"><div className="h-4 bg-muted rounded w-2/3" /><div className="h-3 bg-muted rounded w-1/2 mt-2" /></div>)}
-        </div>
+        <SkeletonLista />
       ) : filtered.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground"><p className="text-sm">Nenhuma liderança encontrada</p></div>
       ) : (
         <div className="space-y-2">
           {filtered.map(l => (
-            <button key={l.id} onClick={() => { setSelected(l); setMode('detail'); }}
+            <button key={l.id} onClick={() => { fetchDetalhe(l.id); setMode('detail'); }}
               className="w-full text-left bg-card rounded-xl border border-border p-3 flex items-center gap-3 active:scale-[0.98] transition-transform">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
@@ -580,6 +607,12 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
               <ChevronRight size={16} className="text-muted-foreground shrink-0" />
             </button>
           ))}
+          {temMais && (
+            <button onClick={() => fetchData(false)} disabled={carregandoMais}
+              className="w-full py-3 text-sm text-primary font-medium flex items-center justify-center gap-2 active:scale-[0.97]">
+              {carregandoMais ? <Loader2 size={16} className="animate-spin" /> : 'Carregar mais'}
+            </button>
+          )}
         </div>
       )}
     </div>

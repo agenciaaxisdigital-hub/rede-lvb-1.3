@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCidade } from '@/contexts/CidadeContext';
 import BottomNav, { type TabId } from '@/components/BottomNav';
@@ -14,20 +14,25 @@ export default function Home() {
   const { isAdmin, tipoUsuario } = useAuth();
   const { municipios } = useCidade();
   const [activeTab, setActiveTab] = useState<TabId>('liderancas');
+  const [visitedTabs, setVisitedTabs] = useState<Set<TabId>>(new Set(['liderancas']));
   const [refreshKey, setRefreshKey] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const isAdminOrCoord = tipoUsuario === 'super_admin' || tipoUsuario === 'coordenador';
   const showCitySelector = isAdminOrCoord && municipios.length > 0;
 
-  const handleTabChange = (tab: TabId) => {
+  const handleTabChange = useCallback((tab: TabId) => {
     setActiveTab(tab);
+    setVisitedTabs(prev => {
+      if (prev.has(tab)) return prev;
+      return new Set([...prev, tab]);
+    });
     scrollRef.current?.scrollTo({ top: 0 });
-  };
+  }, []);
 
-  const handleSaved = () => {
+  const handleSaved = useCallback(() => {
     setRefreshKey(k => k + 1);
-  };
+  }, []);
 
   const titles: Record<TabId, string> = {
     liderancas: 'Cadastro de Lideranças',
@@ -60,10 +65,26 @@ export default function Home() {
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain">
         <div className="max-w-[672px] mx-auto px-4 py-4">
-          <div className={activeTab === 'liderancas' ? '' : 'hidden'}><TabLiderancas refreshKey={refreshKey} onSaved={handleSaved} /></div>
-          <div className={activeTab === 'fiscais' ? '' : 'hidden'}><TabFiscais refreshKey={refreshKey} onSaved={handleSaved} /></div>
-          <div className={activeTab === 'eleitores' ? '' : 'hidden'}><TabEleitores refreshKey={refreshKey} onSaved={handleSaved} /></div>
-          <div className={activeTab === 'cadastros' ? '' : 'hidden'}><TabCadastros refreshKey={refreshKey} onSaved={handleSaved} /></div>
+          {visitedTabs.has('liderancas') && (
+            <div className={activeTab === 'liderancas' ? '' : 'hidden'}>
+              <TabLiderancas refreshKey={refreshKey} onSaved={handleSaved} />
+            </div>
+          )}
+          {visitedTabs.has('fiscais') && (
+            <div className={activeTab === 'fiscais' ? '' : 'hidden'}>
+              <TabFiscais refreshKey={refreshKey} onSaved={handleSaved} />
+            </div>
+          )}
+          {visitedTabs.has('eleitores') && (
+            <div className={activeTab === 'eleitores' ? '' : 'hidden'}>
+              <TabEleitores refreshKey={refreshKey} onSaved={handleSaved} />
+            </div>
+          )}
+          {visitedTabs.has('cadastros') && (
+            <div className={activeTab === 'cadastros' ? '' : 'hidden'}>
+              <TabCadastros refreshKey={refreshKey} onSaved={handleSaved} />
+            </div>
+          )}
           {activeTab === 'rastreamento' && <PainelLocalizacao />}
           {activeTab === 'perfil' && <TabPerfil />}
         </div>

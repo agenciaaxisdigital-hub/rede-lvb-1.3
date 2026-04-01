@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { User, Users, UserPlus, Lock, Search, Loader2, X, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { cachedInvoke } from '@/lib/cacheEdgeFunctions';
 import { resolverMunicipioId } from '@/lib/resolverMunicipio';
 import { toast } from '@/hooks/use-toast';
 
@@ -65,7 +66,7 @@ export default function CampoLigacaoPolitica({
   const buscarSuplentes = useCallback(async (q: string) => {
     setLoadingSup(true);
     try {
-      const { data } = await supabase.functions.invoke('buscar-suplentes');
+      const data = await cachedInvoke<any[]>('buscar-suplentes');
       if (Array.isArray(data)) {
         let filtered = data as SuplenteResult[];
         if (q) {

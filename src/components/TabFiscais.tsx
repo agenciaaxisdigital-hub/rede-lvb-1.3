@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Loader2, CheckCircle2, Search, ChevronRight, ArrowLeft, Phone, MessageCircle, Trash2, Download, ExternalLink } from 'lucide-react';
 import { exportAllCadastros } from '@/lib/exportXlsx';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,6 +10,7 @@ import { resolverLigacaoPolitica } from '@/lib/resolverLigacaoPolitica';
 import { toast } from '@/hooks/use-toast';
 import StatusBadge from '@/components/StatusBadge';
 import CampoLigacaoPolitica from '@/components/CampoLigacaoPolitica';
+import SkeletonLista from '@/components/SkeletonLista';
 
 const situacoesTitulo = ['Regular', 'Cancelado', 'Suspenso', 'Não informado'];
 
@@ -57,6 +58,9 @@ export default function TabFiscais({ refreshKey, onSaved, viewOnly }: Props) {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selected, setSelected] = useState<FiscalRow | null>(null);
+  const [temMais, setTemMais] = useState(true);
+  const [carregandoMais, setCarregandoMais] = useState(false);
+  const paginaRef = useRef(0);
   const [saving, setSaving] = useState(false);
   const [pessoaExistenteId, setPessoaExistenteId] = useState<string | null>(null);
   const [cpfStatus, setCpfStatus] = useState<'idle' | 'validando' | 'confirmado'>('idle');
@@ -91,32 +95,41 @@ export default function TabFiscais({ refreshKey, onSaved, viewOnly }: Props) {
 
   const update = useCallback((field: string, value: string) => setForm(f => ({ ...f, [field]: value })), []);
 
-  const fetchData = useCallback(async () => {
+  const PAGE_SIZE = 20;
+  const QUERY_LISTA_FISC = 'id, status, colegio_eleitoral, zona_fiscal, secao_fiscal, cadastrado_por, criado_em, municipio_id, pessoas(nome, cpf, telefone, whatsapp)';
+
+  const fetchData = useCallback(async (reset = true) => {
     if (!usuario) return;
-    setLoading(true);
+    if (reset) { setLoading(true); paginaRef.current = 0; } else { setCarregandoMais(true); }
 
     const filtroMunicipioId = (tipoUsuario === 'super_admin' || tipoUsuario === 'coordenador')
       ? (isTodasCidades ? null : cidadeAtiva?.id)
       : authMunicipioId;
 
+    const from = paginaRef.current * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
     let query = (supabase as any)
       .from('fiscais')
-      .select('id, status, colegio_eleitoral, zona_fiscal, secao_fiscal, lideranca_id, cadastrado_por, observacoes, criado_em, municipio_id, pessoas(nome, cpf, telefone, whatsapp, email, instagram, facebook, zona_eleitoral, secao_eleitoral, titulo_eleitor, municipio_eleitoral, uf_eleitoral, colegio_eleitoral, endereco_colegio, situacao_titulo)')
-      .order('criado_em', { ascending: false });
+      .select(QUERY_LISTA_FISC, { count: 'exact' })
+      .order('criado_em', { ascending: false })
+      .range(from, to);
 
-    if (filtroMunicipioId) {
-      query = query.eq('municipio_id', filtroMunicipioId);
-    }
-    if (tipoUsuario !== 'super_admin' && tipoUsuario !== 'coordenador') {
-      query = query.eq('cadastrado_por', usuario.id);
-    }
+    if (filtroMunicipioId) query = query.eq('municipio_id', filtroMunicipioId);
+    if (tipoUsuario !== 'super_admin' && tipoUsuario !== 'coordenador') query = query.eq('cadastrado_por', usuario.id);
 
     const { data: fiscais } = await query;
-    if (fiscais) setData(fiscais as unknown as FiscalRow[]);
+    if (fiscais) {
+      if (reset) setData(fiscais as unknown as FiscalRow[]);
+      else setData(prev => [...prev, ...(fiscais as unknown as FiscalRow[])]);
+      paginaRef.current += 1;
+      setTemMais(fiscais.length === PAGE_SIZE);
+    }
     setLoading(false);
+    setCarregandoMais(false);
   }, [usuario, tipoUsuario, cidadeAtiva, isTodasCidades, authMunicipioId]);
 
-  useEffect(() => { fetchData(); }, [fetchData, refreshKey]);
+  useEffect(() => { fetchData(true); }, [fetchData, refreshKey]);
 
   useEffect(() => {
     supabase.from('liderancas').select('id, pessoas(nome)').eq('status', 'Ativa')
@@ -201,12 +214,19 @@ export default function TabFiscais({ refreshKey, onSaved, viewOnly }: Props) {
       setPessoaExistenteId(null);
       setCpfStatus('idle');
       setMode('list');
-      fetchData();
+      fetchData(true);
       onSaved?.();
     } catch (err: any) {
       toast({ title: 'Erro ao salvar', description: err.message, variant: 'destructive' });
     } finally { setSaving(false); }
   };
+
+  const QUERY_DETALHE_FISC = 'id, status, colegio_eleitoral, zona_fiscal, secao_fiscal, lideranca_id, cadastrado_por, observacoes, criado_em, municipio_id, pessoas(nome, cpf, telefone, whatsapp, email, instagram, facebook, zona_eleitoral, secao_eleitoral, titulo_eleitor, municipio_eleitoral, uf_eleitoral, colegio_eleitoral, endereco_colegio, situacao_titulo)';
+
+  const fetchDetalhe = useCallback(async (id: string) => {
+    const { data } = await (supabase as any).from('fiscais').select(QUERY_DETALHE_FISC).eq('id', id).single();
+    if (data) setSelected(data as unknown as FiscalRow);
+  }, []);
 
   const handleDelete = async (id: string) => {
     if (!confirm('Excluir este fiscal?')) return;
@@ -214,14 +234,14 @@ export default function TabFiscais({ refreshKey, onSaved, viewOnly }: Props) {
     toast({ title: 'Fiscal excluído' });
     setSelected(null);
     setMode('list');
-    fetchData();
+    fetchData(true);
   };
 
-  const filtered = data.filter(f => {
+  const filtered = useMemo(() => data.filter(f => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (f.pessoas?.nome?.toLowerCase() || '').includes(q) || (f.pessoas?.cpf || '').includes(q);
-  });
+  }), [data, searchQuery]);
 
   const inputCls = "w-full h-11 px-3 bg-card border border-border rounded-xl text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30";
   const selectCls = inputCls;
@@ -413,13 +433,13 @@ export default function TabFiscais({ refreshKey, onSaved, viewOnly }: Props) {
         </button>
       )}
       {loading ? (
-        <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="section-card animate-pulse"><div className="h-4 bg-muted rounded w-2/3" /></div>)}</div>
+        <SkeletonLista />
       ) : filtered.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground"><p className="text-sm">Nenhum fiscal encontrado</p></div>
       ) : (
         <div className="space-y-2">
           {filtered.map(f => (
-            <button key={f.id} onClick={() => { setSelected(f); setMode('detail'); }} className="w-full text-left bg-card rounded-xl border border-border p-3 flex items-center gap-3 active:scale-[0.98] transition-transform">
+            <button key={f.id} onClick={() => { fetchDetalhe(f.id); setMode('detail'); }} className="w-full text-left bg-card rounded-xl border border-border p-3 flex items-center gap-3 active:scale-[0.98] transition-transform">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
                   <span className="font-semibold text-foreground text-sm truncate">{f.pessoas?.nome || '—'}</span>
@@ -432,6 +452,12 @@ export default function TabFiscais({ refreshKey, onSaved, viewOnly }: Props) {
               <ChevronRight size={16} className="text-muted-foreground shrink-0" />
             </button>
           ))}
+          {temMais && (
+            <button onClick={() => fetchData(false)} disabled={carregandoMais}
+              className="w-full py-3 text-sm text-primary font-medium flex items-center justify-center gap-2 active:scale-[0.97]">
+              {carregandoMais ? <Loader2 size={16} className="animate-spin" /> : 'Carregar mais'}
+            </button>
+          )}
         </div>
       )}
     </div>
