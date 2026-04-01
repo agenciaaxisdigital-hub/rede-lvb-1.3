@@ -194,8 +194,8 @@ export default function AdminDashboard() {
   }, [expandedUser, filteredL, filteredF, filteredE]);
 
   const vistaLabels: { id: VistaAtiva; icon: typeof BarChart3; label: string }[] = [
-    { id: 'usuarios', icon: UserCog, label: 'Usuários' },
     { id: 'ranking', icon: Trophy, label: 'Ranking' },
+    { id: 'usuarios', icon: UserCog, label: 'Usuários' },
     { id: 'registros', icon: Eye, label: 'Registros' },
     ...(municipios.length > 1 ? [{ id: 'cidades' as VistaAtiva, icon: Building2, label: 'Cidades' }] : []),
   ];
