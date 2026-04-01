@@ -354,13 +354,6 @@ export default function TabFiscais({ refreshKey, onSaved, viewOnly }: Props) {
           </div>
           <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">Colégio eleitoral</label><input type="text" value={form.colegio_eleitoral} onChange={e => update('colegio_eleitoral', e.target.value)} placeholder="Nome da escola / local" className={inputCls} /></div>
           <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">Endereço do colégio</label><input type="text" value={form.endereco_colegio} onChange={e => update('endereco_colegio', e.target.value)} placeholder="Endereço" className={inputCls} /></div>
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Situação do título</label>
-            <select value={form.situacao_titulo} onChange={e => update('situacao_titulo', e.target.value)} className={selectCls}>
-              <option value="">Selecione...</option>
-              {situacoesTitulo.map(o => <option key={o} value={o}>{o}</option>)}
-            </select>
-          </div>
         </div>
 
         {/* Ligação Política */}
