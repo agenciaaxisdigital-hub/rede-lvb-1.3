@@ -296,11 +296,23 @@ export default function TabCadastrar({ onSaved }: Props) {
         </div>
       </div>
 
+      {/* Ligação Política */}
+      <CampoLigacaoPolitica
+        bloqueado={ligBloqueado}
+        nomeFixo={ligNomeFixo}
+        subtituloFixo={ligSubtitulo}
+        suplenteIdSelecionado={ligSuplenteId}
+        liderancaIdSelecionada={ligLiderancaId}
+        onSuplenteChange={(id, _nome, munId) => { setLigSuplenteId(id); setLigLiderancaId(null); setLigMunicipioId(munId); setLigErro(null); }}
+        onLiderancaChange={(id, _nome, supId, munId) => { setLigLiderancaId(id); setLigSuplenteId(supId); setLigMunicipioId(munId); setLigErro(null); }}
+        obrigatorio={tipoUsuario !== 'super_admin' && tipoUsuario !== 'coordenador'}
+        erro={ligErro}
+        cidadeAtivaId={cidadeAtiva?.id || null}
+      />
+
       {/* Perfil + Status */}
       <div className="section-card">
         <h2 className="section-title">⭐ Perfil e Status</h2>
-          <input type="text" value={form.tipo_lideranca} onChange={e => update('tipo_lideranca', e.target.value)} placeholder="A quem é ligado politicamente" className={inputCls} />
-        </div>
         <div className="space-y-1">
           <label className="text-xs font-medium text-muted-foreground">Região de atuação</label>
           <textarea value={form.regiao_atuacao} onChange={e => update('regiao_atuacao', e.target.value)} rows={2} placeholder="Bairro X, Comunidade Y..." className={textareaCls} />
