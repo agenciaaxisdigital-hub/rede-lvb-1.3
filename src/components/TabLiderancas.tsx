@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Search, ChevronRight, Phone, MessageCircle, Trash2, ArrowLeft, XCircle, Download, Loader2, CheckCircle2, ExternalLink, PlusCircle } from 'lucide-react';
 import { exportAllCadastros } from '@/lib/exportXlsx';
 import { supabase } from '@/integrations/supabase/client';
