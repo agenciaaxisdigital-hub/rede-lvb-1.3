@@ -75,16 +75,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const fetchUsuario = async (authUserId: string) => {
-    const { data } = await supabase
-      .from('hierarquia_usuarios')
-      .select('*')
-      .eq('auth_user_id', authUserId)
-      .eq('ativo', true)
-      .single();
-    if (data) {
-      const usr = data as unknown as HierarquiaUsuario;
-      setUsuario(usr);
-      await resolverMunicipio(usr);
+    try {
+      const { data, error } = await supabase
+        .from('hierarquia_usuarios')
+        .select('*')
+        .eq('auth_user_id', authUserId)
+        .eq('ativo', true)
+        .single();
+      if (error) {
+        console.error('Erro ao buscar usuário:', error.message);
+        setUsuario(null);
+        return;
+      }
+      if (data) {
+        const usr = data as unknown as HierarquiaUsuario;
+        setUsuario(usr);
+        await resolverMunicipio(usr);
+      } else {
+        setUsuario(null);
+      }
+    } catch (err) {
+      console.error('Erro inesperado ao buscar usuário:', err);
+      setUsuario(null);
     }
   };
 
