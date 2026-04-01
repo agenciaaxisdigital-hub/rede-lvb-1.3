@@ -40,7 +40,7 @@ export async function resolverLigacaoPolitica(
     resultado.bloqueado = true;
     resultado.suplenteId = usuario.suplente_id;
 
-    // Buscar nome do suplente via Edge Function
+    // Buscar nome do suplente via Edge Function e sincronizar localmente
     try {
       const data = await cachedInvoke<any[]>('buscar-suplentes');
       if (Array.isArray(data)) {
@@ -48,6 +48,15 @@ export async function resolverLigacaoPolitica(
         if (sup) {
           resultado.nomeFixo = sup.nome;
           resultado.subtitulo = [sup.partido, sup.regiao_atuacao].filter(Boolean).join(' · ');
+          // Upsert into local suplentes table
+          try {
+            await (supabase as any).from('suplentes').upsert({
+              id: String(sup.id),
+              nome: sup.nome,
+              partido: sup.partido || null,
+              regiao_atuacao: sup.regiao_atuacao || null,
+            }, { onConflict: 'id' });
+          } catch {}
         }
       }
     } catch {}
