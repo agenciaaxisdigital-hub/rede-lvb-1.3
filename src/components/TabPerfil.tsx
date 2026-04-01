@@ -370,7 +370,8 @@ export default function TabPerfil() {
       const body: any = { acao: 'atualizar', hierarquia_id: editUser.id, auth_user_id: editUser.auth_user_id };
       if (editNome.trim() !== editUser.nome) body.novo_nome = editNome.trim();
       if (editSenha.trim()) body.nova_senha = editSenha.trim();
-      if (!body.novo_nome && !body.nova_senha) { toast({ title: 'Nenhuma alteração' }); setEditSaving(false); return; }
+      if (editCidade && editCidade !== (editUser.municipio_id || '')) body.novo_municipio_id = editCidade;
+      if (!body.novo_nome && !body.nova_senha && !body.novo_municipio_id) { toast({ title: 'Nenhuma alteração' }); setEditSaving(false); return; }
 
       const { data, error } = await supabase.functions.invoke('gerenciar-usuario', { body });
       if (error) throw new Error(error.message);
