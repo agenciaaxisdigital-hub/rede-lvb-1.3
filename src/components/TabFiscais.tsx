@@ -224,7 +224,7 @@ export default function TabFiscais({ refreshKey, onSaved, viewOnly }: Props) {
   const filtered = useMemo(() => data.filter(f => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
-    return (f.pessoas?.nome?.toLowerCase() || '').includes(q) || (f.pessoas?.cpf || '').includes(q);
+    return (f.pessoas?.nome?.toLowerCase() || '').includes(q) || (f.pessoas?.cpf || '').includes(q) || (f.pessoas?.whatsapp || '').includes(q);
   }), [data, searchQuery]);
 
   const inputCls = "w-full h-11 px-3 bg-card border border-border rounded-xl text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30";
