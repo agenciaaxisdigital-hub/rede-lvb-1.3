@@ -16,6 +16,7 @@ interface LiderancaItem {
   id: string;
   status: string;
   tipo_lideranca: string | null;
+  origem_captacao: string | null;
   pessoas: { nome: string; telefone: string | null; whatsapp: string | null } | null;
 }
 
@@ -24,12 +25,14 @@ interface FiscalItem {
   status: string;
   zona_fiscal: string | null;
   secao_fiscal: string | null;
+  origem_captacao: string | null;
   pessoas: { nome: string; telefone: string | null; whatsapp: string | null } | null;
 }
 
 interface EleitorItem {
   id: string;
   compromisso_voto: string | null;
+  origem_captacao: string | null;
   pessoas: { nome: string; telefone: string | null; whatsapp: string | null } | null;
 }
 
@@ -71,9 +74,9 @@ export default function TabRede() {
 
     // Fetch all data linked to this suplente
     const [lRes, fRes, eRes] = await Promise.all([
-      supabase.from('liderancas').select('id, status, tipo_lideranca, pessoas(nome, telefone, whatsapp)').eq('suplente_id', suplente.id).order('criado_em', { ascending: false }),
-      supabase.from('fiscais').select('id, status, zona_fiscal, secao_fiscal, pessoas(nome, telefone, whatsapp)').eq('suplente_id', suplente.id).order('criado_em', { ascending: false }),
-      supabase.from('possiveis_eleitores').select('id, compromisso_voto, pessoas(nome, telefone, whatsapp)').eq('suplente_id', suplente.id).order('criado_em', { ascending: false }),
+      supabase.from('liderancas').select('id, status, tipo_lideranca, origem_captacao, pessoas(nome, telefone, whatsapp)').eq('suplente_id', suplente.id).order('criado_em', { ascending: false }),
+      supabase.from('fiscais').select('id, status, zona_fiscal, secao_fiscal, origem_captacao, pessoas(nome, telefone, whatsapp)').eq('suplente_id', suplente.id).order('criado_em', { ascending: false }),
+      supabase.from('possiveis_eleitores').select('id, compromisso_voto, origem_captacao, pessoas(nome, telefone, whatsapp)').eq('suplente_id', suplente.id).order('criado_em', { ascending: false }),
     ]);
 
     setLiderancas((lRes.data || []) as unknown as LiderancaItem[]);
@@ -169,6 +172,9 @@ export default function TabRede() {
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-semibold text-foreground truncate">{l.pessoas?.nome || '—'}</span>
                           <StatusBadge status={l.status} />
+                          {l.origem_captacao === 'visita_comite' && (
+                            <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/15 text-blue-600 dark:text-blue-400">Visita</span>
+                          )}
                         </div>
                         <p className="text-[10px] text-muted-foreground">{l.tipo_lideranca || '—'}</p>
                       </div>
@@ -198,6 +204,9 @@ export default function TabRede() {
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-semibold text-foreground truncate">{f.pessoas?.nome || '—'}</span>
                           <StatusBadge status={f.status} />
+                          {f.origem_captacao === 'visita_comite' && (
+                            <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/15 text-blue-600 dark:text-blue-400">Visita</span>
+                          )}
                         </div>
                         <p className="text-[10px] text-muted-foreground">
                           {f.zona_fiscal ? `Z${f.zona_fiscal}` : ''}{f.secao_fiscal ? ` S${f.secao_fiscal}` : ''}
@@ -229,6 +238,9 @@ export default function TabRede() {
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-semibold text-foreground truncate">{e.pessoas?.nome || '—'}</span>
                           {compromissoBadge(e.compromisso_voto)}
+                          {e.origem_captacao === 'visita_comite' && (
+                            <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/15 text-blue-600 dark:text-blue-400">Visita</span>
+                          )}
                         </div>
                       </div>
                       {e.pessoas?.whatsapp && (
