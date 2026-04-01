@@ -72,11 +72,28 @@ export default function TabRede() {
     setMode('detail');
     setLoadingDetail(true);
 
-    // Fetch all data linked to this suplente
+    // Find all hierarquia_usuarios linked to this suplente
+    const { data: usuarios } = await supabase
+      .from('hierarquia_usuarios')
+      .select('id')
+      .eq('suplente_id', suplente.id)
+      .eq('ativo', true);
+
+    const userIds = (usuarios || []).map(u => u.id);
+
+    if (userIds.length === 0) {
+      setLiderancas([]);
+      setFiscais([]);
+      setEleitores([]);
+      setLoadingDetail(false);
+      return;
+    }
+
+    // Fetch all data registered BY these users (cadastrado_por) OR linked via suplente_id
     const [lRes, fRes, eRes] = await Promise.all([
-      supabase.from('liderancas').select('id, status, tipo_lideranca, origem_captacao, pessoas(nome, telefone, whatsapp)').eq('suplente_id', suplente.id).order('criado_em', { ascending: false }),
-      supabase.from('fiscais').select('id, status, zona_fiscal, secao_fiscal, origem_captacao, pessoas(nome, telefone, whatsapp)').eq('suplente_id', suplente.id).order('criado_em', { ascending: false }),
-      supabase.from('possiveis_eleitores').select('id, compromisso_voto, origem_captacao, pessoas(nome, telefone, whatsapp)').eq('suplente_id', suplente.id).order('criado_em', { ascending: false }),
+      supabase.from('liderancas').select('id, status, tipo_lideranca, origem_captacao, pessoas(nome, telefone, whatsapp)').or(`cadastrado_por.in.(${userIds.join(',')}),suplente_id.eq.${suplente.id}`).order('criado_em', { ascending: false }),
+      supabase.from('fiscais').select('id, status, zona_fiscal, secao_fiscal, origem_captacao, pessoas(nome, telefone, whatsapp)').or(`cadastrado_por.in.(${userIds.join(',')}),suplente_id.eq.${suplente.id}`).order('criado_em', { ascending: false }),
+      supabase.from('possiveis_eleitores').select('id, compromisso_voto, origem_captacao, pessoas(nome, telefone, whatsapp)').or(`cadastrado_por.in.(${userIds.join(',')}),suplente_id.eq.${suplente.id}`).order('criado_em', { ascending: false }),
     ]);
 
     setLiderancas((lRes.data || []) as unknown as LiderancaItem[]);
