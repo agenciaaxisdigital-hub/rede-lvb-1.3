@@ -383,7 +383,7 @@ export default function TabRede() {
             className="w-full h-11 border border-primary/30 rounded-xl text-primary font-medium flex items-center justify-center gap-2 active:scale-[0.97] bg-primary/5"
           >
             {exporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-            {exporting ? 'Exportando...' : 'Exportar Rede (CSV)'}
+            {exporting ? 'Exportando...' : 'Exportar Rede (Excel)'}
           </button>
         )}
 
