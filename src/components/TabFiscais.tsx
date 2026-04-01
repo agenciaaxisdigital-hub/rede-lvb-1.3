@@ -178,15 +178,16 @@ export default function TabFiscais({ refreshKey, onSaved, viewOnly }: Props) {
         pessoaId = novaPessoa!.id;
       }
 
-      const { error } = await supabase.from('fiscais').insert({
+      const { error } = await (supabase as any).from('fiscais').insert({
         pessoa_id: pessoaId,
         cadastrado_por: usuario?.id || null,
-        suplente_id: usuario?.suplente_id || null,
-        lideranca_id: form.lideranca_id || null,
+        suplente_id: ligSuplenteId || usuario?.suplente_id || null,
+        lideranca_id: ligLiderancaId || form.lideranca_id || null,
         colegio_eleitoral: form.colegio_eleitoral || null,
         zona_fiscal: form.zona_fiscal || null,
         secao_fiscal: form.secao_fiscal || null,
         observacoes: form.observacoes || null,
+        municipio_id: ligMunicipioId || null,
       });
       if (error) throw error;
 
