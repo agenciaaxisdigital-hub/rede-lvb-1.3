@@ -316,12 +316,12 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
   const cpfBorderCls = cpfStatus === 'confirmado' ? 'border-emerald-500 ring-1 ring-emerald-500/30' : '';
 
   const Info = ({ label, value, link }: { label: string; value?: string | null; link?: string }) => {
-    if (!value) return null;
+    const display = value && value.trim() ? value : '—';
     return (
       <div className="flex justify-between items-start py-1.5 border-b border-border/50 last:border-0">
         <span className="text-[11px] text-muted-foreground shrink-0">{label}</span>
-        {link ? <a href={link} target="_blank" rel="noopener" className="text-sm text-primary text-right ml-2">{value}</a>
-          : <span className="text-sm text-foreground text-right ml-2 break-words">{value}</span>}
+        {link && display !== '—' ? <a href={link} target="_blank" rel="noopener" className="text-sm text-primary text-right ml-2">{display}</a>
+          : <span className={`text-sm text-right ml-2 break-words ${display === '—' ? 'text-muted-foreground' : 'text-foreground'}`}>{display}</span>}
       </div>
     );
   };
@@ -363,8 +363,8 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
         <div className="section-card">
           <h3 className="section-title">🗳️ Dados Eleitorais</h3>
           <Info label="Título" value={p.titulo_eleitor} />
-          <Info label="Zona / Seção" value={p.zona_eleitoral || p.secao_eleitoral ? `${p.zona_eleitoral || '—'} / ${p.secao_eleitoral || '—'}` : null} />
-          <Info label="Município / UF" value={p.municipio_eleitoral || p.uf_eleitoral ? `${p.municipio_eleitoral || '—'} / ${p.uf_eleitoral || '—'}` : null} />
+          <Info label="Zona / Seção" value={`${p.zona_eleitoral || '—'} / ${p.secao_eleitoral || '—'}`} />
+          <Info label="Município / UF" value={`${p.municipio_eleitoral || '—'} / ${p.uf_eleitoral || '—'}`} />
           <Info label="Colégio" value={p.colegio_eleitoral} />
           <Info label="End. colégio" value={p.endereco_colegio} />
           <Info label="Situação" value={p.situacao_titulo} />
@@ -381,12 +381,7 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
           <Info label="Possíveis votos" value={l.apoiadores_estimados?.toString()} />
           <Info label="Quantos votos pode trazer" value={l.meta_votos?.toString()} />
           <Info label="Comprometimento" value={l.nivel_comprometimento} />
-          {l.observacoes && (
-            <div className="pt-2">
-              <p className="text-[11px] text-muted-foreground mb-1">Observações</p>
-              <p className="text-sm text-foreground bg-muted/50 rounded-lg p-3">{l.observacoes}</p>
-            </div>
-          )}
+          <Info label="Observações" value={l.observacoes} />
         </div>
         <div className="space-y-2">
           {isAdmin && l.status !== 'Descartada' && (
