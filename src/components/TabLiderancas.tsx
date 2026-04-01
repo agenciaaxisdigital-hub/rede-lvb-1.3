@@ -13,8 +13,6 @@ import StatusBadge from '@/components/StatusBadge';
 import CampoLigacaoPolitica from '@/components/CampoLigacaoPolitica';
 import SkeletonLista from '@/components/SkeletonLista';
 
-const statusFilters = ['Todas', 'Ativa', 'Potencial', 'Em negociação', 'Fraca', 'Descartada'];
-const statusOptions = ['Ativa', 'Potencial', 'Em negociação', 'Fraca', 'Descartada'];
 const comprometimentos = ['Alto', 'Médio', 'Baixo'];
 const situacoesTitulo = ['Regular', 'Cancelado', 'Suspenso', 'Não informado'];
 
