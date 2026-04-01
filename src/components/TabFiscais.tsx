@@ -277,8 +277,8 @@ export default function TabFiscais({ refreshKey, onSaved, viewOnly }: Props) {
         <div className="section-card">
           <h3 className="section-title">🗳️ Dados Eleitorais</h3>
           <Info label="Título" value={p.titulo_eleitor} />
-          <Info label="Zona / Seção" value={p.zona_eleitoral || p.secao_eleitoral ? `${p.zona_eleitoral || '—'} / ${p.secao_eleitoral || '—'}` : null} />
-          <Info label="Município / UF" value={p.municipio_eleitoral || p.uf_eleitoral ? `${p.municipio_eleitoral || '—'} / ${p.uf_eleitoral || '—'}` : null} />
+          <Info label="Zona / Seção" value={`${p.zona_eleitoral || '—'} / ${p.secao_eleitoral || '—'}`} />
+          <Info label="Município / UF" value={`${p.municipio_eleitoral || '—'} / ${p.uf_eleitoral || '—'}`} />
           <Info label="Colégio" value={p.colegio_eleitoral} />
           <Info label="End. colégio" value={p.endereco_colegio} />
           <Info label="Situação" value={p.situacao_titulo} />
