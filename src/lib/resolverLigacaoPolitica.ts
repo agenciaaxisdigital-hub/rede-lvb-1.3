@@ -42,7 +42,7 @@ export async function resolverLigacaoPolitica(
 
     // Buscar nome do suplente via Edge Function
     try {
-      const { data } = await supabase.functions.invoke('buscar-suplentes');
+      const data = await cachedInvoke<any[]>('buscar-suplentes');
       if (Array.isArray(data)) {
         const sup = data.find((s: any) => String(s.id) === String(usuario.suplente_id));
         if (sup) {
