@@ -729,6 +729,19 @@ export default function TabPerfil() {
               </div>
             </div>
 
+            {/* Cidade */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                <MapPin size={12} /> Cidade
+              </label>
+              <select value={editCidade} onChange={e => setEditCidade(e.target.value)} className={inputCls}>
+                <option value="">Sem cidade</option>
+                {municipios.map(m => (
+                  <option key={m.id} value={m.id}>{m.nome} – {m.uf}</option>
+                ))}
+              </select>
+            </div>
+
             <button
               onClick={handleEdit}
               disabled={editSaving}
