@@ -74,9 +74,9 @@ export default function TabRede() {
 
     // Fetch all data linked to this suplente
     const [lRes, fRes, eRes] = await Promise.all([
-      supabase.from('liderancas').select('id, status, tipo_lideranca, pessoas(nome, telefone, whatsapp)').eq('suplente_id', suplente.id).order('criado_em', { ascending: false }),
-      supabase.from('fiscais').select('id, status, zona_fiscal, secao_fiscal, pessoas(nome, telefone, whatsapp)').eq('suplente_id', suplente.id).order('criado_em', { ascending: false }),
-      supabase.from('possiveis_eleitores').select('id, compromisso_voto, pessoas(nome, telefone, whatsapp)').eq('suplente_id', suplente.id).order('criado_em', { ascending: false }),
+      supabase.from('liderancas').select('id, status, tipo_lideranca, origem_captacao, pessoas(nome, telefone, whatsapp)').eq('suplente_id', suplente.id).order('criado_em', { ascending: false }),
+      supabase.from('fiscais').select('id, status, zona_fiscal, secao_fiscal, origem_captacao, pessoas(nome, telefone, whatsapp)').eq('suplente_id', suplente.id).order('criado_em', { ascending: false }),
+      supabase.from('possiveis_eleitores').select('id, compromisso_voto, origem_captacao, pessoas(nome, telefone, whatsapp)').eq('suplente_id', suplente.id).order('criado_em', { ascending: false }),
     ]);
 
     setLiderancas((lRes.data || []) as unknown as LiderancaItem[]);
