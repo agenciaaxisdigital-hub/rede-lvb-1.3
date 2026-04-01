@@ -299,9 +299,8 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
     } finally { setSaving(false); }
   };
 
-  const filtered = data.filter(l => {
+  const filtered = useMemo(() => data.filter(l => {
     if (statusFilter !== 'Todas' && l.status !== statusFilter) return false;
-    
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       const nome = l.pessoas?.nome?.toLowerCase() || '';
@@ -310,7 +309,7 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
       if (!nome.includes(q) && !cpf.includes(q) && !tel.includes(q)) return false;
     }
     return true;
-  });
+  }), [data, statusFilter, searchQuery]);
 
   const handleDelete = async (id: string) => {
     if (!confirm('Excluir esta liderança permanentemente?')) return;
