@@ -42,11 +42,11 @@ export default function SeletorCidade() {
     <>
       <button
         onClick={() => setAberto(true)}
-        className="flex items-center gap-1.5 px-3 py-1.5 bg-muted/50 border border-border rounded-xl text-xs font-medium text-foreground active:scale-95 transition-all"
+        className="w-full flex items-center gap-2 px-3 py-2 bg-muted/50 border border-border rounded-xl text-xs font-medium text-foreground active:scale-[0.98] transition-all"
       >
-        <Building2 size={13} className="text-primary" />
-        <span className="truncate max-w-[180px]">{nomeAtual}</span>
-        <ChevronDown size={12} className="text-muted-foreground" />
+        <Building2 size={14} className="text-primary shrink-0" />
+        <span className="flex-1 text-left truncate">{nomeAtual}</span>
+        <ChevronDown size={13} className="text-muted-foreground shrink-0" />
       </button>
 
       {aberto && (
