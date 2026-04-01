@@ -62,6 +62,7 @@ interface UsuarioItem {
   criado_em: string;
   suplente_id: string | null;
   auth_user_id: string | null;
+  municipio_id: string | null;
 }
 
 type ViewMode = 'list' | 'create' | 'edit';
