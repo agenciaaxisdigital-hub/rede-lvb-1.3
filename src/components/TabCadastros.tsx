@@ -189,8 +189,8 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
     return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
   };
 
-  if (loading) {
-    return <div className="flex justify-center py-12"><Loader2 size={24} className="animate-spin text-primary" /></div>;
+  if (loading && cadastros.length === 0) {
+    return <SkeletonLista />;
   }
 
   return (
