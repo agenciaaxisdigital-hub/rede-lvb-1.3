@@ -273,7 +273,6 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
   };
 
   const filtered = useMemo(() => data.filter(l => {
-    if (statusFilter !== 'Todas' && l.status !== statusFilter) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       const nome = l.pessoas?.nome?.toLowerCase() || '';
@@ -282,7 +281,7 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
       if (!nome.includes(q) && !cpf.includes(q) && !wpp.includes(q)) return false;
     }
     return true;
-  }), [data, statusFilter, searchQuery]);
+  }), [data, searchQuery]);
 
   const QUERY_DETALHE = 'id, status, tipo_lideranca, nivel, zona_atuacao, apoiadores_estimados, cadastrado_por, suplente_id, criado_em, regiao_atuacao, bairros_influencia, comunidades_influencia, origem_captacao, meta_votos, nivel_comprometimento, observacoes, municipio_id, pessoas(*), hierarquia_usuarios!liderancas_cadastrado_por_fkey(nome)';
 
