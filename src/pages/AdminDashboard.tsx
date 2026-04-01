@@ -53,6 +53,7 @@ interface EleitorReg {
   id: string; criado_em: string; cadastrado_por: string | null;
   suplente_id: string | null; compromisso_voto: string | null;
   municipio_id: string | null; origem_captacao: string | null;
+  observacoes: string | null;
   pessoas: Pessoa | null;
 }
 
