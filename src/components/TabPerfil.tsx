@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth, TipoUsuario } from '@/contexts/AuthContext';
+import { useCidade } from '@/contexts/CidadeContext';
 import { supabase } from '@/integrations/supabase/client';
 import {
   LogOut, Shield, User, UserPlus, Loader2, Crown, Users, Eye, Copy, X,
-  Pencil, Trash2, Settings, Search, ArrowLeft, KeyRound, EyeOff, ChevronDown
+  Pencil, Trash2, Settings, Search, ArrowLeft, KeyRound, EyeOff, ChevronDown,
+  MapPin, Building2, Plus
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import ModulosUsuario from '@/components/ModulosUsuario';
