@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { User, Users, UserPlus, Lock, Search, Loader2, X, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { cachedInvoke } from '@/lib/cacheEdgeFunctions';
 import { resolverMunicipioId } from '@/lib/resolverMunicipio';
 import { toast } from '@/hooks/use-toast';
 
