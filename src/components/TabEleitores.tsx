@@ -249,7 +249,7 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
     toast({ title: 'Registro excluído' });
     setSelected(null);
     setMode('list');
-    fetchData(true);
+    invalidarCadastros();
   };
 
   const filtered = useMemo(() => data.filter(e => {
