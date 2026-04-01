@@ -3,6 +3,7 @@ import { Search, ChevronRight, Phone, MessageCircle, Trash2, ArrowLeft, XCircle,
 import { exportAllCadastros } from '@/lib/exportXlsx';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCidade } from '@/contexts/CidadeContext';
 import { maskCPF, formatCPF, cleanCPF, validateCPF } from '@/lib/cpf';
 import { checkCpfDuplicateByUser } from '@/lib/cpfDuplicateCheck';
 import { toast } from '@/hooks/use-toast';
@@ -54,7 +55,8 @@ interface Props {
 }
 
 export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) {
-  const { usuario, isAdmin, tipoUsuario } = useAuth();
+  const { usuario, isAdmin, tipoUsuario, municipioId: authMunicipioId } = useAuth();
+  const { cidadeAtiva, isTodasCidades, nomeMunicipioPorId } = useCidade();
   const [mode, setMode] = useState<'list' | 'form' | 'detail'>('list');
   const [data, setData] = useState<LiderancaRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,13 +80,27 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
   const fetchData = useCallback(async () => {
     if (!usuario) return;
     setLoading(true);
-    const { data, error } = await supabase
+
+    const filtroMunicipioId = (tipoUsuario === 'super_admin' || tipoUsuario === 'coordenador')
+      ? (isTodasCidades ? null : cidadeAtiva?.id)
+      : authMunicipioId;
+
+    let query = (supabase as any)
       .from('liderancas')
-      .select('id, status, tipo_lideranca, nivel, zona_atuacao, apoiadores_estimados, cadastrado_por, suplente_id, criado_em, regiao_atuacao, bairros_influencia, comunidades_influencia, origem_captacao, meta_votos, nivel_comprometimento, observacoes, pessoas(*), hierarquia_usuarios!liderancas_cadastrado_por_fkey(nome)')
+      .select('id, status, tipo_lideranca, nivel, zona_atuacao, apoiadores_estimados, cadastrado_por, suplente_id, criado_em, regiao_atuacao, bairros_influencia, comunidades_influencia, origem_captacao, meta_votos, nivel_comprometimento, observacoes, municipio_id, pessoas(*), hierarquia_usuarios!liderancas_cadastrado_por_fkey(nome)')
       .order('criado_em', { ascending: false });
+
+    if (filtroMunicipioId) {
+      query = query.eq('municipio_id', filtroMunicipioId);
+    }
+    if (tipoUsuario !== 'super_admin' && tipoUsuario !== 'coordenador') {
+      query = query.eq('cadastrado_por', usuario.id);
+    }
+
+    const { data, error } = await query;
     if (!error && data) setData(data as unknown as LiderancaRow[]);
     setLoading(false);
-  }, [usuario]);
+  }, [usuario, tipoUsuario, cidadeAtiva, isTodasCidades, authMunicipioId]);
 
   useEffect(() => { fetchData(); }, [fetchData, refreshKey]);
 

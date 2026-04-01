@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCidade } from '@/contexts/CidadeContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Search, Users, Shield, Target, Phone, MapPin, Loader2, Download, UserCheck, Calendar, ChevronDown, Mail, MessageCircle, CreditCard, FileText, Globe } from 'lucide-react';
 import { exportAllCadastros } from '@/lib/exportXlsx';
@@ -43,7 +44,8 @@ interface Props {
 }
 
 export default function TabCadastros({ refreshKey, onSaved }: Props) {
-  const { tipoUsuario, usuario, isAdmin } = useAuth();
+  const { tipoUsuario, usuario, isAdmin, municipioId: authMunicipioId } = useAuth();
+  const { cidadeAtiva, isTodasCidades, nomeMunicipioPorId } = useCidade();
   const [loading, setLoading] = useState(true);
   const [cadastros, setCadastros] = useState<CadastroUnificado[]>([]);
   const [tipoFiltro, setTipoFiltro] = useState<TipoFiltro>('todos');
@@ -58,17 +60,34 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
     setLoading(true);
     const results: CadastroUnificado[] = [];
 
-    const [lidRes, fisRes, eleRes] = await Promise.all([
-      supabase.from('liderancas')
-        .select('id, status, regiao_atuacao, zona_atuacao, observacoes, criado_em, pessoas(nome, cpf, telefone, whatsapp, email, instagram, facebook, zona_eleitoral, secao_eleitoral, colegio_eleitoral, municipio_eleitoral, titulo_eleitor, observacoes_gerais), hierarquia_usuarios!liderancas_cadastrado_por_fkey(nome)')
-        .order('criado_em', { ascending: false }),
-      supabase.from('fiscais')
-        .select('id, status, zona_fiscal, observacoes, criado_em, pessoas(nome, cpf, telefone, whatsapp, email, instagram, facebook, zona_eleitoral, secao_eleitoral, colegio_eleitoral, municipio_eleitoral, titulo_eleitor, observacoes_gerais), hierarquia_usuarios!fiscais_cadastrado_por_fkey(nome)')
-        .order('criado_em', { ascending: false }),
-      supabase.from('possiveis_eleitores')
-        .select('id, compromisso_voto, observacoes, criado_em, pessoas(nome, cpf, telefone, whatsapp, email, instagram, facebook, zona_eleitoral, secao_eleitoral, colegio_eleitoral, municipio_eleitoral, titulo_eleitor, observacoes_gerais), hierarquia_usuarios!possiveis_eleitores_cadastrado_por_fkey(nome)')
-        .order('criado_em', { ascending: false }),
-    ]);
+    const filtroMunicipioId = (tipoUsuario === 'super_admin' || tipoUsuario === 'coordenador')
+      ? (isTodasCidades ? null : cidadeAtiva?.id)
+      : authMunicipioId;
+
+    const isAdminUser = tipoUsuario === 'super_admin' || tipoUsuario === 'coordenador';
+
+    let lidQuery = (supabase as any).from('liderancas')
+      .select('id, status, regiao_atuacao, zona_atuacao, observacoes, criado_em, municipio_id, pessoas(nome, cpf, telefone, whatsapp, email, instagram, facebook, zona_eleitoral, secao_eleitoral, colegio_eleitoral, municipio_eleitoral, titulo_eleitor, observacoes_gerais), hierarquia_usuarios!liderancas_cadastrado_por_fkey(nome)')
+      .order('criado_em', { ascending: false });
+    let fisQuery = (supabase as any).from('fiscais')
+      .select('id, status, zona_fiscal, observacoes, criado_em, municipio_id, pessoas(nome, cpf, telefone, whatsapp, email, instagram, facebook, zona_eleitoral, secao_eleitoral, colegio_eleitoral, municipio_eleitoral, titulo_eleitor, observacoes_gerais), hierarquia_usuarios!fiscais_cadastrado_por_fkey(nome)')
+      .order('criado_em', { ascending: false });
+    let eleQuery = (supabase as any).from('possiveis_eleitores')
+      .select('id, compromisso_voto, observacoes, criado_em, municipio_id, pessoas(nome, cpf, telefone, whatsapp, email, instagram, facebook, zona_eleitoral, secao_eleitoral, colegio_eleitoral, municipio_eleitoral, titulo_eleitor, observacoes_gerais), hierarquia_usuarios!possiveis_eleitores_cadastrado_por_fkey(nome)')
+      .order('criado_em', { ascending: false });
+
+    if (filtroMunicipioId) {
+      lidQuery = lidQuery.eq('municipio_id', filtroMunicipioId);
+      fisQuery = fisQuery.eq('municipio_id', filtroMunicipioId);
+      eleQuery = eleQuery.eq('municipio_id', filtroMunicipioId);
+    }
+    if (!isAdminUser) {
+      lidQuery = lidQuery.eq('cadastrado_por', usuario.id);
+      fisQuery = fisQuery.eq('cadastrado_por', usuario.id);
+      eleQuery = eleQuery.eq('cadastrado_por', usuario.id);
+    }
+
+    const [lidRes, fisRes, eleRes] = await Promise.all([lidQuery, fisQuery, eleQuery]);
 
     const mapPessoa = (item: any, tipo: CadastroUnificado['tipo'], regiao: string | null, status: string | null) => ({
       id: item.id, tipo,
@@ -110,7 +129,7 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
     results.sort((a, b) => new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime());
     setCadastros(results);
     setLoading(false);
-  }, [usuario]);
+  }, [usuario, tipoUsuario, cidadeAtiva, isTodasCidades, authMunicipioId]);
 
   useEffect(() => { fetchAll(); }, [fetchAll, refreshKey]);
 
