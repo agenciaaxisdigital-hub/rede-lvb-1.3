@@ -250,8 +250,6 @@ export default function AdminDashboard() {
 
       <div className="max-w-3xl mx-auto px-4 py-4 space-y-4">
 
-        {/* ══════════ LIDERANÇAS EXTERNAS ══════════ */}
-        {vistaAtiva === 'externas' && <TabLiderancasExternas />}
 
         {/* ── Period filter ── */}
         <div className="flex gap-1.5">
