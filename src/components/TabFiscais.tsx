@@ -214,12 +214,19 @@ export default function TabFiscais({ refreshKey, onSaved, viewOnly }: Props) {
       setPessoaExistenteId(null);
       setCpfStatus('idle');
       setMode('list');
-      fetchData();
+      fetchData(true);
       onSaved?.();
     } catch (err: any) {
       toast({ title: 'Erro ao salvar', description: err.message, variant: 'destructive' });
     } finally { setSaving(false); }
   };
+
+  const QUERY_DETALHE_FISC = 'id, status, colegio_eleitoral, zona_fiscal, secao_fiscal, lideranca_id, cadastrado_por, observacoes, criado_em, municipio_id, pessoas(nome, cpf, telefone, whatsapp, email, instagram, facebook, zona_eleitoral, secao_eleitoral, titulo_eleitor, municipio_eleitoral, uf_eleitoral, colegio_eleitoral, endereco_colegio, situacao_titulo)';
+
+  const fetchDetalhe = useCallback(async (id: string) => {
+    const { data } = await (supabase as any).from('fiscais').select(QUERY_DETALHE_FISC).eq('id', id).single();
+    if (data) setSelected(data as unknown as FiscalRow);
+  }, []);
 
   const handleDelete = async (id: string) => {
     if (!confirm('Excluir este fiscal?')) return;
@@ -227,14 +234,14 @@ export default function TabFiscais({ refreshKey, onSaved, viewOnly }: Props) {
     toast({ title: 'Fiscal excluído' });
     setSelected(null);
     setMode('list');
-    fetchData();
+    fetchData(true);
   };
 
-  const filtered = data.filter(f => {
+  const filtered = useMemo(() => data.filter(f => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (f.pessoas?.nome?.toLowerCase() || '').includes(q) || (f.pessoas?.cpf || '').includes(q);
-  });
+  }), [data, searchQuery]);
 
   const inputCls = "w-full h-11 px-3 bg-card border border-border rounded-xl text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30";
   const selectCls = inputCls;
