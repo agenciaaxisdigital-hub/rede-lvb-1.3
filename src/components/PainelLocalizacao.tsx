@@ -119,6 +119,8 @@ export default function PainelLocalizacao() {
   const [captureInterval, setCaptureIntervalState] = useState<CaptureIntervalMinutes>(() => getCaptureIntervalMinutes());
   const [dateFilter, setDateFilter] = useState<DateFilter>('24h');
   const [addresses, setAddresses] = useState<Record<string, string>>({});
+  const [filtroTipo, setFiltroTipo] = useState<string>('todos');
+  const [filtroSuplente, setFiltroSuplente] = useState<string>('todos');
   const hasFetched = useRef(false);
 
   // Fetch from Supabase + merge IndexedDB
