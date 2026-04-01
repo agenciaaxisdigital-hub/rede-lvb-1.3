@@ -286,7 +286,7 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
                     </div>
 
                     <div className="flex items-center gap-2 flex-wrap">
-                      {c.status && <StatusBadge status={c.status} />}
+                      
                       {c.telefone && (
                         <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
                           <Phone size={9} /> {c.telefone}
