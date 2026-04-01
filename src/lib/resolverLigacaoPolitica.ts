@@ -2,6 +2,24 @@ import { supabase } from '@/integrations/supabase/client';
 import { cachedInvoke } from '@/lib/cacheEdgeFunctions';
 import { resolverMunicipioId, buscarNomeMunicipio } from './resolverMunicipio';
 
+/** Ensure an external suplente exists in the local suplentes table */
+async function sincronizarSuplenteLocal(suplenteId: string) {
+  try {
+    const data = await cachedInvoke<any[]>('buscar-suplentes');
+    if (Array.isArray(data)) {
+      const sup = data.find((s: any) => String(s.id) === String(suplenteId));
+      if (sup) {
+        await (supabase as any).from('suplentes').upsert({
+          id: String(sup.id),
+          nome: sup.nome,
+          partido: sup.partido || null,
+          regiao_atuacao: sup.regiao_atuacao || null,
+        }, { onConflict: 'id' });
+      }
+    }
+  } catch {}
+}
+
 interface HierarquiaUsuario {
   id: string;
   tipo: string;
@@ -40,7 +58,7 @@ export async function resolverLigacaoPolitica(
     resultado.bloqueado = true;
     resultado.suplenteId = usuario.suplente_id;
 
-    // Buscar nome do suplente via Edge Function
+    // Buscar nome do suplente via Edge Function e sincronizar localmente
     try {
       const data = await cachedInvoke<any[]>('buscar-suplentes');
       if (Array.isArray(data)) {
@@ -48,6 +66,15 @@ export async function resolverLigacaoPolitica(
         if (sup) {
           resultado.nomeFixo = sup.nome;
           resultado.subtitulo = [sup.partido, sup.regiao_atuacao].filter(Boolean).join(' · ');
+          // Upsert into local suplentes table
+          try {
+            await (supabase as any).from('suplentes').upsert({
+              id: String(sup.id),
+              nome: sup.nome,
+              partido: sup.partido || null,
+              regiao_atuacao: sup.regiao_atuacao || null,
+            }, { onConflict: 'id' });
+          } catch {}
         }
       }
     } catch {}
@@ -61,6 +88,9 @@ export async function resolverLigacaoPolitica(
   if (usuario.tipo === 'lideranca' && usuario.suplente_id) {
     resultado.bloqueado = true;
     resultado.suplenteId = usuario.suplente_id;
+
+    // Ensure suplente exists locally
+    await sincronizarSuplenteLocal(usuario.suplente_id);
 
     // Buscar liderança do usuário pelo suplente_id na hierarquia
     try {
@@ -85,6 +115,9 @@ export async function resolverLigacaoPolitica(
   if (usuario.tipo === 'fiscal' && usuario.suplente_id) {
     resultado.bloqueado = true;
     resultado.suplenteId = usuario.suplente_id;
+
+    // Ensure suplente exists locally
+    await sincronizarSuplenteLocal(usuario.suplente_id);
 
     try {
       const { data: fiscais } = await supabase

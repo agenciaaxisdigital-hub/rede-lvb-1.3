@@ -142,6 +142,18 @@ export default function CampoLigacaoPolitica({
   };
 
   const selecionarSuplente = async (sup: SuplenteResult) => {
+    // Upsert suplente into local table to satisfy FK constraints
+    try {
+      await (supabase as any).from('suplentes').upsert({
+        id: String(sup.id),
+        nome: sup.nome,
+        partido: sup.partido || null,
+        regiao_atuacao: sup.regiao_atuacao || null,
+      }, { onConflict: 'id' });
+    } catch (e) {
+      console.warn('Erro ao sincronizar suplente local:', e);
+    }
+
     const munId = await resolverMunicipioId(String(sup.id));
     setSupNomeSelecionado(sup.nome);
     setLidNomeSelecionado(null);
