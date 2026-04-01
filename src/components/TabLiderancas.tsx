@@ -104,7 +104,7 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
   }, [usuario]);
 
   const PAGE_SIZE = 20;
-  const QUERY_LISTA = 'id, status, tipo_lideranca, zona_atuacao, apoiadores_estimados, cadastrado_por, criado_em, municipio_id, pessoas(nome, telefone, whatsapp, cpf), hierarquia_usuarios!liderancas_cadastrado_por_fkey(nome)';
+  const QUERY_LISTA = 'id, status, tipo_lideranca, zona_atuacao, apoiadores_estimados, cadastrado_por, criado_em, municipio_id, origem_captacao, pessoas(nome, telefone, whatsapp, cpf), hierarquia_usuarios!liderancas_cadastrado_por_fkey(nome)';
 
   const fetchData = useCallback(async (reset = true) => {
     if (!usuario) return;
