@@ -105,6 +105,8 @@ export default function TabCriarUsuarios() {
     setSenha('');
     setSuperiorId('');
     setShowSenha(false);
+    setCidadeSelecionada('');
+    setCidadeErro('');
   };
 
   const handleCreate = async () => {
