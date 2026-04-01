@@ -74,7 +74,7 @@ const TIPO_COLORS: Record<string, string> = {
 
 type Periodo = 'hoje' | 'semana' | 'mes' | 'total';
 type TipoFiltro = 'todos' | 'lideranca' | 'fiscal' | 'eleitor';
-type VistaAtiva = 'resumo' | 'ranking' | 'usuarios' | 'registros';
+type VistaAtiva = 'resumo' | 'ranking' | 'usuarios' | 'registros' | 'cidades';
 
 export default function AdminDashboard() {
   const { isAdmin } = useAuth();
