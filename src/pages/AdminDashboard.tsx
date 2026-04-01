@@ -78,9 +78,9 @@ export default function AdminDashboard() {
   const [exporting, setExporting] = useState(false);
   const [tipoUsuarioFiltro, setTipoUsuarioFiltro] = useState<TipoUsuarioFiltro>('todos');
 
-  const { data: liderancasData, isLoading: lLoading } = useLiderancas();
-  const { data: fiscaisData, isLoading: fLoading } = useFiscais();
-  const { data: eleitoresData, isLoading: eLoading } = useEleitores();
+  const { data: liderancasData, isLoading: lLoading } = useLiderancas('all');
+  const { data: fiscaisData, isLoading: fLoading } = useFiscais('all');
+  const { data: eleitoresData, isLoading: eLoading } = useEleitores('all');
   const { data: usuariosData, isLoading: uLoading } = useUsuarios();
 
   const liderancas = (liderancasData || []) as LiderancaReg[];
