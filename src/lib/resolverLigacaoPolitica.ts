@@ -116,7 +116,9 @@ export async function resolverLigacaoPolitica(
     resultado.bloqueado = true;
     resultado.suplenteId = usuario.suplente_id;
 
-    try {
+    // Ensure suplente exists locally
+    await sincronizarSuplenteLocal(usuario.suplente_id);
+
       const { data: fiscais } = await supabase
         .from('fiscais')
         .select('id, pessoas(nome)')
