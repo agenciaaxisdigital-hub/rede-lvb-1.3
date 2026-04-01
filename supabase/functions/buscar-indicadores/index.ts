@@ -18,66 +18,56 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Buscar suplentes da tabela suplentes (banco externo compartilhado)
-    const { data: suplentes } = await supabaseAdmin
+    // Buscar suplentes da tabela suplentes (banco compartilhado)
+    const { data: suplentesDB } = await supabaseAdmin
       .from('suplentes')
-      .select('id, nome, partido, regiao_atuacao')
+      .select('id, nome, partido, regiao_atuacao, numero_urna')
       .ilike('nome', `%${termo}%`)
       .order('nome')
       .limit(15);
 
-    // Buscar lideranças da hierarquia_usuarios (usuários locais tipo lideranca)
-    const { data: liderancasHierarquia } = await supabaseAdmin
+    // Buscar usuários da hierarquia (suplentes + lideranças + coordenadores)
+    const { data: hierarquiaUsers } = await supabaseAdmin
       .from('hierarquia_usuarios')
-      .select('id, nome, tipo, municipio_id')
+      .select('id, nome, tipo')
       .eq('ativo', true)
       .in('tipo', ['lideranca', 'suplente', 'coordenador'])
       .ilike('nome', `%${termo}%`)
       .order('nome')
-      .limit(15);
+      .limit(20);
 
-    // Buscar lideranças cadastradas (tabela liderancas → pessoas)
-    const { data: liderancasCadastradas } = await supabaseAdmin
-      .from('liderancas')
-      .select('id, pessoas(nome, whatsapp), regiao_atuacao')
-      .eq('status', 'Ativa')
-      .limit(50);
+    // Separar hierarquia em suplentes e lideranças
+    const nomesSuplenteVistos = new Set((suplentesDB || []).map(s => s.nome.toLowerCase()));
+    const suplentesHierarquia = (hierarquiaUsers || [])
+      .filter(u => u.tipo === 'suplente' && !nomesSuplenteVistos.has(u.nome.toLowerCase()));
 
-    // Filtrar lideranças cadastradas pelo termo
-    const liderancasFiltradas = (liderancasCadastradas || [])
-      .filter((l: any) => l.pessoas?.nome?.toLowerCase().includes(termo.toLowerCase()))
-      .slice(0, 15)
-      .map((l: any) => ({
-        id: l.id,
-        nome: l.pessoas?.nome || '',
-        regiao: l.regiao_atuacao || '',
-        fonte: 'lideranca_cadastrada',
-      }));
+    const liderancasHierarquia = (hierarquiaUsers || [])
+      .filter(u => u.tipo === 'lideranca' || u.tipo === 'coordenador');
 
-    // Combinar lideranças (hierarquia + cadastradas, sem duplicar)
-    const nomesVistos = new Set<string>();
-    const liderancasUnificadas: any[] = [];
+    // Montar resultado
+    const suplentes = [
+      ...(suplentesDB || []).map(s => ({
+        id: s.id,
+        nome: s.nome,
+        partido: s.partido,
+        numero_urna: (s as any).numero_urna || null,
+        regiao_atuacao: s.regiao_atuacao,
+      })),
+      ...suplentesHierarquia.map(u => ({
+        id: u.id,
+        nome: u.nome,
+        partido: null,
+        numero_urna: null,
+        regiao_atuacao: null,
+      })),
+    ];
 
-    for (const l of (liderancasHierarquia || [])) {
-      const key = l.nome.toLowerCase();
-      if (!nomesVistos.has(key)) {
-        nomesVistos.add(key);
-        liderancasUnificadas.push({
-          id: l.id,
-          nome: l.nome,
-          regiao: '',
-          fonte: 'hierarquia',
-        });
-      }
-    }
-
-    for (const l of liderancasFiltradas) {
-      const key = l.nome.toLowerCase();
-      if (!nomesVistos.has(key)) {
-        nomesVistos.add(key);
-        liderancasUnificadas.push(l);
-      }
-    }
+    const liderancas = liderancasHierarquia.map(l => ({
+      id: l.id,
+      nome: l.nome,
+      regiao: '',
+      fonte: 'hierarquia',
+    }));
 
     return new Response(
       JSON.stringify({
