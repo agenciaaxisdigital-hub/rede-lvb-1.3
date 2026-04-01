@@ -121,7 +121,7 @@ export default function SeletorCidade() {
               {/* Cidades individuais */}
               {municipios.map(m => {
                 const selected = cidadeAtiva?.id === m.id;
-                const c = contagens[m.id] || { liderancas: 0, fiscais: 0, eleitores: 0 };
+                const c = contagens[m.id] || { liderancas: 0, fiscais: 0, eleitores: 0, usuarios: 0 };
                 const total = c.liderancas + c.fiscais + c.eleitores;
 
                 return (
