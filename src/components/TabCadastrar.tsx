@@ -325,20 +325,12 @@ export default function TabCadastrar({ onSaved }: Props) {
             <input type="number" value={form.meta_votos} onChange={e => update('meta_votos', e.target.value)} placeholder="0" className={inputCls} />
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Status <span className="text-primary">*</span></label>
-            <select value={form.status} onChange={e => update('status', e.target.value)} className={selectCls}>
-              {statusOptions.map(o => <option key={o} value={o}>{o}</option>)}
-            </select>
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Comprometimento</label>
-            <select value={form.nivel_comprometimento} onChange={e => update('nivel_comprometimento', e.target.value)} className={selectCls}>
-              <option value="">Selecione...</option>
-              {comprometimentos.map(o => <option key={o} value={o}>{o}</option>)}
-            </select>
-          </div>
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-muted-foreground">Comprometimento</label>
+          <select value={form.nivel_comprometimento} onChange={e => update('nivel_comprometimento', e.target.value)} className={selectCls}>
+            <option value="">Selecione...</option>
+            {comprometimentos.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
         </div>
         <div className="space-y-1">
           <label className="text-xs font-medium text-muted-foreground">Observações</label>

@@ -454,20 +454,12 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
           
           <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">Região de atuação</label><textarea value={form.regiao_atuacao} onChange={e => update('regiao_atuacao', e.target.value)} rows={2} className={textareaCls} /></div>
           <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">Quantos votos pode trazer</label><input type="number" value={form.meta_votos} onChange={e => update('meta_votos', e.target.value)} placeholder="Ex: 500" className={inputCls} /></div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Status</label>
-              <select value={form.status} onChange={e => update('status', e.target.value)} className={selectCls}>
-                {statusOptions.map(o => <option key={o} value={o}>{o}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Comprometimento</label>
-              <select value={form.nivel_comprometimento} onChange={e => update('nivel_comprometimento', e.target.value)} className={selectCls}>
-                <option value="">Selecione...</option>
-                {comprometimentos.map(o => <option key={o} value={o}>{o}</option>)}
-              </select>
-            </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Comprometimento</label>
+            <select value={form.nivel_comprometimento} onChange={e => update('nivel_comprometimento', e.target.value)} className={selectCls}>
+              <option value="">Selecione...</option>
+              {comprometimentos.map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
           </div>
           <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">Observações</label><textarea value={form.observacoes} onChange={e => update('observacoes', e.target.value)} rows={3} className={textareaCls} /></div>
         </div>
