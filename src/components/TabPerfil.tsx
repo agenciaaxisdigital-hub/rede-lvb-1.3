@@ -874,6 +874,7 @@ export default function TabPerfil() {
                       <p className="text-[10px] text-muted-foreground">
                         {tipoLabels[u.tipo as TipoUsuario] || u.tipo}
                         {getSuplenteNome(u.suplente_id) ? ` · ${getSuplenteNome(u.suplente_id)}` : ''}
+                        {u.municipio_id && (() => { const m = municipios.find(m => m.id === u.municipio_id); return m ? ` · ${m.nome}` : ''; })()}
                       </p>
                     </div>
                     <Pencil size={14} className="text-muted-foreground shrink-0" />
