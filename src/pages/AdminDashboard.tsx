@@ -70,7 +70,7 @@ export default function AdminDashboard() {
   const { municipios, isTodasCidades, cidadeAtiva, setCidadeAtiva, nomeMunicipioPorId } = useCidade();
   const navigate = useNavigate();
 
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
   const [periodo, setPeriodo] = useState<Periodo>('total');
   const [tipoFiltro, setTipoFiltro] = useState<TipoFiltro>('todos');
   const [vistaAtiva, setVistaAtiva] = useState<VistaAtiva>('usuarios');
