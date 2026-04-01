@@ -129,7 +129,7 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
     results.sort((a, b) => new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime());
     setCadastros(results);
     setLoading(false);
-  }, [usuario]);
+  }, [usuario, tipoUsuario, cidadeAtiva, isTodasCidades, authMunicipioId]);
 
   useEffect(() => { fetchAll(); }, [fetchAll, refreshKey]);
 

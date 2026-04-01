@@ -70,13 +70,27 @@ export default function TabFiscais({ refreshKey, onSaved, viewOnly }: Props) {
   const fetchData = useCallback(async () => {
     if (!usuario) return;
     setLoading(true);
-    const { data: fiscais } = await supabase
+
+    const filtroMunicipioId = (tipoUsuario === 'super_admin' || tipoUsuario === 'coordenador')
+      ? (isTodasCidades ? null : cidadeAtiva?.id)
+      : authMunicipioId;
+
+    let query = (supabase as any)
       .from('fiscais')
-      .select('id, status, colegio_eleitoral, zona_fiscal, secao_fiscal, lideranca_id, cadastrado_por, observacoes, criado_em, pessoas(nome, cpf, telefone, whatsapp, email, instagram, facebook, zona_eleitoral, secao_eleitoral, titulo_eleitor, municipio_eleitoral, uf_eleitoral, colegio_eleitoral, endereco_colegio, situacao_titulo)')
+      .select('id, status, colegio_eleitoral, zona_fiscal, secao_fiscal, lideranca_id, cadastrado_por, observacoes, criado_em, municipio_id, pessoas(nome, cpf, telefone, whatsapp, email, instagram, facebook, zona_eleitoral, secao_eleitoral, titulo_eleitor, municipio_eleitoral, uf_eleitoral, colegio_eleitoral, endereco_colegio, situacao_titulo)')
       .order('criado_em', { ascending: false });
+
+    if (filtroMunicipioId) {
+      query = query.eq('municipio_id', filtroMunicipioId);
+    }
+    if (tipoUsuario !== 'super_admin' && tipoUsuario !== 'coordenador') {
+      query = query.eq('cadastrado_por', usuario.id);
+    }
+
+    const { data: fiscais } = await query;
     if (fiscais) setData(fiscais as unknown as FiscalRow[]);
     setLoading(false);
-  }, [usuario]);
+  }, [usuario, tipoUsuario, cidadeAtiva, isTodasCidades, authMunicipioId]);
 
   useEffect(() => { fetchData(); }, [fetchData, refreshKey]);
 
