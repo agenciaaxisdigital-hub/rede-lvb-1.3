@@ -122,6 +122,7 @@ export default function TabCriarUsuarios() {
         senha: senha.trim(),
         tipo: creatingFor.tipo === 'suplentes' ? 'suplente' : 'lideranca',
         superior_id: superiorId || null,
+        municipio_id: cidadeSelecionada,
       };
 
       if (creatingFor.tipo === 'suplentes') {
