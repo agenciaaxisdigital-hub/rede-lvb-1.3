@@ -1,0 +1,108 @@
+import { supabase } from '@/integrations/supabase/client';
+import { resolverMunicipioId, buscarNomeMunicipio } from './resolverMunicipio';
+
+interface HierarquiaUsuario {
+  id: string;
+  tipo: string;
+  suplente_id: string | null;
+  superior_id: string | null;
+}
+
+interface LigacaoPoliticaResult {
+  bloqueado: boolean;
+  nomeFixo: string | null;
+  subtitulo: string | null;
+  suplenteId: string | null;
+  liderancaId: string | null;
+  fiscalId: string | null;
+  municipioId: string | null;
+}
+
+/**
+ * Resolve a ligação política do usuário logado para pré-preencher formulários.
+ */
+export async function resolverLigacaoPolitica(
+  usuario: HierarquiaUsuario
+): Promise<LigacaoPoliticaResult> {
+  const resultado: LigacaoPoliticaResult = {
+    bloqueado: false,
+    nomeFixo: null,
+    subtitulo: null,
+    suplenteId: null,
+    liderancaId: null,
+    fiscalId: null,
+    municipioId: null,
+  };
+
+  // 1. Suplente com suplente_id → bloqueado, exibe nome do suplente
+  if (usuario.tipo === 'suplente' && usuario.suplente_id) {
+    resultado.bloqueado = true;
+    resultado.suplenteId = usuario.suplente_id;
+
+    // Buscar nome do suplente via Edge Function
+    try {
+      const { data } = await supabase.functions.invoke('buscar-suplentes');
+      if (Array.isArray(data)) {
+        const sup = data.find((s: any) => String(s.id) === String(usuario.suplente_id));
+        if (sup) {
+          resultado.nomeFixo = sup.nome;
+          resultado.subtitulo = [sup.partido, sup.regiao_atuacao].filter(Boolean).join(' · ');
+        }
+      }
+    } catch {}
+
+    // Resolver município
+    resultado.municipioId = await resolverMunicipioId(usuario.suplente_id);
+    return resultado;
+  }
+
+  // 2. Liderança → buscar liderança vinculada ao usuário, herdar suplente_id
+  if (usuario.tipo === 'lideranca' && usuario.suplente_id) {
+    resultado.bloqueado = true;
+    resultado.suplenteId = usuario.suplente_id;
+
+    // Buscar liderança do usuário pelo suplente_id na hierarquia
+    try {
+      const { data: liderancas } = await supabase
+        .from('liderancas')
+        .select('id, pessoas(nome)')
+        .eq('suplente_id', usuario.suplente_id)
+        .limit(1);
+      if (liderancas && liderancas.length > 0) {
+        const l = liderancas[0] as any;
+        resultado.liderancaId = l.id;
+        resultado.nomeFixo = l.pessoas?.nome || 'Liderança vinculada';
+        resultado.subtitulo = 'Vinculado ao seu perfil de liderança';
+      }
+    } catch {}
+
+    resultado.municipioId = await resolverMunicipioId(usuario.suplente_id);
+    return resultado;
+  }
+
+  // 3. Fiscal → buscar fiscal vinculado
+  if (usuario.tipo === 'fiscal' && usuario.suplente_id) {
+    resultado.bloqueado = true;
+    resultado.suplenteId = usuario.suplente_id;
+
+    try {
+      const { data: fiscais } = await supabase
+        .from('fiscais')
+        .select('id, pessoas(nome)')
+        .eq('suplente_id', usuario.suplente_id)
+        .limit(1);
+      if (fiscais && fiscais.length > 0) {
+        const f = fiscais[0] as any;
+        resultado.fiscalId = f.id;
+        resultado.nomeFixo = f.pessoas?.nome || 'Fiscal vinculado';
+        resultado.subtitulo = 'Vinculado ao seu perfil de fiscal';
+      }
+    } catch {}
+
+    resultado.municipioId = await resolverMunicipioId(usuario.suplente_id);
+    return resultado;
+  }
+
+  // 4. Caso contrário (avulso, admin, coordenador) → campo editável
+  return resultado;
+}
