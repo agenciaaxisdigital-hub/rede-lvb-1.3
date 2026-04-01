@@ -18,6 +18,37 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
+    // Allow self-password-change
+    if (acao === 'alterar_propria_senha') {
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader) {
+        return new Response(
+          JSON.stringify({ error: 'Não autenticado' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user } } = await supabaseAdmin.auth.getUser(token);
+      if (!user) {
+        return new Response(
+          JSON.stringify({ error: 'Token inválido' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (!nova_senha || nova_senha.length < 4) {
+        return new Response(
+          JSON.stringify({ error: 'Senha deve ter ao menos 4 caracteres' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(user.id, { password: nova_senha });
+      if (error) throw error;
+      return new Response(
+        JSON.stringify({ success: true, message: 'Senha alterada com sucesso' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     if (acao === 'atualizar') {
       if (novo_nome) {
         const newEmail = novo_nome.toLowerCase().trim().replace(/\s+/g, '.').replace(/[^a-z0-9.]/g, '') + '@rede.sarelli.com';
