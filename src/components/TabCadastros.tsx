@@ -25,13 +25,33 @@ interface CadastroUnificado {
   zona_eleitoral: string | null;
   secao_eleitoral: string | null;
   colegio_eleitoral: string | null;
+  endereco_colegio: string | null;
   municipio_eleitoral: string | null;
+  uf_eleitoral: string | null;
   titulo_eleitor: string | null;
+  situacao_titulo: string | null;
   observacoes: string | null;
   status: string | null;
   regiao: string | null;
   cadastrado_por_nome: string | null;
   criado_em: string;
+  // Liderança specific
+  tipo_lideranca: string | null;
+  nivel: string | null;
+  bairros_influencia: string | null;
+  comunidades_influencia: string | null;
+  apoiadores_estimados: number | null;
+  meta_votos: number | null;
+  nivel_comprometimento: string | null;
+  origem_captacao: string | null;
+  // Fiscal specific
+  zona_fiscal: string | null;
+  secao_fiscal: string | null;
+  colegio_fiscal: string | null;
+  lideranca_nome: string | null;
+  // Eleitor specific
+  compromisso_voto: string | null;
+  fiscal_nome: string | null;
 }
 
 const tipoConfig = {
@@ -61,8 +81,7 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
 
   const isSuperAdmin = tipoUsuario === 'super_admin';
 
-  const mapPessoa = useCallback((item: any, tipo: CadastroUnificado['tipo'], regiao: string | null, status: string | null) => ({
-    id: item.id, tipo,
+  const mapBase = (item: any) => ({
     nome: item.pessoas?.nome || '—',
     cpf: item.pessoas?.cpf || null,
     telefone: item.pessoas?.telefone || null,
@@ -73,35 +92,73 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
     zona_eleitoral: item.pessoas?.zona_eleitoral || null,
     secao_eleitoral: item.pessoas?.secao_eleitoral || null,
     colegio_eleitoral: item.pessoas?.colegio_eleitoral || null,
+    endereco_colegio: item.pessoas?.endereco_colegio || null,
     municipio_eleitoral: item.pessoas?.municipio_eleitoral || null,
+    uf_eleitoral: item.pessoas?.uf_eleitoral || null,
     titulo_eleitor: item.pessoas?.titulo_eleitor || null,
+    situacao_titulo: item.pessoas?.situacao_titulo || null,
     observacoes: item.observacoes || item.pessoas?.observacoes_gerais || null,
-    status,
-    regiao,
     cadastrado_por_nome: item.hierarquia_usuarios?.nome || null,
     criado_em: item.criado_em,
-  }), []);
+    // defaults
+    tipo_lideranca: null as string | null,
+    nivel: null as string | null,
+    bairros_influencia: null as string | null,
+    comunidades_influencia: null as string | null,
+    apoiadores_estimados: null as number | null,
+    meta_votos: null as number | null,
+    nivel_comprometimento: null as string | null,
+    origem_captacao: item.origem_captacao || null,
+    zona_fiscal: null as string | null,
+    secao_fiscal: null as string | null,
+    colegio_fiscal: null as string | null,
+    lideranca_nome: null as string | null,
+    compromisso_voto: null as string | null,
+    fiscal_nome: null as string | null,
+  });
 
   const cadastros = useMemo(() => {
     const results: CadastroUnificado[] = [];
     if (lidData) {
       for (const l of lidData as any[]) {
-        results.push(mapPessoa(l, 'lideranca', l.regiao_atuacao || l.zona_atuacao || null, l.status));
+        results.push({
+          ...mapBase(l), id: l.id, tipo: 'lideranca',
+          status: l.status, regiao: l.regiao_atuacao || l.zona_atuacao || null,
+          tipo_lideranca: l.tipo_lideranca || null,
+          nivel: l.nivel || null,
+          bairros_influencia: l.bairros_influencia || null,
+          comunidades_influencia: l.comunidades_influencia || null,
+          apoiadores_estimados: l.apoiadores_estimados || null,
+          meta_votos: l.meta_votos || null,
+          nivel_comprometimento: l.nivel_comprometimento || null,
+        });
       }
     }
     if (fisData) {
       for (const f of fisData as any[]) {
-        results.push(mapPessoa(f, 'fiscal', f.zona_fiscal || null, f.status));
+        results.push({
+          ...mapBase(f), id: f.id, tipo: 'fiscal',
+          status: f.status, regiao: null,
+          zona_fiscal: f.zona_fiscal || null,
+          secao_fiscal: f.secao_fiscal || null,
+          colegio_fiscal: f.colegio_eleitoral || null,
+        });
       }
     }
     if (eleData) {
       for (const e of eleData as any[]) {
-        results.push(mapPessoa(e, 'eleitor', null, e.compromisso_voto));
+        results.push({
+          ...mapBase(e), id: e.id, tipo: 'eleitor',
+          status: e.compromisso_voto, regiao: null,
+          compromisso_voto: e.compromisso_voto || null,
+          lideranca_nome: e.liderancas?.pessoas?.nome || null,
+          fiscal_nome: e.fiscais?.pessoas?.nome || null,
+        });
       }
     }
     results.sort((a, b) => new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime());
     return results;
-  }, [lidData, fisData, eleData, mapPessoa]);
+  }, [lidData, fisData, eleData]);
 
   useEffect(() => {
     if (refreshKey > 0) invalidarCadastros();
@@ -268,18 +325,12 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
                       {c.cpf && (
                         <div className="flex items-center gap-1.5 text-xs text-foreground bg-muted/40 rounded-lg px-2.5 py-1.5">
                           <CreditCard size={11} className="text-muted-foreground shrink-0" />
-                          <span className="truncate">{formatCPF(c.cpf)}</span>
+                          <span className="truncate">CPF: {formatCPF(c.cpf)}</span>
                         </div>
                       )}
-                      {c.telefone && (
+                      {c.whatsapp && (
                         <div className="flex items-center gap-1.5 text-xs text-foreground bg-muted/40 rounded-lg px-2.5 py-1.5">
-                          <Phone size={11} className="text-muted-foreground shrink-0" />
-                          <span className="truncate">{c.telefone}</span>
-                        </div>
-                      )}
-                      {c.whatsapp && c.whatsapp !== c.telefone && (
-                        <div className="flex items-center gap-1.5 text-xs text-foreground bg-muted/40 rounded-lg px-2.5 py-1.5">
-                          <MessageCircle size={11} className="text-emerald-500 shrink-0" />
+                          <MessageCircle size={11} className="text-muted-foreground shrink-0" />
                           <span className="truncate">{c.whatsapp}</span>
                         </div>
                       )}
@@ -289,20 +340,14 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
                           <span className="truncate">{c.email}</span>
                         </div>
                       )}
-                      {c.instagram && (
+                      {(c.instagram || c.facebook) && (
                         <div className="flex items-center gap-1.5 text-xs text-foreground bg-muted/40 rounded-lg px-2.5 py-1.5">
-                          <Globe size={11} className="text-pink-500 shrink-0" />
-                          <span className="truncate">@{c.instagram.replace('@', '')}</span>
-                        </div>
-                      )}
-                      {c.facebook && (
-                        <div className="flex items-center gap-1.5 text-xs text-foreground bg-muted/40 rounded-lg px-2.5 py-1.5">
-                          <Globe size={11} className="text-blue-500 shrink-0" />
-                          <span className="truncate">{c.facebook}</span>
+                          <Globe size={11} className="text-muted-foreground shrink-0" />
+                          <span className="truncate">{c.instagram || c.facebook}</span>
                         </div>
                       )}
                     </div>
-                    {!c.cpf && !c.telefone && !c.whatsapp && !c.email && !c.instagram && !c.facebook && (
+                    {!c.cpf && !c.whatsapp && !c.email && !c.instagram && !c.facebook && (
                       <p className="text-[10px] text-muted-foreground/50 italic">Nenhum contato cadastrado</p>
                     )}
                   </div>
@@ -315,6 +360,12 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
                         <div className="flex items-center gap-1.5 text-xs text-foreground bg-muted/40 rounded-lg px-2.5 py-1.5">
                           <FileText size={11} className="text-muted-foreground shrink-0" />
                           <span>Título: {c.titulo_eleitor}</span>
+                        </div>
+                      )}
+                      {c.situacao_titulo && (
+                        <div className="flex items-center gap-1.5 text-xs text-foreground bg-muted/40 rounded-lg px-2.5 py-1.5">
+                          <FileText size={11} className="text-muted-foreground shrink-0" />
+                          <span>Situação: {c.situacao_titulo}</span>
                         </div>
                       )}
                       {c.zona_eleitoral && (
@@ -335,10 +386,22 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
                           <span className="truncate">Colégio: {c.colegio_eleitoral}</span>
                         </div>
                       )}
-                      {c.municipio_eleitoral && (
+                      {c.endereco_colegio && (
                         <div className="col-span-2 flex items-center gap-1.5 text-xs text-foreground bg-muted/40 rounded-lg px-2.5 py-1.5">
                           <MapPin size={11} className="text-muted-foreground shrink-0" />
+                          <span className="truncate">End. Colégio: {c.endereco_colegio}</span>
+                        </div>
+                      )}
+                      {c.municipio_eleitoral && (
+                        <div className="flex items-center gap-1.5 text-xs text-foreground bg-muted/40 rounded-lg px-2.5 py-1.5">
+                          <MapPin size={11} className="text-muted-foreground shrink-0" />
                           <span className="truncate">Município: {c.municipio_eleitoral}</span>
+                        </div>
+                      )}
+                      {c.uf_eleitoral && (
+                        <div className="flex items-center gap-1.5 text-xs text-foreground bg-muted/40 rounded-lg px-2.5 py-1.5">
+                          <MapPin size={11} className="text-muted-foreground shrink-0" />
+                          <span>UF: {c.uf_eleitoral}</span>
                         </div>
                       )}
                     </div>
@@ -347,13 +410,109 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
                     )}
                   </div>
 
-                  {/* Região / Observações */}
-                  {(c.regiao || c.observacoes) && (
+                  {/* Dados específicos de Liderança */}
+                  {c.tipo === 'lideranca' && (
                     <div>
-                      {c.regiao && (
-                        <div className="flex items-center gap-1.5 text-xs text-foreground mb-1">
-                          <MapPin size={11} className="text-primary shrink-0" />
-                          <span>Região: {c.regiao}</span>
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Dados da Liderança</p>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {c.tipo_lideranca && (
+                          <div className="text-xs text-foreground bg-muted/40 rounded-lg px-2.5 py-1.5">
+                            <span className="text-muted-foreground">Tipo:</span> {c.tipo_lideranca}
+                          </div>
+                        )}
+                        {c.nivel && (
+                          <div className="text-xs text-foreground bg-muted/40 rounded-lg px-2.5 py-1.5">
+                            <span className="text-muted-foreground">Nível:</span> {c.nivel}
+                          </div>
+                        )}
+                        {c.nivel_comprometimento && (
+                          <div className="text-xs text-foreground bg-muted/40 rounded-lg px-2.5 py-1.5">
+                            <span className="text-muted-foreground">Comprometimento:</span> {c.nivel_comprometimento}
+                          </div>
+                        )}
+                        {c.apoiadores_estimados && (
+                          <div className="text-xs text-foreground bg-muted/40 rounded-lg px-2.5 py-1.5">
+                            <span className="text-muted-foreground">Apoiadores:</span> {c.apoiadores_estimados}
+                          </div>
+                        )}
+                        {c.meta_votos && (
+                          <div className="text-xs text-foreground bg-muted/40 rounded-lg px-2.5 py-1.5">
+                            <span className="text-muted-foreground">Meta votos:</span> {c.meta_votos}
+                          </div>
+                        )}
+                        {c.regiao && (
+                          <div className="col-span-2 text-xs text-foreground bg-muted/40 rounded-lg px-2.5 py-1.5">
+                            <span className="text-muted-foreground">Região:</span> {c.regiao}
+                          </div>
+                        )}
+                        {c.bairros_influencia && (
+                          <div className="col-span-2 text-xs text-foreground bg-muted/40 rounded-lg px-2.5 py-1.5">
+                            <span className="text-muted-foreground">Bairros:</span> {c.bairros_influencia}
+                          </div>
+                        )}
+                        {c.comunidades_influencia && (
+                          <div className="col-span-2 text-xs text-foreground bg-muted/40 rounded-lg px-2.5 py-1.5">
+                            <span className="text-muted-foreground">Comunidades:</span> {c.comunidades_influencia}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Dados específicos de Fiscal */}
+                  {c.tipo === 'fiscal' && (c.zona_fiscal || c.secao_fiscal || c.colegio_fiscal) && (
+                    <div>
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Dados de Fiscalização</p>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {c.colegio_fiscal && (
+                          <div className="col-span-2 text-xs text-foreground bg-muted/40 rounded-lg px-2.5 py-1.5">
+                            <span className="text-muted-foreground">Colégio:</span> {c.colegio_fiscal}
+                          </div>
+                        )}
+                        {c.zona_fiscal && (
+                          <div className="text-xs text-foreground bg-muted/40 rounded-lg px-2.5 py-1.5">
+                            <span className="text-muted-foreground">Zona fiscal:</span> {c.zona_fiscal}
+                          </div>
+                        )}
+                        {c.secao_fiscal && (
+                          <div className="text-xs text-foreground bg-muted/40 rounded-lg px-2.5 py-1.5">
+                            <span className="text-muted-foreground">Seção fiscal:</span> {c.secao_fiscal}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Dados específicos de Eleitor */}
+                  {c.tipo === 'eleitor' && (c.compromisso_voto || c.lideranca_nome || c.fiscal_nome) && (
+                    <div>
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Vínculo do Eleitor</p>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {c.compromisso_voto && (
+                          <div className="text-xs text-foreground bg-muted/40 rounded-lg px-2.5 py-1.5">
+                            <span className="text-muted-foreground">Compromisso:</span> {c.compromisso_voto}
+                          </div>
+                        )}
+                        {c.lideranca_nome && (
+                          <div className="text-xs text-foreground bg-muted/40 rounded-lg px-2.5 py-1.5">
+                            <span className="text-muted-foreground">Liderança:</span> {c.lideranca_nome}
+                          </div>
+                        )}
+                        {c.fiscal_nome && (
+                          <div className="text-xs text-foreground bg-muted/40 rounded-lg px-2.5 py-1.5">
+                            <span className="text-muted-foreground">Fiscal:</span> {c.fiscal_nome}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Origem e observações */}
+                  {(c.origem_captacao || c.observacoes) && (
+                    <div>
+                      {c.origem_captacao && (
+                        <div className="text-xs text-foreground bg-muted/40 rounded-lg px-2.5 py-1.5 mb-1.5">
+                          <span className="text-muted-foreground">Origem:</span> {c.origem_captacao}
                         </div>
                       )}
                       {c.observacoes && (
