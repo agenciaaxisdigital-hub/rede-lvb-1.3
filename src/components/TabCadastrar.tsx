@@ -299,8 +299,6 @@ export default function TabCadastrar({ onSaved }: Props) {
       {/* Perfil + Status */}
       <div className="section-card">
         <h2 className="section-title">⭐ Perfil e Status</h2>
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">Ligação política</label>
           <input type="text" value={form.tipo_lideranca} onChange={e => update('tipo_lideranca', e.target.value)} placeholder="A quem é ligado politicamente" className={inputCls} />
         </div>
         <div className="space-y-1">
