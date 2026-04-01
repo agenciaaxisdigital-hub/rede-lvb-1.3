@@ -558,11 +558,7 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
               <ChevronRight size={16} className="text-muted-foreground shrink-0" />
             </button>
           ))}
-          {temMais && (
-            <button onClick={() => fetchData(false)} disabled={carregandoMais}
-              className="w-full py-3 text-sm text-primary font-medium flex items-center justify-center gap-2 active:scale-[0.97]">
-              {carregandoMais ? <Loader2 size={16} className="animate-spin" /> : 'Carregar mais'}
-            </button>
+          {/* All data loaded from cache */}
           )}
         </div>
       )}
