@@ -168,8 +168,6 @@ export default function TabHierarquia() {
             {userCadastros.map(c => {
               const typeConfig = c.tipo === 'lideranca' 
                 ? { bg: 'bg-blue-500/10', textColor: 'text-blue-600', label: 'Lid.' }
-                : c.tipo === 'fiscal'
-                ? { bg: 'bg-purple-500/10', textColor: 'text-purple-600', label: 'Fisc.' }
                 : { bg: 'bg-amber-500/10', textColor: 'text-amber-600', label: 'Eleit.' };
 
               return (

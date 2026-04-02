@@ -662,7 +662,7 @@ export default function TabUsuarios() {
             >
               Todos ({usuarios.length})
             </button>
-            {['super_admin', 'coordenador', 'suplente', 'lideranca', 'fiscal'].map(tipo => {
+            {['super_admin', 'coordenador', 'suplente', 'lideranca'].map(tipo => {
               const count = usuarios.filter(u => u.tipo === tipo).length;
               if (count === 0) return null;
               return (
