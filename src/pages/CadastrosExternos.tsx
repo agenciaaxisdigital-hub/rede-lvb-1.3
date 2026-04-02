@@ -7,7 +7,7 @@ import SkeletonLista from '@/components/SkeletonLista';
 
 const PAGE_SIZE = 20;
 
-type TipoAba = 'liderancas' | 'fiscais' | 'eleitores';
+type TipoAba = 'liderancas' | 'eleitores';
 type Periodo = 'hoje' | '7dias' | '30dias' | 'todos';
 
 interface RegistroBase {
@@ -20,7 +20,6 @@ interface RegistroBase {
 
 const abaConfig: { id: TipoAba; label: string; icon: typeof Users }[] = [
   { id: 'liderancas', label: 'Lideranças', icon: Users },
-  { id: 'fiscais', label: 'Fiscais', icon: Shield },
   { id: 'eleitores', label: 'Eleitores', icon: Target },
 ];
 
