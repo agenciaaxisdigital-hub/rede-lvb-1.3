@@ -395,7 +395,7 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
   if (mode === 'form' && !viewOnly) {
     return (
       <div key="form" className="space-y-4 pb-24">
-        <button onClick={() => setMode('list')} className="flex items-center gap-1 text-sm text-muted-foreground active:scale-95">
+        <button data-testid="btn-voltar" onClick={() => setMode('list')} className="flex items-center gap-1 text-sm text-muted-foreground active:scale-95">
           <ArrowLeft size={16} /> Voltar
         </button>
         <div className="section-card">

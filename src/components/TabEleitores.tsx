@@ -444,7 +444,7 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
           <h2 className="section-title">📋 Informações Adicionais</h2>
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">Compromisso de voto</label>
-            <select value={form.compromisso_voto} onChange={e => update('compromisso_voto', e.target.value)} className={selectCls}>
+            <select data-testid="select-compromisso-voto" value={form.compromisso_voto} onChange={e => update('compromisso_voto', e.target.value)} className={selectCls}>
               {compromissoOptions.map(o => <option key={o} value={o}>{o}</option>)}
             </select>
           </div>

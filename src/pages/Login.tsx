@@ -143,6 +143,7 @@ export default function Login() {
           </div>
 
           <button
+            data-testid="btn-entrar"
             type="submit"
             disabled={loading}
             className="w-full h-11 rounded-lg font-semibold text-sm text-white transition-all active:scale-[0.98] disabled:opacity-60"

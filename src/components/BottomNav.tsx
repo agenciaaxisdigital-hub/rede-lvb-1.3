@@ -70,6 +70,7 @@ export default function BottomNav({ active, onChange }: Props) {
           return (
             <button
               key={id}
+              data-testid={`nav-${id}`}
               onClick={() => onChange(id)}
               className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl transition-all active:scale-90 shrink-0 ${
                 isActive ? 'text-primary' : 'text-muted-foreground'
