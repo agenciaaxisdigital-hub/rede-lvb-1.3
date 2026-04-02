@@ -638,6 +638,134 @@ export default function AdminDashboard() {
         {vistaAtiva === 'externas' && <TabLiderancasExternas />}
 
       </div>
+
+      {/* ══════════ POPUP CADASTROS DO USUÁRIO ══════════ */}
+      {popupUser && popupUserData && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setPopupUser(null)} />
+          <div className="relative w-full max-w-lg max-h-[85vh] bg-background rounded-t-2xl sm:rounded-2xl border border-border shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 duration-300">
+            {/* Header */}
+            <div className="flex items-center gap-3 p-4 border-b border-border shrink-0">
+              <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center">
+                <span className="text-lg font-bold text-primary">{popupUserData.usuario?.nome?.charAt(0) || '?'}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-base font-bold text-foreground truncate">{popupUserData.usuario?.nome || 'Desconhecido'}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-primary/10 text-primary">{tipoLabel(popupUserData.usuario?.tipo || '')}</span>
+                  {popupUserData.usuario?.municipio_id && (
+                    <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                      <MapPin size={9} />{nomeMunicipioPorId(popupUserData.usuario.municipio_id)}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="text-right mr-2">
+                <p className="text-2xl font-black text-primary">{popupUserData.liderancas.length + popupUserData.eleitores.length}</p>
+                <p className="text-[9px] text-muted-foreground">cadastros</p>
+              </div>
+              <button onClick={() => setPopupUser(null)} className="p-1.5 rounded-lg hover:bg-muted active:scale-95 transition-all">
+                <X size={18} className="text-muted-foreground" />
+              </button>
+            </div>
+
+            {/* Summary badges */}
+            <div className="flex gap-2 px-4 py-3 border-b border-border shrink-0">
+              {popupUserData.liderancas.length > 0 && (
+                <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-primary/15 text-primary">
+                  <Users size={12} className="inline mr-1" />Lideranças: {popupUserData.liderancas.length}
+                </span>
+              )}
+              {popupUserData.eleitores.length > 0 && (
+                <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-secondary text-secondary-foreground">
+                  <Target size={12} className="inline mr-1" />Eleitores: {popupUserData.eleitores.length}
+                </span>
+              )}
+            </div>
+
+            {/* Records list */}
+            <div className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-2">
+              {[...popupUserData.liderancas.map(r => ({ ...r, _tipo: 'lideranca' as const })),
+                ...popupUserData.eleitores.map(r => ({ ...r, _tipo: 'eleitor' as const }))]
+                .sort((a, b) => new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime())
+                .map((r: any) => {
+                  const p = r.pessoas || {};
+                  return (
+                    <div key={r.id} className="p-3 rounded-xl bg-muted/50 border border-border/50 space-y-2">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${
+                            r._tipo === 'lideranca' ? 'bg-primary/15 text-primary' : 'bg-secondary text-secondary-foreground'
+                          }`}>{r._tipo === 'lideranca' ? 'Liderança' : 'Eleitor'}</span>
+                          <p className="text-sm font-semibold text-foreground">{p.nome || '—'}</p>
+                          {r.origem_captacao === 'visita_comite' && (
+                            <span className="text-[8px] px-1.5 py-0.5 rounded-full font-medium bg-primary/10 text-primary flex items-center gap-0.5">
+                              <Tag size={7} /> Visita
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-muted-foreground shrink-0">{new Date(r.criado_em).toLocaleDateString('pt-BR')}</span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-1">
+                        {[
+                          { label: 'CPF', value: p.cpf },
+                          { label: 'WhatsApp', value: p.whatsapp },
+                          { label: 'Telefone', value: p.telefone },
+                          { label: 'E-mail', value: p.email },
+                          { label: 'Rede social', value: p.instagram || p.facebook },
+                        ].filter(f => f.value).map(f => (
+                          <div key={f.label} className="text-[10px] bg-background rounded px-2 py-1">
+                            <span className="text-muted-foreground">{f.label}:</span>{' '}
+                            <span className="text-foreground">{f.value}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-1">
+                        {[
+                          { label: 'Título', value: p.titulo_eleitor },
+                          { label: 'Zona / Seção', value: (p.zona_eleitoral || p.secao_eleitoral) ? `${p.zona_eleitoral || '—'} / ${p.secao_eleitoral || '—'}` : null },
+                          { label: 'Município', value: p.municipio_eleitoral },
+                          { label: 'Colégio', value: p.colegio_eleitoral },
+                        ].filter(f => f.value).map(f => (
+                          <div key={f.label} className="text-[10px] bg-background rounded px-2 py-1">
+                            <span className="text-muted-foreground">{f.label}:</span>{' '}
+                            <span className="text-foreground">{f.value}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {r._tipo === 'lideranca' && (r.regiao_atuacao || r.nivel_comprometimento || r.apoiadores_estimados || r.meta_votos) && (
+                        <div className="grid grid-cols-2 gap-1">
+                          {r.regiao_atuacao && <div className="text-[10px] bg-background rounded px-2 py-1"><span className="text-muted-foreground">Região:</span> <span className="text-foreground">{r.regiao_atuacao}</span></div>}
+                          {r.nivel_comprometimento && <div className="text-[10px] bg-background rounded px-2 py-1"><span className="text-muted-foreground">Comprometimento:</span> <span className="text-foreground">{r.nivel_comprometimento}</span></div>}
+                          {r.apoiadores_estimados && <div className="text-[10px] bg-background rounded px-2 py-1"><span className="text-muted-foreground">Apoiadores:</span> <span className="text-foreground">{r.apoiadores_estimados}</span></div>}
+                          {r.meta_votos && <div className="text-[10px] bg-background rounded px-2 py-1"><span className="text-muted-foreground">Meta votos:</span> <span className="text-foreground">{r.meta_votos}</span></div>}
+                        </div>
+                      )}
+
+                      {r._tipo === 'eleitor' && r.compromisso_voto && (
+                        <div className="text-[10px] bg-background rounded px-2 py-1">
+                          <span className="text-muted-foreground">Compromisso:</span> <span className="text-foreground">{r.compromisso_voto}</span>
+                        </div>
+                      )}
+
+                      {r.observacoes && (
+                        <div className="text-[10px] bg-background rounded px-2 py-1">
+                          <span className="text-muted-foreground">Obs:</span> <span className="text-foreground">{r.observacoes}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              {popupUserData.liderancas.length === 0 && popupUserData.eleitores.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-8">Nenhum cadastro no período selecionado</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
