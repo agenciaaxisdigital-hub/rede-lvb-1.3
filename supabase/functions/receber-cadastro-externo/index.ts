@@ -8,11 +8,11 @@ const corsHeaders = {
 
 const bodySchema = z.object({
   tipo: z.enum(['lideranca', 'fiscal', 'eleitor']),
-  indicador_id: z.string().uuid(),
+  indicador_id: z.string().uuid().optional().nullable(),
   indicador_tipo: z.enum([
     'suplente', 'lideranca', 'coordenador', 'super_admin', 'fiscal',
     'eleitor_cadastrado', 'lideranca_cadastrada', 'fiscal_cadastrado', 'recepcao'
-  ]),
+  ]).optional().default('recepcao'),
   indicador_nome: z.string().optional().nullable(),
   nome: z.string().trim().min(2).max(120),
   cpf: z.string().optional().nullable(),
@@ -31,6 +31,8 @@ const bodySchema = z.object({
   lideranca_id: z.string().uuid().optional().nullable(),
   cadastrado_por_id: z.string().optional().nullable(),
   cadastrado_por_fonte: z.enum(['externo', 'local']).optional().nullable(),
+  origem: z.string().optional().nullable(),
+  observacoes: z.string().optional().nullable(),
 });
 
 function jsonResp(body: Record<string, unknown>, status = 200) {
@@ -131,11 +133,12 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    const indId = body.indicador_id ?? body.cadastrado_por_id;
+    const indId = body.indicador_id ?? body.cadastrado_por_id ?? null;
     const indTipo = body.indicador_tipo ?? (body.cadastrado_por_fonte === 'externo' ? 'suplente' : 'coordenador');
 
+    // Se não tem indId (ex: recepcao), pular direto pro fallback
     if (!indId) {
-      return jsonResp({ erro: 'indicador_id é obrigatório' }, 400);
+      console.log(`[receber-cadastro-externo] Sem indicador_id, tipo=${indTipo}. Usando fallback admin.`);
     }
 
     console.log(`[receber-cadastro-externo] Indicador: tipo=${indTipo}, id=${indId}, nome=${body.indicador_nome}`);
@@ -145,120 +148,124 @@ Deno.serve(async (req) => {
     let municipioId: string | null = null;
     let liderancaIdVinculada: string | null = null;
 
-    const { data: hierarquiaDirecta } = await supabaseAdmin
-      .from('hierarquia_usuarios')
-      .select('id, suplente_id, municipio_id')
-      .eq('id', indId)
-      .eq('ativo', true)
-      .maybeSingle();
+    if (indId) {
+      const { data: hierarquiaDirecta } = await supabaseAdmin
+        .from('hierarquia_usuarios')
+        .select('id, suplente_id, municipio_id')
+        .eq('id', indId)
+        .eq('ativo', true)
+        .maybeSingle();
 
-    if (hierarquiaDirecta) {
-      cadastradoPorId = hierarquiaDirecta.id;
-      suplenteId = hierarquiaDirecta.suplente_id;
-      municipioId = hierarquiaDirecta.municipio_id;
-      console.log(`[receber-cadastro-externo] ✅ Resolvido via hierarquia direta: cadastrado_por=${cadastradoPorId}, suplente=${suplenteId}, municipio=${municipioId}`);
-    } else {
-      console.log(`[receber-cadastro-externo] Não encontrado em hierarquia_usuarios, tentando resolução por tipo=${indTipo}`);
+      if (hierarquiaDirecta) {
+        cadastradoPorId = hierarquiaDirecta.id;
+        suplenteId = hierarquiaDirecta.suplente_id;
+        municipioId = hierarquiaDirecta.municipio_id;
+        console.log(`[receber-cadastro-externo] ✅ Resolvido via hierarquia direta: cadastrado_por=${cadastradoPorId}, suplente=${suplenteId}, municipio=${municipioId}`);
+      } else {
+        console.log(`[receber-cadastro-externo] Não encontrado em hierarquia_usuarios, tentando resolução por tipo=${indTipo}`);
 
-      if ((TIPOS_HIERARQUIA as readonly string[]).includes(indTipo)) {
-        const usuarioPorNome = await resolverHierarquiaPorNome(supabaseAdmin, body.indicador_nome, indTipo);
-        if (usuarioPorNome) {
-          cadastradoPorId = usuarioPorNome.id;
-          suplenteId = usuarioPorNome.suplente_id;
-          municipioId = usuarioPorNome.municipio_id;
-        } else {
-          const sombra = await garantirUsuarioSombra(supabaseAdmin, body.indicador_nome, indTipo, null);
-          if (sombra) {
-            cadastradoPorId = sombra.id;
-            suplenteId = sombra.suplente_id;
-            municipioId = sombra.municipio_id;
+        if ((TIPOS_HIERARQUIA as readonly string[]).includes(indTipo)) {
+          const usuarioPorNome = await resolverHierarquiaPorNome(supabaseAdmin, body.indicador_nome, indTipo);
+          if (usuarioPorNome) {
+            cadastradoPorId = usuarioPorNome.id;
+            suplenteId = usuarioPorNome.suplente_id;
+            municipioId = usuarioPorNome.municipio_id;
+          } else {
+            const sombra = await garantirUsuarioSombra(supabaseAdmin, body.indicador_nome, indTipo, null);
+            if (sombra) {
+              cadastradoPorId = sombra.id;
+              suplenteId = sombra.suplente_id;
+              municipioId = sombra.municipio_id;
+            }
           }
-        }
 
-        if (indTipo === 'lideranca' && cadastradoPorId) {
-          const { data: lidVinculada } = await supabaseAdmin
-            .from('liderancas')
+          if (indTipo === 'lideranca' && cadastradoPorId) {
+            const { data: lidVinculada } = await supabaseAdmin
+              .from('liderancas')
+              .select('id, suplente_id, municipio_id')
+              .eq('cadastrado_por', cadastradoPorId)
+              .limit(1)
+              .maybeSingle();
+            if (lidVinculada) {
+              liderancaIdVinculada = lidVinculada.id;
+              suplenteId = lidVinculada.suplente_id ?? suplenteId;
+              municipioId = lidVinculada.municipio_id ?? municipioId;
+            }
+          }
+        } else if (indTipo === 'suplente') {
+          if (body.indicador_nome) {
+            await supabaseAdmin.from('suplentes').upsert(
+              { id: indId, nome: body.indicador_nome },
+              { onConflict: 'id' }
+            );
+          }
+          const { data: usuarioVinculado } = await supabaseAdmin
+            .from('hierarquia_usuarios')
             .select('id, suplente_id, municipio_id')
-            .eq('cadastrado_por', cadastradoPorId)
+            .eq('suplente_id', indId)
+            .eq('ativo', true)
+            .order('tipo')
             .limit(1)
             .maybeSingle();
-          if (lidVinculada) {
-            liderancaIdVinculada = lidVinculada.id;
-            suplenteId = lidVinculada.suplente_id ?? suplenteId;
-            municipioId = lidVinculada.municipio_id ?? municipioId;
+
+          if (usuarioVinculado) {
+            cadastradoPorId = usuarioVinculado.id;
+            suplenteId = usuarioVinculado.suplente_id;
+            municipioId = usuarioVinculado.municipio_id;
+          } else {
+            suplenteId = indId;
+            const { data: sm } = await supabaseAdmin
+              .from('suplente_municipio')
+              .select('municipio_id')
+              .eq('suplente_id', indId)
+              .maybeSingle();
+            municipioId = sm?.municipio_id ?? null;
           }
-        }
-      } else if (indTipo === 'suplente') {
-        if (body.indicador_nome) {
-          await supabaseAdmin.from('suplentes').upsert(
-            { id: indId, nome: body.indicador_nome },
-            { onConflict: 'id' }
-          );
-        }
-        const { data: usuarioVinculado } = await supabaseAdmin
-          .from('hierarquia_usuarios')
-          .select('id, suplente_id, municipio_id')
-          .eq('suplente_id', indId)
-          .eq('ativo', true)
-          .order('tipo')
-          .limit(1)
-          .maybeSingle();
-
-        if (usuarioVinculado) {
-          cadastradoPorId = usuarioVinculado.id;
-          suplenteId = usuarioVinculado.suplente_id;
-          municipioId = usuarioVinculado.municipio_id;
-        } else {
-          suplenteId = indId;
-          const { data: sm } = await supabaseAdmin
-            .from('suplente_municipio')
-            .select('municipio_id')
-            .eq('suplente_id', indId)
+        } else if (indTipo === 'lideranca_cadastrada') {
+          const { data: lid } = await supabaseAdmin
+            .from('liderancas')
+            .select('id, cadastrado_por, suplente_id, municipio_id, pessoa_id')
+            .eq('id', indId)
             .maybeSingle();
-          municipioId = sm?.municipio_id ?? null;
-        }
-      } else if (indTipo === 'lideranca_cadastrada') {
-        const { data: lid } = await supabaseAdmin
-          .from('liderancas')
-          .select('id, cadastrado_por, suplente_id, municipio_id, pessoa_id')
-          .eq('id', indId)
-          .maybeSingle();
 
-        if (lid) {
-          liderancaIdVinculada = lid.id;
-          cadastradoPorId = lid.cadastrado_por;
-          suplenteId = lid.suplente_id;
-          municipioId = lid.municipio_id;
-        }
-      } else if (indTipo === 'fiscal_cadastrado') {
-        const { data: fisc } = await supabaseAdmin
-          .from('fiscais')
-          .select('id, cadastrado_por, suplente_id, municipio_id, lideranca_id')
-          .eq('id', indId)
-          .maybeSingle();
+          if (lid) {
+            liderancaIdVinculada = lid.id;
+            cadastradoPorId = lid.cadastrado_por;
+            suplenteId = lid.suplente_id;
+            municipioId = lid.municipio_id;
+          }
+        } else if (indTipo === 'fiscal_cadastrado') {
+          const { data: fisc } = await supabaseAdmin
+            .from('fiscais')
+            .select('id, cadastrado_por, suplente_id, municipio_id, lideranca_id')
+            .eq('id', indId)
+            .maybeSingle();
 
-        if (fisc) {
-          cadastradoPorId = fisc.cadastrado_por;
-          suplenteId = fisc.suplente_id;
-          municipioId = fisc.municipio_id;
-          liderancaIdVinculada = fisc.lideranca_id;
-        }
-      } else if (indTipo === 'eleitor_cadastrado') {
-        const { data: el } = await supabaseAdmin
-          .from('possiveis_eleitores')
-          .select('id, cadastrado_por, suplente_id, municipio_id, lideranca_id')
-          .eq('id', indId)
-          .maybeSingle();
+          if (fisc) {
+            cadastradoPorId = fisc.cadastrado_por;
+            suplenteId = fisc.suplente_id;
+            municipioId = fisc.municipio_id;
+            liderancaIdVinculada = fisc.lideranca_id;
+          }
+        } else if (indTipo === 'eleitor_cadastrado') {
+          const { data: el } = await supabaseAdmin
+            .from('possiveis_eleitores')
+            .select('id, cadastrado_por, suplente_id, municipio_id, lideranca_id')
+            .eq('id', indId)
+            .maybeSingle();
 
-        if (el) {
-          cadastradoPorId = el.cadastrado_por;
-          suplenteId = el.suplente_id;
-          municipioId = el.municipio_id;
-          liderancaIdVinculada = el.lideranca_id;
+          if (el) {
+            cadastradoPorId = el.cadastrado_por;
+            suplenteId = el.suplente_id;
+            municipioId = el.municipio_id;
+            liderancaIdVinculada = el.lideranca_id;
+          }
+        } else {
+          console.log(`[receber-cadastro-externo] Tipo ${indTipo} sem resolução específica, usando fallback`);
         }
-      } else {
-        console.log(`[receber-cadastro-externo] Tipo ${indTipo} sem resolução específica, usando fallback`);
       }
+    } else {
+      console.log(`[receber-cadastro-externo] Sem indicador_id, indo direto pro fallback admin`);
     }
 
     // ── FALLBACK: garantir que cadastrado_por NUNCA fique null ──
@@ -316,6 +323,8 @@ Deno.serve(async (req) => {
             colegio_eleitoral: body.colegio_eleitoral,
             municipio_eleitoral: body.municipio_eleitoral,
             titulo_eleitor: body.titulo_eleitor,
+            observacoes_gerais: body.observacoes,
+            origem: body.origem ?? 'visita_comite',
           })
           .select('id')
           .single();
