@@ -14,7 +14,7 @@ export default function SeletorCidade() {
   const { cidadeAtiva, setCidadeAtiva, municipios, isTodasCidades } = useCidade();
   const [aberto, setAberto] = useState(false);
   const [contagens, setContagens] = useState<Record<string, ContagemCidade>>({});
-  const [totalGeral, setTotalGeral] = useState<ContagemCidade>({ liderancas: 0, fiscais: 0, eleitores: 0, usuarios: 0 });
+  const [totalGeral, setTotalGeral] = useState<ContagemCidade>({ liderancas: 0, eleitores: 0, usuarios: 0 });
   const [loadingContagens, setLoadingContagens] = useState(false);
 
   useEffect(() => {
