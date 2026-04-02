@@ -93,6 +93,7 @@ export default function AdminDashboard() {
 
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [expandedTipo, setExpandedTipo] = useState<string | null>(null);
+  const [popupUser, setPopupUser] = useState<string | null>(null);
 
   const filtroMunicipioId = useMemo(() =>
     isTodasCidades ? null : cidadeAtiva?.id || null
