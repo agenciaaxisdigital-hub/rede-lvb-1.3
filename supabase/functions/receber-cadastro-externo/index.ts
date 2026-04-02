@@ -8,7 +8,7 @@ const corsHeaders = {
 
 const bodySchema = z.object({
   tipo: z.enum(['lideranca', 'fiscal', 'eleitor']),
-  indicador_id: z.string().uuid(),
+  indicador_id: z.string().uuid().optional().nullable(),
   indicador_tipo: z.enum([
     'suplente', 'lideranca', 'coordenador', 'super_admin', 'fiscal',
     'eleitor_cadastrado', 'lideranca_cadastrada', 'fiscal_cadastrado', 'recepcao'
