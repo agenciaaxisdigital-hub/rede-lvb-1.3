@@ -510,28 +510,34 @@ export default function AdminDashboard() {
               <div className="space-y-2">
                 {/* Top 3 destaque (só quando sem busca e filtro "todos") */}
                 {!rankingSearch && rankingTipoUsuario === 'todos' && tipoFiltro === 'todos' && filtered.length >= 3 && (
-                  <div className="grid grid-cols-3 gap-2 mb-2">
+                  <div className="space-y-2 mb-3">
                     {filtered.slice(0, 3).map((u, i) => {
-                      const sizes = [
-                        { ring: 'ring-2 ring-yellow-400', bg: 'bg-yellow-400/10', avatar: 'w-14 h-14', text: 'text-yellow-500' },
-                        { ring: 'ring-2 ring-gray-400', bg: 'bg-gray-300/10', avatar: 'w-12 h-12', text: 'text-gray-400' },
-                        { ring: 'ring-2 ring-amber-600', bg: 'bg-amber-600/10', avatar: 'w-11 h-11', text: 'text-amber-600' },
+                      const styles = [
+                        { gradient: 'from-yellow-500/20 via-amber-400/10 to-transparent', border: 'border-yellow-400/40', medal: '🥇', numColor: 'text-yellow-600' },
+                        { gradient: 'from-slate-400/15 via-gray-300/10 to-transparent', border: 'border-slate-300/40', medal: '🥈', numColor: 'text-slate-500' },
+                        { gradient: 'from-amber-700/15 via-orange-400/10 to-transparent', border: 'border-amber-600/30', medal: '🥉', numColor: 'text-amber-700' },
                       ];
-                      const s = sizes[i];
+                      const s = styles[i];
                       return (
-                        <div key={u.id} onClick={() => setPopupUser(u.id)} className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border border-border ${s.bg} cursor-pointer hover:shadow-md transition-all active:scale-95`}>
-                          <span className="text-xl">{getMedalEmoji(i)}</span>
-                          <div className={`${s.avatar} rounded-full ${s.ring} bg-primary/10 flex items-center justify-center`}>
-                            <span className="text-base font-bold text-primary">{u.nome.charAt(0)}</span>
+                        <div key={u.id} onClick={() => setPopupUser(u.id)}
+                          className={`relative flex items-center gap-3 p-3 rounded-xl border ${s.border} bg-gradient-to-r ${s.gradient} cursor-pointer hover:shadow-md transition-all active:scale-[0.98]`}
+                        >
+                          <span className="text-lg shrink-0">{s.medal}</span>
+                          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                            <span className="text-sm font-bold text-primary">{u.nome.charAt(0)}</span>
                           </div>
-                          <p className="text-xs font-bold text-foreground text-center truncate w-full">{u.nome.split(' ')[0]}</p>
-                          <span className="text-[8px] px-1.5 py-0.5 rounded-full font-medium bg-primary/10 text-primary">{tipoLabel(u.tipo)}</span>
-                          <p className="text-2xl font-black text-primary leading-none">{u.total}</p>
-                          <div className="flex flex-wrap gap-0.5 justify-center">
-                            {u.l > 0 && <span className="text-[7px] font-bold px-1 py-0.5 rounded bg-primary/15 text-primary">Lid. {u.l}</span>}
-                            {u.e > 0 && <span className="text-[7px] font-bold px-1 py-0.5 rounded bg-secondary text-secondary-foreground">Eleit. {u.e}</span>}
-                            {u.f > 0 && <span className="text-[7px] font-bold px-1 py-0.5 rounded bg-amber-500/15 text-amber-600">Fisc. {u.f}</span>}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-foreground truncate">{u.nome}</p>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-primary/10 text-primary font-medium">{tipoLabel(u.tipo)}</span>
+                              <div className="flex gap-1">
+                                {u.l > 0 && <span className="text-[8px] font-semibold text-primary/70">Lid. {u.l}</span>}
+                                {u.e > 0 && <span className="text-[8px] font-semibold text-muted-foreground">Eleit. {u.e}</span>}
+                                {u.f > 0 && <span className="text-[8px] font-semibold text-amber-600/70">Fisc. {u.f}</span>}
+                              </div>
+                            </div>
                           </div>
+                          <p className={`text-2xl font-black ${s.numColor} shrink-0`}>{u.total}</p>
                         </div>
                       );
                     })}
