@@ -262,9 +262,8 @@ export default function TabSuplentes({ refreshKey }: Props) {
     }
   };
 
-  const typeConfig = {
+  const typeConfig: Record<string, { bg: string; text: string; label: string; border: string }> = {
     lideranca: { bg: 'bg-blue-500/10', text: 'text-blue-600', label: 'Lid', border: 'border-blue-500/30' },
-    fiscal: { bg: 'bg-purple-500/10', text: 'text-purple-600', label: 'Fisc', border: 'border-purple-500/30' },
     eleitor: { bg: 'bg-amber-500/10', text: 'text-amber-600', label: 'Eleit', border: 'border-amber-500/30' },
   };
 
