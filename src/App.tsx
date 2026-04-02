@@ -12,7 +12,7 @@ import { startAutoSync, syncOfflineData } from "@/services/offlineSync";
 const Login = lazy(() => import("./pages/Login"));
 const Home = lazy(() => import("./pages/Home"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
-const CadastrosExternos = lazy(() => import("./pages/CadastrosExternos"));
+
 
 const queryClient = new QueryClient({
   defaultOptions: {
