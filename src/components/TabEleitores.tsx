@@ -454,7 +454,7 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
           </div>
         </div>
 
-        <button onClick={handleSave} disabled={saving}
+        <button data-testid="btn-salvar-eleitor" onClick={handleSave} disabled={saving}
           className="w-full h-14 gradient-primary text-white text-base font-semibold rounded-2xl shadow-lg shadow-pink-500/25 active:scale-[0.97] transition-all disabled:opacity-50 flex items-center justify-center gap-2">
           {saving ? <><Loader2 size={20} className="animate-spin" /> Salvando...</> : '✅ Salvar Eleitor'}
         </button>
