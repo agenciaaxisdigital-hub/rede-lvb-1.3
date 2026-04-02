@@ -487,7 +487,7 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
   return (
     <div className="space-y-3 pb-24">
       {!viewOnly && (
-        <button onClick={() => { setForm({ ...emptyForm }); setPessoaExistenteId(null); setCpfStatus('idle'); setMode('form'); }}
+        <button data-testid="btn-cadastrar-lideranca" onClick={() => { setForm({ ...emptyForm }); setPessoaExistenteId(null); setCpfStatus('idle'); setMode('form'); }}
           className="w-full h-12 gradient-primary text-white font-semibold rounded-xl active:scale-[0.97] transition-all flex items-center justify-center gap-2">
           <PlusCircle size={18} /> Cadastrar Liderança
         </button>
