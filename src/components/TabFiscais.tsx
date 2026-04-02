@@ -211,54 +211,57 @@ export default function TabFiscais({ refreshKey, onSaved, viewOnly }: Props) {
       return;
     }
     setSaving(true);
+
+    const pessoaData = {
+      cpf: form.cpf || null, nome: form.nome, telefone: form.telefone || null,
+      whatsapp: form.whatsapp || null, email: form.email || null,
+      instagram: form.instagram || null, facebook: form.facebook || null,
+      titulo_eleitor: form.titulo_eleitor || null, zona_eleitoral: form.zona_eleitoral || null,
+      secao_eleitoral: form.secao_eleitoral || null, municipio_eleitoral: form.municipio_eleitoral || null,
+      uf_eleitoral: form.uf_eleitoral || null, colegio_eleitoral: form.colegio_eleitoral || null,
+      endereco_colegio: form.endereco_colegio || null, situacao_titulo: form.situacao_titulo || null,
+    };
+
+    const registroData = {
+      cadastrado_por: usuario?.id || null,
+      suplente_id: ligSuplenteId || usuario?.suplente_id || null,
+      lideranca_id: ligLiderancaId || form.lideranca_id || null,
+      zona_fiscal: form.zona_fiscal || null,
+      secao_fiscal: form.secao_fiscal || null,
+      colegio_eleitoral: form.colegio_eleitoral_fiscal || null,
+      observacoes: form.observacoes || null,
+      municipio_id: ligMunicipioId || null,
+    };
+
+    // Offline: salvar na fila
+    if (!navigator.onLine) {
+      try {
+        await addToOfflineQueue({ type: 'fiscal', pessoa: pessoaData, registro: registroData, pessoaExistenteId });
+        toast({ title: '📱 Salvo offline!', description: 'Será enviado quando voltar a internet.' });
+        setForm({ ...emptyForm }); setPessoaExistenteId(null); setCpfStatus('idle'); setCpfNomePessoa('');
+        setMode('list'); onSaved?.();
+      } catch (err: any) { toast({ title: 'Erro ao salvar offline', description: err.message, variant: 'destructive' }); }
+      finally { setSaving(false); }
+      return;
+    }
+
     try {
       let pessoaId: string;
       if (pessoaExistenteId) {
         pessoaId = pessoaExistenteId;
-        await supabase.from('pessoas').update({
-          nome: form.nome, telefone: form.telefone || null, whatsapp: form.whatsapp || null,
-          email: form.email || null, instagram: form.instagram || null, facebook: form.facebook || null,
-          titulo_eleitor: form.titulo_eleitor || null, zona_eleitoral: form.zona_eleitoral || null,
-          secao_eleitoral: form.secao_eleitoral || null, municipio_eleitoral: form.municipio_eleitoral || null,
-          uf_eleitoral: form.uf_eleitoral || null, colegio_eleitoral: form.colegio_eleitoral || null,
-          endereco_colegio: form.endereco_colegio || null, situacao_titulo: form.situacao_titulo || null,
-          atualizado_em: new Date().toISOString(),
-        }).eq('id', pessoaId);
+        await supabase.from('pessoas').update({ ...pessoaData, atualizado_em: new Date().toISOString() }).eq('id', pessoaId);
       } else {
-        const { data: novaPessoa, error } = await supabase.from('pessoas').insert({
-          cpf: form.cpf || null, nome: form.nome, telefone: form.telefone || null,
-          whatsapp: form.whatsapp || null, email: form.email || null,
-          instagram: form.instagram || null, facebook: form.facebook || null,
-          titulo_eleitor: form.titulo_eleitor || null, zona_eleitoral: form.zona_eleitoral || null,
-          secao_eleitoral: form.secao_eleitoral || null, municipio_eleitoral: form.municipio_eleitoral || null,
-          uf_eleitoral: form.uf_eleitoral || null, colegio_eleitoral: form.colegio_eleitoral || null,
-          endereco_colegio: form.endereco_colegio || null, situacao_titulo: form.situacao_titulo || null,
-        }).select('id').single();
+        const { data: novaPessoa, error } = await supabase.from('pessoas').insert(pessoaData as any).select('id').single();
         if (error) throw error;
         pessoaId = novaPessoa!.id;
       }
 
-      const { error } = await (supabase as any).from('fiscais').insert({
-        pessoa_id: pessoaId,
-        cadastrado_por: usuario?.id || null,
-        suplente_id: ligSuplenteId || usuario?.suplente_id || null,
-        lideranca_id: ligLiderancaId || form.lideranca_id || null,
-        zona_fiscal: form.zona_fiscal || null,
-        secao_fiscal: form.secao_fiscal || null,
-        colegio_eleitoral: form.colegio_eleitoral_fiscal || null,
-        observacoes: form.observacoes || null,
-        municipio_id: ligMunicipioId || null,
-      });
+      const { error } = await (supabase as any).from('fiscais').insert({ ...registroData, pessoa_id: pessoaId });
       if (error) throw error;
 
       toast({ title: '✅ Fiscal cadastrado!' });
-      setForm({ ...emptyForm });
-      setPessoaExistenteId(null);
-      setCpfStatus('idle');
-      setCpfNomePessoa('');
-      setMode('list');
-      invalidarCadastros();
-      onSaved?.();
+      setForm({ ...emptyForm }); setPessoaExistenteId(null); setCpfStatus('idle'); setCpfNomePessoa('');
+      setMode('list'); invalidarCadastros(); onSaved?.();
     } catch (err: any) {
       toast({ title: 'Erro ao salvar', description: err.message, variant: 'destructive' });
     } finally { setSaving(false); }
