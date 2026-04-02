@@ -49,7 +49,7 @@ export default function TabSuplentes({ refreshKey }: Props) {
   const [tree, setTree] = useState<TreeNode[]>([]);
   const [loadingTree, setLoadingTree] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-  const [stats, setStats] = useState({ liderancas: 0, fiscais: 0, eleitores: 0 });
+  const [stats, setStats] = useState({ liderancas: 0, eleitores: 0 });
 
   // Create access state
   const [creatingAccess, setCreatingAccess] = useState<SuplenteRow | null>(null);
