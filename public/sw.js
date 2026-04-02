@@ -1,7 +1,7 @@
-const CACHE_NAME = 'rede-sarelli-v3';
-const OFFLINE_URLS = ['/', '/index.html'];
+const CACHE_NAME = 'rede-sarelli-v4';
+const OFFLINE_URLS = ['/'];
 
-// Install
+// Install — cache mínimo para instalação instantânea
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(OFFLINE_URLS))
@@ -9,27 +9,29 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate: clean old caches
+// Activate: limpar caches antigos e tomar controle imediato
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
+    ).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
-// Fetch: network-first, fallback to cache
+// Fetch: network-first, fallback to cache (só GET, sem extensões/oauth/apis)
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
-  if (event.request.url.startsWith('chrome-extension')) return;
-  if (event.request.url.includes('/~oauth')) return;
-  if (event.request.url.includes('nominatim')) return;
+  const url = event.request.url;
+  if (url.startsWith('chrome-extension')) return;
+  if (url.includes('/~oauth')) return;
+  if (url.includes('nominatim')) return;
+  if (url.includes('supabase.co')) return;
+  if (url.includes('ipapi.co') || url.includes('ipwho.is') || url.includes('ip-api.com')) return;
 
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        if (response.status === 200) {
+        if (response.status === 200 && response.type === 'basic') {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
         }

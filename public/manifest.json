@@ -1,12 +1,14 @@
 {
-  "name": "Cadastro de Campanha - Dra. Fernanda Sarelli",
-  "short_name": "Campanha FS",
+  "name": "Rede Política – Dra. Fernanda Sarelli",
+  "short_name": "Rede Sarelli",
   "description": "Sistema de cadastros de campanha política",
-  "start_url": "/",
+  "start_url": "https://www.drafernandasarelli.com.br/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#fdf2f8",
   "theme_color": "#ec4899",
   "orientation": "portrait-primary",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon-192.png",
@@ -20,6 +22,5 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ],
-  "permissions": ["geolocation"]
+  ]
 }
