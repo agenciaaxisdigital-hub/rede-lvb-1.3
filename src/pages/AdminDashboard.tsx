@@ -229,7 +229,7 @@ export default function AdminDashboard() {
     { id: 'ranking', icon: Trophy, label: 'Ranking' },
     { id: 'usuarios', icon: UserCog, label: 'Usuários' },
     { id: 'registros', icon: Eye, label: 'Registros' },
-    { id: 'externas', icon: ExternalLink, label: 'Externas' },
+    
     ...(municipios.length > 1 ? [{ id: 'cidades' as VistaAtiva, icon: Building2, label: 'Cidades' }] : []),
   ];
 
