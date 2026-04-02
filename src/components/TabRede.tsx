@@ -153,16 +153,6 @@ export default function TabRede() {
           l.criado_em ? new Date(l.criado_em).toLocaleDateString('pt-BR') : '',
           [l.tipo_lideranca, l.nivel_comprometimento].filter(Boolean).join(' | ')]);
       }
-      for (const f of fiscais) {
-        const p = f.pessoas;
-        allRows.push(['Fiscal', p?.nome || '', p?.cpf || '', p?.telefone || '', p?.whatsapp || '',
-          p?.email || '', p?.instagram || '', p?.facebook || '', p?.titulo_eleitor || '',
-          p?.zona_eleitoral || '', p?.secao_eleitoral || '', p?.municipio_eleitoral || '',
-          p?.uf_eleitoral || '', p?.colegio_eleitoral || '', p?.endereco_colegio || '',
-          p?.situacao_titulo || '', f.status || '', f.hierarquia_usuarios?.nome || '',
-          f.criado_em ? new Date(f.criado_em).toLocaleDateString('pt-BR') : '',
-          [f.zona_fiscal ? `Z${f.zona_fiscal}` : '', f.secao_fiscal ? `S${f.secao_fiscal}` : ''].filter(Boolean).join(' ')]);
-      }
       for (const e of eleitores) {
         const p = e.pessoas;
         allRows.push(['Eleitor', p?.nome || '', p?.cpf || '', p?.telefone || '', p?.whatsapp || '',
