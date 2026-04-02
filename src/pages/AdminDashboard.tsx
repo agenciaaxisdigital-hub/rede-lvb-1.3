@@ -93,12 +93,14 @@ export default function AdminDashboard() {
 
   const { data: liderancasData, isLoading: lLoading } = useLiderancas('all');
   const { data: eleitoresData, isLoading: eLoading } = useEleitores('all');
+  const { data: fiscaisData, isLoading: fLoading } = useFiscaisAdmin();
   const { data: usuariosData, isLoading: uLoading } = useUsuarios();
 
   const liderancas = (liderancasData || []) as LiderancaReg[];
   const eleitores = (eleitoresData || []) as EleitorReg[];
+  const fiscais = (fiscaisData || []) as FiscalReg[];
   const usuarios = (usuariosData || []) as unknown as HierarquiaUsuario[];
-  const loading = lLoading || eLoading || uLoading;
+  const loading = lLoading || eLoading || fLoading || uLoading;
 
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [expandedTipo, setExpandedTipo] = useState<string | null>(null);
