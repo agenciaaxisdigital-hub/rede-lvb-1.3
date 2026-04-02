@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Loader2, CheckCircle2, Search, ChevronRight, ArrowLeft, Phone, MessageCircle, Trash2, Download } from 'lucide-react';
+import { Loader2, CheckCircle2, Search, ChevronRight, ArrowLeft, Phone, MessageCircle, Trash2, Download, WifiOff } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useInvalidarCadastros } from '@/hooks/useDataCache';
@@ -9,6 +9,7 @@ import { checkCpfDuplicateByUser } from '@/lib/cpfDuplicateCheck';
 import { resolverLigacaoPolitica } from '@/lib/resolverLigacaoPolitica';
 import { toast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
+import { addToOfflineQueue } from '@/lib/offlineQueue';
 
 import CampoLigacaoPolitica from '@/components/CampoLigacaoPolitica';
 import SkeletonLista from '@/components/SkeletonLista';
