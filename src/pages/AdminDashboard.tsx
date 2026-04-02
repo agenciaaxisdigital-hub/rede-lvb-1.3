@@ -175,12 +175,14 @@ export default function AdminDashboard() {
       filteredL.forEach(r => result.push({ tipo: 'lideranca', pessoa: r.pessoas, criado_em: r.criado_em, cadastrado_por: r.cadastrado_por, extra: r.status || '', origem: r.origem_captacao }));
     if (tipoFiltro === 'todos' || tipoFiltro === 'eleitor')
       filteredE.forEach(r => result.push({ tipo: 'eleitor', pessoa: r.pessoas, criado_em: r.criado_em, cadastrado_por: r.cadastrado_por, extra: r.compromisso_voto || '', origem: r.origem_captacao }));
+    if (tipoFiltro === 'todos' || tipoFiltro === 'fiscal')
+      filteredF.forEach(r => result.push({ tipo: 'fiscal', pessoa: r.pessoas, criado_em: r.criado_em || '', cadastrado_por: r.cadastrado_por, extra: r.status || '', origem: r.origem_captacao }));
     if (searchTerm) {
       const s = searchTerm.toLowerCase();
       result = result.filter(r => r.pessoa?.nome?.toLowerCase().includes(s) || r.pessoa?.cpf?.includes(s));
     }
     return result.sort((a, b) => new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime());
-  }, [filteredL, filteredE, tipoFiltro, searchTerm]);
+  }, [filteredL, filteredE, filteredF, tipoFiltro, searchTerm]);
 
   const getUserName = (id: string | null) => id ? (usuarios.find(u => u.id === id)?.nome || '—') : '—';
   const getMedalEmoji = (i: number) => i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}º`;
