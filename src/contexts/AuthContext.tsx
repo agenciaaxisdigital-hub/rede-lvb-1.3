@@ -117,9 +117,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
         if (session?.user) {
           await fetchUsuario(session.user.id);
-          scheduleBackgroundServices();
-        } else {
-          clearBackgroundServices();
         }
       } catch (err) {
         console.error('Erro na inicialização:', err);
