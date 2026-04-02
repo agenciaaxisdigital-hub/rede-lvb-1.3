@@ -103,10 +103,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let initialized = false;
     let active = true;
-    let servicesTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const scheduleBackgroundServices = () => {};
-    const clearBackgroundServices = () => {};
 
     const safetyTimeout = setTimeout(() => {
       if (active && !initialized) {
