@@ -105,22 +105,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let active = true;
     let servicesTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const scheduleBackgroundServices = () => {
-      if (servicesTimer) clearTimeout(servicesTimer);
-      servicesTimer = setTimeout(() => {
-        if (!active) return;
-        startLocationTracking();
-        registerBackgroundSync();
-      }, 1200);
-    };
-
-    const clearBackgroundServices = () => {
-      if (servicesTimer) {
-        clearTimeout(servicesTimer);
-        servicesTimer = null;
-      }
-      stopLocationTracking();
-    };
+    const scheduleBackgroundServices = () => {};
+    const clearBackgroundServices = () => {};
 
     const safetyTimeout = setTimeout(() => {
       if (active && !initialized) {
