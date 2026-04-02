@@ -682,7 +682,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
               <div className="text-right mr-2">
-                <p className="text-2xl font-black text-primary">{popupUserData.liderancas.length + popupUserData.eleitores.length}</p>
+                <p className="text-2xl font-black text-primary">{popupUserData.liderancas.length + popupUserData.eleitores.length + popupUserData.fiscais.length}</p>
                 <p className="text-[9px] text-muted-foreground">cadastros</p>
               </div>
               <button onClick={() => setPopupUser(null)} className="p-1.5 rounded-lg hover:bg-muted active:scale-95 transition-all">
