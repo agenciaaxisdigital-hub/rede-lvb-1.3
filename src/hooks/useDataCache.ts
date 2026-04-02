@@ -75,12 +75,21 @@ function applyScopeFilter(
   if (!usuario) return q;
 
   if (scope === 'own') {
-    // Abas regulares: mostrar SOMENTE o que o próprio usuário cadastrou
-    q = q.eq('cadastrado_por', usuario.id);
+    // Abas regulares: mostrar o que o usuário cadastrou OU que veio vinculado via suplente_id
+    if (usuario.suplente_id) {
+      // Usuário tem suplente: mostrar cadastrado_por OU suplente_id match
+      q = q.or(`cadastrado_por.eq.${usuario.id},suplente_id.eq.${usuario.suplente_id}`);
+    } else {
+      q = q.eq('cadastrado_por', usuario.id);
+    }
   } else {
     // Painel admin: admins veem tudo, outros filtram
     if (!isAdmin) {
-      q = q.eq('cadastrado_por', usuario.id);
+      if (usuario.suplente_id) {
+        q = q.or(`cadastrado_por.eq.${usuario.id},suplente_id.eq.${usuario.suplente_id}`);
+      } else {
+        q = q.eq('cadastrado_por', usuario.id);
+      }
     }
   }
   return q;
