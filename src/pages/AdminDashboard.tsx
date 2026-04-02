@@ -462,7 +462,7 @@ export default function AdminDashboard() {
                       ];
                       const s = sizes[i];
                       return (
-                        <div key={u.id} className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border border-border ${s.bg}`}>
+                        <div key={u.id} onClick={() => setPopupUser(u.id)} className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border border-border ${s.bg} cursor-pointer hover:shadow-md transition-all active:scale-95`}>
                           <span className="text-xl">{getMedalEmoji(i)}</span>
                           <div className={`${s.avatar} rounded-full ${s.ring} bg-primary/10 flex items-center justify-center`}>
                             <span className="text-base font-bold text-primary">{u.nome.charAt(0)}</span>
@@ -472,7 +472,6 @@ export default function AdminDashboard() {
                           <p className="text-2xl font-black text-primary leading-none">{u.total}</p>
                           <div className="flex flex-wrap gap-0.5 justify-center">
                             {u.l > 0 && <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-primary/15 text-primary">L{u.l}</span>}
-                            {u.e > 0 && <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-secondary text-secondary-foreground">E{u.e}</span>}
                             {u.e > 0 && <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-secondary text-secondary-foreground">E{u.e}</span>}
                           </div>
                         </div>
