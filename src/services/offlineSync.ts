@@ -111,4 +111,8 @@ export function stopAutoSync() {
     clearInterval(syncInterval);
     syncInterval = null;
   }
+  if (onlineHandler) {
+    window.removeEventListener('online', onlineHandler);
+    onlineHandler = null;
+  }
 }
