@@ -66,7 +66,7 @@ function applyScopeFilter(
   scope: 'own' | 'all',
   isAdmin: boolean,
   usuario: { id: string; suplente_id: string | null } | null,
-  table: 'liderancas' | 'fiscais' | 'possiveis_eleitores'
+  table: 'liderancas' | 'possiveis_eleitores'
 ) {
   if (!usuario) return q;
 
