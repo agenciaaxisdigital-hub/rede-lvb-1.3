@@ -17,7 +17,7 @@ const TAB_STORAGE_KEY = 'home-active-tab';
 function getInitialTab(): TabId {
   try {
     const saved = localStorage.getItem(TAB_STORAGE_KEY) as TabId | null;
-    if (saved && ['liderancas', 'fiscais', 'eleitores', 'cadastros', 'rastreamento', 'perfil'].includes(saved)) {
+    if (saved && ['liderancas', 'fiscais', 'eleitores', 'cadastros', 'perfil'].includes(saved)) {
       return saved;
     }
   } catch {}
