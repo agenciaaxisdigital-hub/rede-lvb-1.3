@@ -466,7 +466,7 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
   return (
     <div className="space-y-3 pb-24">
       {!viewOnly && (
-        <button onClick={() => setMode('form')} className="w-full h-12 gradient-primary text-white font-semibold rounded-xl active:scale-[0.97] transition-all">
+        <button data-testid="btn-cadastrar-eleitor" onClick={() => setMode('form')} className="w-full h-12 gradient-primary text-white font-semibold rounded-xl active:scale-[0.97] transition-all">
           + Cadastrar Eleitor
         </button>
       )}
