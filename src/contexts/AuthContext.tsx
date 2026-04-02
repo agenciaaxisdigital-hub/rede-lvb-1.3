@@ -138,12 +138,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
         if (session?.user) {
           await fetchUsuario(session.user.id);
-          scheduleBackgroundServices();
         } else {
           setUsuario(null);
           setMunicipioId(null);
           setMunicipioNome(null);
-          clearBackgroundServices();
         }
       } catch (err) {
         console.error('Erro no auth state change:', err);
