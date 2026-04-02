@@ -268,20 +268,10 @@ export default function TabRede() {
           </div>
         )}
 
-        {tipo === 'fiscal' && (
-          <div className="section-card">
-            <h3 className="section-title">🛡️ Dados do Fiscal</h3>
-            <Info label="Zona Fiscal" value={selectedRecord.zona_fiscal} />
-            <Info label="Seção Fiscal" value={selectedRecord.secao_fiscal} />
-            <Info label="Colégio" value={selectedRecord.colegio_eleitoral} />
-          </div>
-        )}
-
-        {tipo === 'eleitor' && (selectedRecord.liderancas || selectedRecord.fiscais) && (
+        {tipo === 'eleitor' && selectedRecord.liderancas && (
           <div className="section-card">
             <h3 className="section-title">🔗 Vinculado a</h3>
             {selectedRecord.liderancas?.pessoas?.nome && <Info label="Liderança" value={selectedRecord.liderancas.pessoas.nome} />}
-            {selectedRecord.fiscais?.pessoas?.nome && <Info label="Fiscal" value={selectedRecord.fiscais.pessoas.nome} />}
           </div>
         )}
 
