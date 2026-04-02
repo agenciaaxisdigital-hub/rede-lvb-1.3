@@ -56,7 +56,11 @@ export default function BottomNav({ active, onChange }: Props) {
     if (tab.module) {
       if (isAdminOrCoord) return true;
       if (modulos.has('master')) return true;
-      return modulos.has(tab.module);
+      // cadastrar_liderancas grants access to lideranças, fiscais AND eleitores
+      if (modulos.has('cadastrar_liderancas')) return true;
+      // cadastrar_eleitores grants access ONLY to eleitores
+      if (tab.module === 'cadastrar_eleitores' && modulos.has('cadastrar_eleitores')) return true;
+      return false;
     }
     return false;
   });
