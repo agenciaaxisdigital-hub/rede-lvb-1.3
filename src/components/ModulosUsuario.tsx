@@ -5,8 +5,8 @@ import { Loader2 } from 'lucide-react';
 
 const MODULOS = [
   { id: 'master', label: '🔑 Acesso Master', desc: 'Acesso total — vê e faz tudo no sistema' },
-  { id: 'cadastrar_liderancas', label: '👥 Cadastrar Lideranças', desc: 'Pode cadastrar novas lideranças' },
-  { id: 'cadastrar_eleitores', label: '🎯 Cadastrar Eleitores', desc: 'Pode cadastrar possíveis eleitores' },
+  { id: 'cadastrar_liderancas', label: '👥 Lideranças', desc: 'Pode cadastrar lideranças, fiscais e eleitores' },
+  { id: 'cadastrar_eleitores', label: '🎯 Eleitores', desc: 'Pode cadastrar somente eleitores' },
 ];
 
 interface Props {

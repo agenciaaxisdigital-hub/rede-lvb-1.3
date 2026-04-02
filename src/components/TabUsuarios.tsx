@@ -40,8 +40,8 @@ interface HierarchyUser {
 type SubTab = 'suplentes' | 'avulso' | 'gerenciar';
 
 const MODULOS_INLINE = [
-  { id: 'cadastrar_liderancas', label: '👥 Cadastrar Lideranças' },
-  { id: 'cadastrar_eleitores', label: '🎯 Cadastrar Eleitores' },
+  { id: 'cadastrar_liderancas', label: '👥 Lideranças (+ Fiscais + Eleitores)' },
+  { id: 'cadastrar_eleitores', label: '🎯 Somente Eleitores' },
   { id: 'ver_rede', label: '🌐 Ver Rede Completa' },
 ];
 

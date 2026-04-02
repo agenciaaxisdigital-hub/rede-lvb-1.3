@@ -33,8 +33,8 @@ const tipoColors: Record<string, string> = {
 
 const MODULOS_OPTIONS = [
   { id: 'master', label: '🔑 Master' },
-  { id: 'cadastrar_liderancas', label: '👥 Lideranças' },
-  { id: 'cadastrar_eleitores', label: '🎯 Eleitores' },
+  { id: 'cadastrar_liderancas', label: '👥 Lideranças (+ Fiscais + Eleitores)' },
+  { id: 'cadastrar_eleitores', label: '🎯 Somente Eleitores' },
 ];
 
 interface SuplenteOption {
