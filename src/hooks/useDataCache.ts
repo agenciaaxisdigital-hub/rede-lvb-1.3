@@ -51,8 +51,9 @@ export function useContagens() {
         total: (l.count ?? 0) + (e.count ?? 0),
       };
     },
-    staleTime: 2 * 60 * 1000,
+    staleTime: 3_000,
     gcTime: 10 * 60 * 1000,
+    refetchInterval: 5000,
   });
 }
 
