@@ -193,10 +193,10 @@ export default function AdminDashboard() {
   const getUserName = (id: string | null) => id ? (usuarios.find(u => u.id === id)?.nome || '—') : '—';
   const getMedalEmoji = (i: number) => i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}º`;
 
-  const handleExport = async (tipo?: 'lideranca' | 'eleitor') => {
+  const handleExport = async (tipo?: 'lideranca' | 'eleitor' | 'fiscal', cadastradoPorId?: string, cadastradoPorNome?: string) => {
     setExporting(true);
     try {
-      const count = await exportAllCadastros(tipo);
+      const count = await exportCadastrosFiltered({ tipo, cadastradoPorId, cadastradoPorNome });
       toast({ title: `✅ ${count} registros exportados!` });
     } catch (err: any) {
       toast({ title: 'Erro ao exportar', description: err.message, variant: 'destructive' });
