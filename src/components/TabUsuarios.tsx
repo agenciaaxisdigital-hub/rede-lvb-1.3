@@ -41,7 +41,6 @@ type SubTab = 'suplentes' | 'avulso' | 'gerenciar';
 
 const MODULOS_INLINE = [
   { id: 'cadastrar_liderancas', label: '👥 Cadastrar Lideranças' },
-  { id: 'cadastrar_fiscais', label: '🛡️ Cadastrar Fiscais' },
   { id: 'cadastrar_eleitores', label: '🎯 Cadastrar Eleitores' },
   { id: 'ver_rede', label: '🌐 Ver Rede Completa' },
 ];
