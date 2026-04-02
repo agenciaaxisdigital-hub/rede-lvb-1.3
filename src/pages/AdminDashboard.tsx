@@ -49,6 +49,15 @@ interface EleitorReg {
   pessoas: Pessoa | null;
 }
 
+interface FiscalReg {
+  id: string; criado_em: string; cadastrado_por: string | null;
+  suplente_id: string | null; status: string | null;
+  municipio_id: string | null; origem_captacao: string | null;
+  zona_fiscal: string | null; secao_fiscal: string | null;
+  colegio_eleitoral: string | null; observacoes: string | null;
+  pessoas: Pessoa | null;
+}
+
 interface HierarquiaUsuario {
   id: string; nome: string; tipo: string;
   suplente_id: string | null; municipio_id: string | null; ativo: boolean | null;
