@@ -85,6 +85,7 @@ Deno.serve(async (req) => {
         tipo,
         superior_id: superior_id || null,
         suplente_id: suplente_id || null,
+        municipio_id: municipio_id || null,
       })
       .select('id')
       .single();
