@@ -212,7 +212,7 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
         cadastrado_por: usuario?.id || null,
         suplente_id: ligSuplenteId || usuario?.suplente_id || null,
         lideranca_id: ligLiderancaId || form.lideranca_id || null,
-        fiscal_id: form.fiscal_id || null,
+        fiscal_id: null,
         compromisso_voto: form.compromisso_voto,
         observacoes: form.observacoes || null,
         municipio_id: ligMunicipioId || null,
