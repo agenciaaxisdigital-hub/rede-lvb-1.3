@@ -279,16 +279,34 @@ class Tracker {
     }
   }
 
-  // ── Capture once (GPS → fallback IP) ──
+  // ── Capture once (GPS com múltiplas tentativas → fallback IP) ──
   private async captureOnce(force = false) {
     if (!this.running) return;
     if (!isBrowser() || !('geolocation' in navigator) || !window.isSecureContext) {
       return this.captureByIP(force);
     }
+
+    // Tentar GPS com maximumAge=0 para leitura fresca do chip GPS
     try {
       const pos = await new Promise<GeolocationPosition>((ok, fail) =>
-        navigator.geolocation.getCurrentPosition(ok, fail, { enableHighAccuracy: true, timeout: 12_000, maximumAge: 1_000 }),
+        navigator.geolocation.getCurrentPosition(ok, fail, { enableHighAccuracy: true, timeout: 20_000, maximumAge: 0 }),
       );
+
+      // Se precisão > 100m, tentar uma segunda leitura (o GPS pode ainda estar aquecendo)
+      if (pos.coords.accuracy > 100) {
+        try {
+          const pos2 = await new Promise<GeolocationPosition>((ok, fail) =>
+            navigator.geolocation.getCurrentPosition(ok, fail, { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 }),
+          );
+          // Usar a leitura com melhor precisão
+          const best = pos2.coords.accuracy < pos.coords.accuracy ? pos2 : pos;
+          await this.handleCoords(best.coords.latitude, best.coords.longitude, best.coords.accuracy, 'gps', force);
+          return;
+        } catch {
+          // Se a segunda falhar, usar a primeira
+        }
+      }
+
       await this.handleCoords(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy, 'gps', force);
     } catch {
       await this.captureByIP(force);
