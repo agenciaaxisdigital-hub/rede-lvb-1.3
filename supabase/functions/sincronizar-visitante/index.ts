@@ -12,6 +12,30 @@ function jsonResp(body: Record<string, unknown>, status = 200) {
   });
 }
 
+async function getLocalSuplenteId(supabaseAdmin: any, suplenteId: string | null) {
+  if (!suplenteId) return null;
+
+  const { data } = await supabaseAdmin
+    .from('suplentes')
+    .select('id')
+    .eq('id', suplenteId)
+    .maybeSingle();
+
+  return data?.id ?? null;
+}
+
+async function getMunicipioFromSuplente(supabaseAdmin: any, suplenteId: string | null) {
+  if (!suplenteId) return null;
+
+  const { data } = await supabaseAdmin
+    .from('suplente_municipio')
+    .select('municipio_id')
+    .eq('suplente_id', suplenteId)
+    .maybeSingle();
+
+  return data?.municipio_id ?? null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -42,27 +66,27 @@ Deno.serve(async (req) => {
     let cadastradoPor: string | null = null;
     let municipioId: string | null = null;
 
-    if (indicador_id && indicador_tipo === 'suplente') {
+    const indicadorTipoNormalizado = typeof indicador_tipo === 'string'
+      ? indicador_tipo
+      : null;
+
+    const tiposHierarquia = new Set(['super_admin', 'coordenador', 'lideranca', 'fiscal']);
+
+    if (indicador_id && indicadorTipoNormalizado === 'suplente') {
       // Buscar suplente no banco EXTERNO (onde os suplentes vivem)
       const { data: sup } = await externalClient
         .from('suplentes')
-        .select('id')
+        .select('id, nome')
         .eq('id', indicador_id)
         .maybeSingle();
 
       if (sup) {
-        // Suplente encontrado no banco externo
-        // Verificar se TAMBÉM existe no banco local (para FK)
-        const { data: supLocal } = await supabaseAdmin
-          .from('suplentes')
-          .select('id')
-          .eq('id', indicador_id)
-          .maybeSingle();
+        await supabaseAdmin.from('suplentes').upsert(
+          { id: sup.id, nome: sup.nome },
+          { onConflict: 'id' }
+        );
 
-        if (supLocal) {
-          validatedSuplenteId = supLocal.id;
-        }
-        // Se não existe localmente, não usar como FK (evita erro)
+        validatedSuplenteId = sup.id;
 
         // Resolve cadastrado_por from hierarquia local
         const { data: usuario } = await supabaseAdmin
@@ -77,7 +101,7 @@ Deno.serve(async (req) => {
           municipioId = usuario.municipio_id;
         }
       } else {
-        // Talvez indicador_id é um hierarquia_usuarios.id
+        // Talvez indicador_id seja um usuário local vinculado ao suplente
         const { data: hierSup } = await supabaseAdmin
           .from('hierarquia_usuarios')
           .select('id, suplente_id, municipio_id')
@@ -91,30 +115,16 @@ Deno.serve(async (req) => {
         }
 
         if (hierSup.suplente_id) {
-          const { data: supCheck } = await supabaseAdmin
-            .from('suplentes')
-            .select('id')
-            .eq('id', hierSup.suplente_id)
-            .maybeSingle();
-          validatedSuplenteId = supCheck ? supCheck.id : null;
+          validatedSuplenteId = await getLocalSuplenteId(supabaseAdmin, hierSup.suplente_id);
         }
         cadastradoPor = hierSup.id;
         municipioId = hierSup.municipio_id;
       }
 
-      // Resolve municipio if still missing — try both validated and original indicador_id
       if (!municipioId) {
-        const smId = validatedSuplenteId || indicador_id;
-        if (smId) {
-          const { data: sm } = await supabaseAdmin
-            .from('suplente_municipio')
-            .select('municipio_id')
-            .eq('suplente_id', smId)
-            .maybeSingle();
-          if (sm) municipioId = sm.municipio_id;
-        }
+        municipioId = await getMunicipioFromSuplente(supabaseAdmin, validatedSuplenteId || indicador_id);
       }
-    } else if (indicador_id && indicador_tipo === 'lideranca') {
+    } else if (indicador_id && indicadorTipoNormalizado && tiposHierarquia.has(indicadorTipoNormalizado)) {
       const { data: usuario } = await supabaseAdmin
         .from('hierarquia_usuarios')
         .select('id, suplente_id, municipio_id')
@@ -125,22 +135,26 @@ Deno.serve(async (req) => {
       if (usuario) {
         cadastradoPor = usuario.id;
         municipioId = usuario.municipio_id;
-        const { data: lid } = await supabaseAdmin
-          .from('liderancas')
-          .select('id, suplente_id')
-          .eq('cadastrado_por', usuario.id)
-          .maybeSingle();
-        if (lid) {
-          validatedLiderancaId = lid.id;
-          if (lid.suplente_id) {
-            const { data: sc } = await supabaseAdmin.from('suplentes').select('id').eq('id', lid.suplente_id).maybeSingle();
-            validatedSuplenteId = sc ? sc.id : null;
-          }
-        } else if (usuario.suplente_id) {
-          const { data: sc } = await supabaseAdmin.from('suplentes').select('id').eq('id', usuario.suplente_id).maybeSingle();
-          validatedSuplenteId = sc ? sc.id : null;
+
+        if (usuario.suplente_id) {
+          validatedSuplenteId = await getLocalSuplenteId(supabaseAdmin, usuario.suplente_id);
         }
-      } else {
+
+        if (indicadorTipoNormalizado === 'lideranca') {
+          const { data: lid } = await supabaseAdmin
+            .from('liderancas')
+            .select('id, suplente_id')
+            .eq('cadastrado_por', usuario.id)
+            .maybeSingle();
+
+          if (lid) {
+            validatedLiderancaId = lid.id;
+            if (lid.suplente_id) {
+              validatedSuplenteId = await getLocalSuplenteId(supabaseAdmin, lid.suplente_id);
+            }
+          }
+        }
+      } else if (indicadorTipoNormalizado === 'lideranca') {
         const { data: lid } = await supabaseAdmin
           .from('liderancas')
           .select('id, suplente_id, cadastrado_por, municipio_id')
@@ -151,12 +165,64 @@ Deno.serve(async (req) => {
         }
         validatedLiderancaId = lid.id;
         if (lid.suplente_id) {
-          const { data: sc } = await supabaseAdmin.from('suplentes').select('id').eq('id', lid.suplente_id).maybeSingle();
-          validatedSuplenteId = sc ? sc.id : null;
+          validatedSuplenteId = await getLocalSuplenteId(supabaseAdmin, lid.suplente_id);
         }
         cadastradoPor = lid.cadastrado_por;
         municipioId = lid.municipio_id;
+      } else {
+        return jsonResp({ erro: `Indicador (${indicadorTipoNormalizado}) não encontrado` }, 400);
       }
+
+      if (!municipioId) {
+        municipioId = await getMunicipioFromSuplente(supabaseAdmin, validatedSuplenteId);
+      }
+    } else if (indicador_id && indicadorTipoNormalizado === 'lideranca_cadastrada') {
+      const { data: lideranca } = await supabaseAdmin
+        .from('liderancas')
+        .select('id, suplente_id, cadastrado_por, municipio_id')
+        .eq('id', indicador_id)
+        .maybeSingle();
+
+      if (!lideranca) {
+        return jsonResp({ erro: 'Indicador (liderança cadastrada) não encontrado' }, 400);
+      }
+
+      validatedLiderancaId = lideranca.id;
+      validatedSuplenteId = await getLocalSuplenteId(supabaseAdmin, lideranca.suplente_id);
+      cadastradoPor = lideranca.cadastrado_por;
+      municipioId = lideranca.municipio_id || await getMunicipioFromSuplente(supabaseAdmin, validatedSuplenteId);
+    } else if (indicador_id && indicadorTipoNormalizado === 'fiscal_cadastrado') {
+      const { data: fiscal } = await supabaseAdmin
+        .from('fiscais')
+        .select('id, suplente_id, lideranca_id, cadastrado_por, municipio_id')
+        .eq('id', indicador_id)
+        .maybeSingle();
+
+      if (!fiscal) {
+        return jsonResp({ erro: 'Indicador (fiscal cadastrado) não encontrado' }, 400);
+      }
+
+      validatedSuplenteId = await getLocalSuplenteId(supabaseAdmin, fiscal.suplente_id);
+      validatedLiderancaId = fiscal.lideranca_id ?? null;
+      cadastradoPor = fiscal.cadastrado_por;
+      municipioId = fiscal.municipio_id || await getMunicipioFromSuplente(supabaseAdmin, validatedSuplenteId);
+    } else if (indicador_id && indicadorTipoNormalizado === 'eleitor_cadastrado') {
+      const { data: eleitor } = await supabaseAdmin
+        .from('possiveis_eleitores')
+        .select('id, suplente_id, lideranca_id, cadastrado_por, municipio_id')
+        .eq('id', indicador_id)
+        .maybeSingle();
+
+      if (!eleitor) {
+        return jsonResp({ erro: 'Indicador (eleitor cadastrado) não encontrado' }, 400);
+      }
+
+      validatedSuplenteId = await getLocalSuplenteId(supabaseAdmin, eleitor.suplente_id);
+      validatedLiderancaId = eleitor.lideranca_id ?? null;
+      cadastradoPor = eleitor.cadastrado_por;
+      municipioId = eleitor.municipio_id || await getMunicipioFromSuplente(supabaseAdmin, validatedSuplenteId);
+    } else if (indicador_id && indicadorTipoNormalizado) {
+      return jsonResp({ erro: `indicador_tipo não suportado: ${indicadorTipoNormalizado}` }, 400);
     }
 
     // ── 1. Find or create pessoa ──────────────────────────────
