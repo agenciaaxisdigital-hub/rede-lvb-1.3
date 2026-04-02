@@ -97,17 +97,10 @@ describe('Tela de Login', () => {
     });
   });
 
-  it('exibe toast quando campos estão vazios', async () => {
-    const { toast } = await import('@/hooks/use-toast');
+  it('campos têm atributo required para validação HTML5', () => {
     render(<MemoryRouter><LoginComponent /></MemoryRouter>);
-    
-    fireEvent.click(screen.getByTestId('btn-entrar'));
-    
-    await waitFor(() => {
-      expect(toast).toHaveBeenCalledWith(expect.objectContaining({
-        variant: 'destructive',
-      }));
-    });
+    expect(screen.getByTestId('input-nome')).toHaveAttribute('required');
+    expect(screen.getByTestId('input-senha')).toHaveAttribute('required');
   });
 
   it('exibe texto de branding correto', () => {
