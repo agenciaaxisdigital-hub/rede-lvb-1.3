@@ -308,7 +308,8 @@ export default function AdminDashboard() {
             {filteredUsers.map(u => {
               const uL = filteredL.filter(r => r.cadastrado_por === u.id);
               const uE = filteredE.filter(r => r.cadastrado_por === u.id);
-              const total = uL.length + uE.length;
+              const uF = filteredF.filter(r => r.cadastrado_por === u.id);
+              const total = uL.length + uE.length + uF.length;
               const isExpanded = expandedUser === u.id;
               const cityName = nomeMunicipioPorId(u.municipio_id);
 
