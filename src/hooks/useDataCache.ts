@@ -178,7 +178,7 @@ export function useInvalidarCadastros() {
   const qc = useQueryClient();
   return useCallback(() => {
     qc.invalidateQueries({ queryKey: ['liderancas'] });
-    qc.invalidateQueries({ queryKey: ['fiscais'] });
+    
     qc.invalidateQueries({ queryKey: ['eleitores'] });
     qc.invalidateQueries({ queryKey: ['contagens'] });
   }, [qc]);
