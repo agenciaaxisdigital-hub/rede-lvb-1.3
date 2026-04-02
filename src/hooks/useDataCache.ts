@@ -123,36 +123,6 @@ export function useLiderancas(scope: 'own' | 'all' = 'own') {
   });
 }
 
-/* ── Fiscais ── */
-const QUERY_FISC = 'id, status, colegio_eleitoral, zona_fiscal, secao_fiscal, cadastrado_por, criado_em, municipio_id, origem_captacao, suplente_id, lideranca_id, observacoes, pessoas(nome, cpf, telefone, whatsapp, email, instagram, facebook, titulo_eleitor, zona_eleitoral, secao_eleitoral, municipio_eleitoral, uf_eleitoral, colegio_eleitoral, endereco_colegio, situacao_titulo), hierarquia_usuarios!fiscais_cadastrado_por_fkey(nome)';
-
-export function useFiscais(scope: 'own' | 'all' = 'own') {
-  const { usuario, tipoUsuario } = useAuth();
-  const filtroMunicipioId = useFiltroMunicipio();
-  const isAdmin = tipoUsuario === 'super_admin' || tipoUsuario === 'coordenador';
-  const scopeKey = scope === 'all' ? 'all' : (isAdmin && usuario?.suplente_id ? `sup-${usuario.suplente_id}` : usuario?.id || 'none');
-
-  return useQuery({
-    queryKey: keys.fiscais(filtroMunicipioId, scopeKey),
-    queryFn: async () => {
-      let q = (supabase as any)
-        .from('fiscais')
-        .select(QUERY_FISC)
-        .order('criado_em', { ascending: false })
-        .limit(scope === 'all' && isAdmin ? 2000 : 500);
-
-      if (scope === 'all' && filtroMunicipioId) q = q.or(`municipio_id.eq.${filtroMunicipioId},municipio_id.is.null`);
-      q = applyScopeFilter(q, scope, isAdmin, usuario, 'fiscais');
-
-      const { data, error } = await q;
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!usuario,
-    staleTime: 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-  });
-}
 
 /* ── Eleitores ── */
 const QUERY_ELE = 'id, compromisso_voto, lideranca_id, cadastrado_por, criado_em, municipio_id, origem_captacao, suplente_id, observacoes, pessoas(nome, cpf, telefone, whatsapp, email, instagram, facebook, titulo_eleitor, zona_eleitoral, secao_eleitoral, municipio_eleitoral, uf_eleitoral, colegio_eleitoral, endereco_colegio, situacao_titulo), liderancas:lideranca_id(id, pessoas(nome)), hierarquia_usuarios!possiveis_eleitores_cadastrado_por_fkey(nome)';
