@@ -346,7 +346,7 @@ export default function PainelLocalizacao() {
               className={`shrink-0 text-[10px] px-2.5 py-1 rounded-full border font-semibold transition-all active:scale-95 ${
                 filtroTipo === tipo ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-muted-foreground'
               }`}>
-              {tipo === 'super_admin' ? 'Admin' : tipo === 'coordenador' ? 'Coord.' : tipo === 'suplente' ? 'Suplente' : tipo === 'lideranca' ? 'Liderança' : tipo === 'fiscal' ? 'Fiscal' : tipo} ({count})
+              {tipo === 'super_admin' ? 'Admin' : tipo === 'coordenador' ? 'Coord.' : tipo === 'suplente' ? 'Suplente' : tipo === 'lideranca' ? 'Liderança' : tipo} ({count})
             </button>
           ))}
         </div>

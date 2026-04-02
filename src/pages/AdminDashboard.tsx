@@ -65,7 +65,7 @@ const tipoFiltroLabels: Record<TipoFiltro, string> = { todos: 'Todos', lideranca
 const tipoUsuarioLabels: Record<TipoUsuarioFiltro, string> = { todos: 'Todos', suplente: 'Suplentes', lideranca: 'Lideranças', coordenador: 'Coordenadores' };
 
 const tipoLabel = (t: string) => {
-  const labels: Record<string, string> = { super_admin: 'Admin', coordenador: 'Coord.', suplente: 'Suplente', lideranca: 'Liderança', fiscal: 'Fiscal' };
+  const labels: Record<string, string> = { super_admin: 'Admin', coordenador: 'Coord.', suplente: 'Suplente', lideranca: 'Liderança' };
   return labels[t] || t;
 };
 

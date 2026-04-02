@@ -537,7 +537,7 @@ export default function TabSuplentes({ refreshKey }: Props) {
         ) : (
           <div className="section-card !p-2">
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold px-2 py-1">
-              Lideranças → Fiscais → Eleitores
+              Lideranças → Eleitores
             </p>
             {tree.map(node => renderTreeNode(node, 0))}
           </div>

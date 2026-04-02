@@ -271,7 +271,7 @@ export default function TabUsuarios() {
   const inputCls = "w-full h-11 px-3 bg-card border border-border rounded-xl text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30";
 
   const tipoLabel = (t: string) => {
-    const labels: Record<string, string> = { super_admin: 'Admin', coordenador: 'Coord.', suplente: 'Suplente', lideranca: 'Liderança', fiscal: 'Fiscal' };
+    const labels: Record<string, string> = { super_admin: 'Admin', coordenador: 'Coord.', suplente: 'Suplente', lideranca: 'Liderança' };
     return labels[t] || t;
   };
 
@@ -281,7 +281,6 @@ export default function TabUsuarios() {
       coordenador: 'bg-orange-500/10 text-orange-600',
       suplente: 'bg-blue-500/10 text-blue-600',
       lideranca: 'bg-purple-500/10 text-purple-600',
-      fiscal: 'bg-emerald-500/10 text-emerald-600',
     };
     return colors[t] || 'bg-muted text-muted-foreground';
   };

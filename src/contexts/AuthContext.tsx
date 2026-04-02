@@ -24,7 +24,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isSuplente: boolean;
   isLideranca: boolean;
-  isFiscal: boolean;
+  
   tipoUsuario: TipoUsuario | null;
   municipioId: string | null;
   municipioNome: string | null;
