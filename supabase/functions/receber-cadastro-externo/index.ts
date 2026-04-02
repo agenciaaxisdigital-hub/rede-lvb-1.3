@@ -155,114 +155,115 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (hierarquiaDirecta) {
+        cadastradoPorId = hierarquiaDirecta.id;
+        suplenteId = hierarquiaDirecta.suplente_id;
+        municipioId = hierarquiaDirecta.municipio_id;
+        console.log(`[receber-cadastro-externo] ✅ Resolvido via hierarquia direta: cadastrado_por=${cadastradoPorId}, suplente=${suplenteId}, municipio=${municipioId}`);
+      } else {
+        console.log(`[receber-cadastro-externo] Não encontrado em hierarquia_usuarios, tentando resolução por tipo=${indTipo}`);
 
-    if (hierarquiaDirecta) {
-      cadastradoPorId = hierarquiaDirecta.id;
-      suplenteId = hierarquiaDirecta.suplente_id;
-      municipioId = hierarquiaDirecta.municipio_id;
-      console.log(`[receber-cadastro-externo] ✅ Resolvido via hierarquia direta: cadastrado_por=${cadastradoPorId}, suplente=${suplenteId}, municipio=${municipioId}`);
-    } else {
-      console.log(`[receber-cadastro-externo] Não encontrado em hierarquia_usuarios, tentando resolução por tipo=${indTipo}`);
-
-      if ((TIPOS_HIERARQUIA as readonly string[]).includes(indTipo)) {
-        const usuarioPorNome = await resolverHierarquiaPorNome(supabaseAdmin, body.indicador_nome, indTipo);
-        if (usuarioPorNome) {
-          cadastradoPorId = usuarioPorNome.id;
-          suplenteId = usuarioPorNome.suplente_id;
-          municipioId = usuarioPorNome.municipio_id;
-        } else {
-          const sombra = await garantirUsuarioSombra(supabaseAdmin, body.indicador_nome, indTipo, null);
-          if (sombra) {
-            cadastradoPorId = sombra.id;
-            suplenteId = sombra.suplente_id;
-            municipioId = sombra.municipio_id;
+        if ((TIPOS_HIERARQUIA as readonly string[]).includes(indTipo)) {
+          const usuarioPorNome = await resolverHierarquiaPorNome(supabaseAdmin, body.indicador_nome, indTipo);
+          if (usuarioPorNome) {
+            cadastradoPorId = usuarioPorNome.id;
+            suplenteId = usuarioPorNome.suplente_id;
+            municipioId = usuarioPorNome.municipio_id;
+          } else {
+            const sombra = await garantirUsuarioSombra(supabaseAdmin, body.indicador_nome, indTipo, null);
+            if (sombra) {
+              cadastradoPorId = sombra.id;
+              suplenteId = sombra.suplente_id;
+              municipioId = sombra.municipio_id;
+            }
           }
-        }
 
-        if (indTipo === 'lideranca' && cadastradoPorId) {
-          const { data: lidVinculada } = await supabaseAdmin
-            .from('liderancas')
+          if (indTipo === 'lideranca' && cadastradoPorId) {
+            const { data: lidVinculada } = await supabaseAdmin
+              .from('liderancas')
+              .select('id, suplente_id, municipio_id')
+              .eq('cadastrado_por', cadastradoPorId)
+              .limit(1)
+              .maybeSingle();
+            if (lidVinculada) {
+              liderancaIdVinculada = lidVinculada.id;
+              suplenteId = lidVinculada.suplente_id ?? suplenteId;
+              municipioId = lidVinculada.municipio_id ?? municipioId;
+            }
+          }
+        } else if (indTipo === 'suplente') {
+          if (body.indicador_nome) {
+            await supabaseAdmin.from('suplentes').upsert(
+              { id: indId, nome: body.indicador_nome },
+              { onConflict: 'id' }
+            );
+          }
+          const { data: usuarioVinculado } = await supabaseAdmin
+            .from('hierarquia_usuarios')
             .select('id, suplente_id, municipio_id')
-            .eq('cadastrado_por', cadastradoPorId)
+            .eq('suplente_id', indId)
+            .eq('ativo', true)
+            .order('tipo')
             .limit(1)
             .maybeSingle();
-          if (lidVinculada) {
-            liderancaIdVinculada = lidVinculada.id;
-            suplenteId = lidVinculada.suplente_id ?? suplenteId;
-            municipioId = lidVinculada.municipio_id ?? municipioId;
+
+          if (usuarioVinculado) {
+            cadastradoPorId = usuarioVinculado.id;
+            suplenteId = usuarioVinculado.suplente_id;
+            municipioId = usuarioVinculado.municipio_id;
+          } else {
+            suplenteId = indId;
+            const { data: sm } = await supabaseAdmin
+              .from('suplente_municipio')
+              .select('municipio_id')
+              .eq('suplente_id', indId)
+              .maybeSingle();
+            municipioId = sm?.municipio_id ?? null;
           }
-        }
-      } else if (indTipo === 'suplente') {
-        if (body.indicador_nome) {
-          await supabaseAdmin.from('suplentes').upsert(
-            { id: indId, nome: body.indicador_nome },
-            { onConflict: 'id' }
-          );
-        }
-        const { data: usuarioVinculado } = await supabaseAdmin
-          .from('hierarquia_usuarios')
-          .select('id, suplente_id, municipio_id')
-          .eq('suplente_id', indId)
-          .eq('ativo', true)
-          .order('tipo')
-          .limit(1)
-          .maybeSingle();
-
-        if (usuarioVinculado) {
-          cadastradoPorId = usuarioVinculado.id;
-          suplenteId = usuarioVinculado.suplente_id;
-          municipioId = usuarioVinculado.municipio_id;
-        } else {
-          suplenteId = indId;
-          const { data: sm } = await supabaseAdmin
-            .from('suplente_municipio')
-            .select('municipio_id')
-            .eq('suplente_id', indId)
+        } else if (indTipo === 'lideranca_cadastrada') {
+          const { data: lid } = await supabaseAdmin
+            .from('liderancas')
+            .select('id, cadastrado_por, suplente_id, municipio_id, pessoa_id')
+            .eq('id', indId)
             .maybeSingle();
-          municipioId = sm?.municipio_id ?? null;
-        }
-      } else if (indTipo === 'lideranca_cadastrada') {
-        const { data: lid } = await supabaseAdmin
-          .from('liderancas')
-          .select('id, cadastrado_por, suplente_id, municipio_id, pessoa_id')
-          .eq('id', indId)
-          .maybeSingle();
 
-        if (lid) {
-          liderancaIdVinculada = lid.id;
-          cadastradoPorId = lid.cadastrado_por;
-          suplenteId = lid.suplente_id;
-          municipioId = lid.municipio_id;
-        }
-      } else if (indTipo === 'fiscal_cadastrado') {
-        const { data: fisc } = await supabaseAdmin
-          .from('fiscais')
-          .select('id, cadastrado_por, suplente_id, municipio_id, lideranca_id')
-          .eq('id', indId)
-          .maybeSingle();
+          if (lid) {
+            liderancaIdVinculada = lid.id;
+            cadastradoPorId = lid.cadastrado_por;
+            suplenteId = lid.suplente_id;
+            municipioId = lid.municipio_id;
+          }
+        } else if (indTipo === 'fiscal_cadastrado') {
+          const { data: fisc } = await supabaseAdmin
+            .from('fiscais')
+            .select('id, cadastrado_por, suplente_id, municipio_id, lideranca_id')
+            .eq('id', indId)
+            .maybeSingle();
 
-        if (fisc) {
-          cadastradoPorId = fisc.cadastrado_por;
-          suplenteId = fisc.suplente_id;
-          municipioId = fisc.municipio_id;
-          liderancaIdVinculada = fisc.lideranca_id;
-        }
-      } else if (indTipo === 'eleitor_cadastrado') {
-        const { data: el } = await supabaseAdmin
-          .from('possiveis_eleitores')
-          .select('id, cadastrado_por, suplente_id, municipio_id, lideranca_id')
-          .eq('id', indId)
-          .maybeSingle();
+          if (fisc) {
+            cadastradoPorId = fisc.cadastrado_por;
+            suplenteId = fisc.suplente_id;
+            municipioId = fisc.municipio_id;
+            liderancaIdVinculada = fisc.lideranca_id;
+          }
+        } else if (indTipo === 'eleitor_cadastrado') {
+          const { data: el } = await supabaseAdmin
+            .from('possiveis_eleitores')
+            .select('id, cadastrado_por, suplente_id, municipio_id, lideranca_id')
+            .eq('id', indId)
+            .maybeSingle();
 
-        if (el) {
-          cadastradoPorId = el.cadastrado_por;
-          suplenteId = el.suplente_id;
-          municipioId = el.municipio_id;
-          liderancaIdVinculada = el.lideranca_id;
+          if (el) {
+            cadastradoPorId = el.cadastrado_por;
+            suplenteId = el.suplente_id;
+            municipioId = el.municipio_id;
+            liderancaIdVinculada = el.lideranca_id;
+          }
+        } else {
+          console.log(`[receber-cadastro-externo] Tipo ${indTipo} sem resolução específica, usando fallback`);
         }
-      } else {
-        console.log(`[receber-cadastro-externo] Tipo ${indTipo} sem resolução específica, usando fallback`);
       }
+    } else {
+      console.log(`[receber-cadastro-externo] Sem indicador_id, indo direto pro fallback admin`);
     }
 
     // ── FALLBACK: garantir que cadastrado_por NUNCA fique null ──
