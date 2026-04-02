@@ -2,15 +2,15 @@ import { useState, useRef, useCallback, lazy, Suspense, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext';
 import { useCidade } from '@/contexts/CidadeContext';
 import BottomNav, { type TabId } from '@/components/BottomNav';
-import TabLiderancas from '@/components/TabLiderancas';
-import TabFiscais from '@/components/TabFiscais';
-import TabEleitores from '@/components/TabEleitores';
-import TabCadastros from '@/components/TabCadastros';
-import TabPerfil from '@/components/TabPerfil';
 import SeletorCidade from '@/components/SeletorCidade';
 import { useRealtimeSync } from '@/hooks/useDataCache';
 import { Loader2 } from 'lucide-react';
 
+const TabLiderancas = lazy(() => import('@/components/TabLiderancas'));
+const TabFiscais = lazy(() => import('@/components/TabFiscais'));
+const TabEleitores = lazy(() => import('@/components/TabEleitores'));
+const TabCadastros = lazy(() => import('@/components/TabCadastros'));
+const TabPerfil = lazy(() => import('@/components/TabPerfil'));
 const PainelLocalizacao = lazy(() => import('@/components/PainelLocalizacao'));
 const TAB_STORAGE_KEY = 'home-active-tab';
 
