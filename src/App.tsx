@@ -52,6 +52,22 @@ function AppRoutes() {
   );
 }
 
+function OfflineSyncManager() {
+  const { user } = useAuth();
+  
+  useEffect(() => {
+    if (!user) return;
+    startAutoSync();
+    
+    // Listen for SW sync messages
+    const handler = () => syncOfflineData();
+    window.addEventListener('sync-offline-data', handler);
+    return () => window.removeEventListener('sync-offline-data', handler);
+  }, [user]);
+  
+  return null;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -60,6 +76,7 @@ const App = () => (
         <AuthProvider>
           <CidadeProvider>
             <ErrorBoundary>
+              <OfflineSyncManager />
               <AppRoutes />
             </ErrorBoundary>
           </CidadeProvider>
