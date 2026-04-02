@@ -59,12 +59,17 @@ function OfflineSyncManager() {
   
   useEffect(() => {
     if (!user) return;
-    startAutoSync();
+    // Defer sync start to avoid blocking initial render
+    const timer = setTimeout(() => {
+      startAutoSync();
+    }, 3000);
     
-    // Listen for SW sync messages
     const handler = () => syncOfflineData();
     window.addEventListener('sync-offline-data', handler);
-    return () => window.removeEventListener('sync-offline-data', handler);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('sync-offline-data', handler);
+    };
   }, [user]);
   
   return null;
