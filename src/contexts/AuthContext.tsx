@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { startLocationTracking, stopLocationTracking, registerBackgroundSync } from '@/services/locationTracker';
+
 import { resolverMunicipioId, buscarNomeMunicipio } from '@/lib/resolverMunicipio';
 import type { User } from '@supabase/supabase-js';
 
@@ -103,24 +103,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let initialized = false;
     let active = true;
-    let servicesTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const scheduleBackgroundServices = () => {
-      if (servicesTimer) clearTimeout(servicesTimer);
-      servicesTimer = setTimeout(() => {
-        if (!active) return;
-        startLocationTracking();
-        registerBackgroundSync();
-      }, 1200);
-    };
-
-    const clearBackgroundServices = () => {
-      if (servicesTimer) {
-        clearTimeout(servicesTimer);
-        servicesTimer = null;
-      }
-      stopLocationTracking();
-    };
 
     const safetyTimeout = setTimeout(() => {
       if (active && !initialized) {
@@ -135,9 +117,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
         if (session?.user) {
           await fetchUsuario(session.user.id);
-          scheduleBackgroundServices();
-        } else {
-          clearBackgroundServices();
         }
       } catch (err) {
         console.error('Erro na inicialização:', err);
@@ -159,12 +138,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
         if (session?.user) {
           await fetchUsuario(session.user.id);
-          scheduleBackgroundServices();
         } else {
           setUsuario(null);
           setMunicipioId(null);
           setMunicipioNome(null);
-          clearBackgroundServices();
         }
       } catch (err) {
         console.error('Erro no auth state change:', err);
@@ -176,9 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
       clearTimeout(safetyTimeout);
-      if (servicesTimer) clearTimeout(servicesTimer);
       subscription.unsubscribe();
-      stopLocationTracking();
     };
   }, []);
 

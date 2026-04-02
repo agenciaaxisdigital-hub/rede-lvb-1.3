@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Users, UserCircle, BarChart3, MapPin, Target, List, Search, WifiOff } from 'lucide-react';
+import { Users, UserCircle, BarChart3, Target, List, Search, WifiOff } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { getPendingCount } from '@/lib/offlineQueue';
 import { onSyncStatusChange } from '@/services/offlineSync';
 
-export type TabId = 'liderancas' | 'fiscais' | 'eleitores' | 'cadastros' | 'rastreamento' | 'perfil';
+export type TabId = 'liderancas' | 'fiscais' | 'eleitores' | 'cadastros' | 'perfil';
 
 interface Props {
   active: TabId;
@@ -18,7 +18,6 @@ const ALL_TABS: { id: TabId; icon: typeof Users; label: string; module?: string 
   { id: 'fiscais', icon: Search, label: 'Fiscais', module: 'cadastrar_fiscais' },
   { id: 'eleitores', icon: Target, label: 'Eleitores', module: 'cadastrar_eleitores' },
   { id: 'cadastros', icon: List, label: 'Cadastros' },
-  { id: 'rastreamento', icon: MapPin, label: 'Rastro' },
   { id: 'perfil', icon: UserCircle, label: 'Perfil' },
 ];
 
@@ -72,8 +71,6 @@ export default function BottomNav({ active, onChange }: Props) {
     if (tab.id === 'perfil') return true;
     // Cadastros (meus cadastros) - visible to everyone
     if (tab.id === 'cadastros') return true;
-    // Rastreamento - super_admin only
-    if (tab.id === 'rastreamento') return isSuperAdmin;
     // Module-based tabs
     if (tab.module) {
       if (isAdminOrCoord) return true;

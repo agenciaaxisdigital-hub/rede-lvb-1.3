@@ -12,7 +12,7 @@ import { startAutoSync, syncOfflineData } from "@/services/offlineSync";
 const Login = lazy(() => import("./pages/Login"));
 const Home = lazy(() => import("./pages/Home"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
-const CadastrosExternos = lazy(() => import("./pages/CadastrosExternos"));
+
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -47,7 +47,7 @@ function AppRoutes() {
         <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
         <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
         <Route path="/admin" element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
-        <Route path="/admin/externos" element={<PrivateRoute><CadastrosExternos /></PrivateRoute>} />
+        
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>

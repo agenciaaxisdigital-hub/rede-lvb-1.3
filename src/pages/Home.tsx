@@ -11,13 +11,13 @@ const TabFiscais = lazy(() => import('@/components/TabFiscais'));
 const TabEleitores = lazy(() => import('@/components/TabEleitores'));
 const TabCadastros = lazy(() => import('@/components/TabCadastros'));
 const TabPerfil = lazy(() => import('@/components/TabPerfil'));
-const PainelLocalizacao = lazy(() => import('@/components/PainelLocalizacao'));
+
 const TAB_STORAGE_KEY = 'home-active-tab';
 
 function getInitialTab(): TabId {
   try {
     const saved = localStorage.getItem(TAB_STORAGE_KEY) as TabId | null;
-    if (saved && ['liderancas', 'fiscais', 'eleitores', 'cadastros', 'rastreamento', 'perfil'].includes(saved)) {
+    if (saved && ['liderancas', 'fiscais', 'eleitores', 'cadastros', 'perfil'].includes(saved)) {
       return saved;
     }
   } catch {}
@@ -60,7 +60,6 @@ export default function Home() {
     fiscais: 'Cadastro de Fiscais',
     eleitores: 'Cadastro de Eleitores',
     cadastros: isAdmin ? 'Todos os Cadastros' : 'Meus Cadastros',
-    rastreamento: 'Rastreamento',
     perfil: 'Perfil & Usuários',
   };
 
@@ -91,7 +90,7 @@ export default function Home() {
             {visitedTabs.has('fiscais') && activeTab === 'fiscais' && <TabFiscais refreshKey={refreshKey} onSaved={handleSaved} />}
             {visitedTabs.has('eleitores') && activeTab === 'eleitores' && <TabEleitores refreshKey={refreshKey} onSaved={handleSaved} />}
             {visitedTabs.has('cadastros') && activeTab === 'cadastros' && <TabCadastros refreshKey={refreshKey} onSaved={handleSaved} />}
-            {activeTab === 'rastreamento' && <PainelLocalizacao />}
+            
             {activeTab === 'perfil' && <TabPerfil />}
           </Suspense>
         </div>
