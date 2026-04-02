@@ -10,20 +10,18 @@ import {
 import { toast } from '@/hooks/use-toast';
 import ModulosUsuario from '@/components/ModulosUsuario';
 
-const tipoLabels: Record<TipoUsuario, string> = {
+const tipoLabels: Record<string, string> = {
   super_admin: 'Super Admin',
   coordenador: 'Coordenador',
   suplente: 'Suplente',
   lideranca: 'Liderança',
-  fiscal: 'Fiscal',
 };
 
-const tipoIcons: Record<TipoUsuario, typeof Shield> = {
+const tipoIcons: Record<string, typeof Shield> = {
   super_admin: Crown,
   coordenador: Shield,
   suplente: User,
   lideranca: Users,
-  fiscal: Eye,
 };
 
 const tipoColors: Record<string, string> = {
@@ -31,13 +29,11 @@ const tipoColors: Record<string, string> = {
   coordenador: 'bg-orange-500/10 text-orange-600',
   suplente: 'bg-blue-500/10 text-blue-600',
   lideranca: 'bg-purple-500/10 text-purple-600',
-  fiscal: 'bg-emerald-500/10 text-emerald-600',
 };
 
 const MODULOS_OPTIONS = [
   { id: 'master', label: '🔑 Master' },
   { id: 'cadastrar_liderancas', label: '👥 Lideranças' },
-  { id: 'cadastrar_fiscais', label: '🛡️ Fiscais' },
   { id: 'cadastrar_eleitores', label: '🎯 Eleitores' },
 ];
 
