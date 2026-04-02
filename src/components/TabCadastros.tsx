@@ -340,23 +340,12 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
                             </div>
                           </div>
                         )}
-                        {c.tipo === 'fiscal' && (
-                          <div>
-                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Dados de Fiscalização</p>
-                            <div className="grid grid-cols-2 gap-1.5">
-                              <Field label="Colégio" value={c.colegio_fiscal} span2 />
-                              <Field label="Zona fiscal" value={c.zona_fiscal} />
-                              <Field label="Seção fiscal" value={c.secao_fiscal} />
-                            </div>
-                          </div>
-                        )}
                         {c.tipo === 'eleitor' && (
                           <div>
                             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Vínculo do Eleitor</p>
                             <div className="grid grid-cols-2 gap-1.5">
                               <Field label="Compromisso" value={c.compromisso_voto} />
                               <Field label="Liderança" value={c.lideranca_nome} />
-                              <Field label="Fiscal" value={c.fiscal_nome} />
                             </div>
                           </div>
                         )}

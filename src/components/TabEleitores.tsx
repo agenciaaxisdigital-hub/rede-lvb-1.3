@@ -71,7 +71,6 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
   const [validandoCPF, setValidandoCPF] = useState(false);
   const [form, setForm] = useState({ ...emptyForm });
   const [liderancas, setLiderancas] = useState<{ id: string; nome: string }[]>([]);
-  const [liderancas, setLiderancas] = useState<{ id: string; nome: string }[]>([]);
   const cpfTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Ligação política
