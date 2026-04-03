@@ -48,7 +48,7 @@ export default function Login() {
           className="w-[100px] h-[100px] sm:w-[120px] sm:h-[120px] rounded-full overflow-hidden mb-2"
           style={{ border: '3px solid #f9a8d4' }}
         >
-          <img src={fernandaImg} alt="Dra. Fernanda Sarelli" className="w-full h-full object-cover" loading="eager" />
+          <img src={fernandaImg} alt="Dra. Fernanda Sarelli" className="w-full h-full object-cover" loading="eager" decoding="sync" />
         </div>
 
         {/* Logo */}
@@ -57,6 +57,7 @@ export default function Login() {
           alt="Sarelli"
           className="h-20 sm:h-24 object-contain"
           loading="eager"
+          decoding="sync"
         />
 
         {/* Subtitle */}
