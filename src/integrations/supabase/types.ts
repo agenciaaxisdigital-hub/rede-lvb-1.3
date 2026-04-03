@@ -149,6 +149,57 @@ export type Database = {
         }
         Relationships: []
       }
+      bd_eleicoes_bens_candidatos: {
+        Row: {
+          ano: number | null
+          cargo: string | null
+          codigo_municipio: string | null
+          created_at: string | null
+          descricao_bem: string | null
+          id: number
+          municipio: string | null
+          nome_candidato: string | null
+          ordem_bem: number | null
+          sequencial_candidato: string | null
+          sigla_partido: string | null
+          tipo_bem: string | null
+          turno: number | null
+          valor_bem: number | null
+        }
+        Insert: {
+          ano?: number | null
+          cargo?: string | null
+          codigo_municipio?: string | null
+          created_at?: string | null
+          descricao_bem?: string | null
+          id?: never
+          municipio?: string | null
+          nome_candidato?: string | null
+          ordem_bem?: number | null
+          sequencial_candidato?: string | null
+          sigla_partido?: string | null
+          tipo_bem?: string | null
+          turno?: number | null
+          valor_bem?: number | null
+        }
+        Update: {
+          ano?: number | null
+          cargo?: string | null
+          codigo_municipio?: string | null
+          created_at?: string | null
+          descricao_bem?: string | null
+          id?: never
+          municipio?: string | null
+          nome_candidato?: string | null
+          ordem_bem?: number | null
+          sequencial_candidato?: string | null
+          sigla_partido?: string | null
+          tipo_bem?: string | null
+          turno?: number | null
+          valor_bem?: number | null
+        }
+        Relationships: []
+      }
       bd_eleicoes_candidatos: {
         Row: {
           ano: number
@@ -276,6 +327,63 @@ export type Database = {
           votos_brancos?: number | null
           votos_legenda?: number | null
           votos_nominais?: number | null
+          votos_nulos?: number | null
+          zona?: number | null
+        }
+        Relationships: []
+      }
+      bd_eleicoes_comparecimento_secao: {
+        Row: {
+          abstencoes: number | null
+          ano: number | null
+          bairro: string | null
+          codigo_municipio: string | null
+          comparecimento: number | null
+          created_at: string | null
+          eleitorado_apto: number | null
+          endereco: string | null
+          id: number
+          local_votacao: string | null
+          municipio: string | null
+          secao: number | null
+          turno: number | null
+          votos_brancos: number | null
+          votos_nulos: number | null
+          zona: number | null
+        }
+        Insert: {
+          abstencoes?: number | null
+          ano?: number | null
+          bairro?: string | null
+          codigo_municipio?: string | null
+          comparecimento?: number | null
+          created_at?: string | null
+          eleitorado_apto?: number | null
+          endereco?: string | null
+          id?: never
+          local_votacao?: string | null
+          municipio?: string | null
+          secao?: number | null
+          turno?: number | null
+          votos_brancos?: number | null
+          votos_nulos?: number | null
+          zona?: number | null
+        }
+        Update: {
+          abstencoes?: number | null
+          ano?: number | null
+          bairro?: string | null
+          codigo_municipio?: string | null
+          comparecimento?: number | null
+          created_at?: string | null
+          eleitorado_apto?: number | null
+          endereco?: string | null
+          id?: never
+          local_votacao?: string | null
+          municipio?: string | null
+          secao?: number | null
+          turno?: number | null
+          votos_brancos?: number | null
           votos_nulos?: number | null
           zona?: number | null
         }
@@ -410,54 +518,6 @@ export type Database = {
         }
         Relationships: []
       }
-      bd_eleicoes_votacao_munzona: {
-        Row: {
-          ano: number
-          cargo: string | null
-          codigo_municipio: string | null
-          created_at: string | null
-          id: number
-          municipio: string | null
-          nome_candidato: string | null
-          numero_urna: number | null
-          sequencial_candidato: string | null
-          sigla_partido: string | null
-          total_votos: number | null
-          turno: number | null
-          zona: number | null
-        }
-        Insert: {
-          ano: number
-          cargo?: string | null
-          codigo_municipio?: string | null
-          created_at?: string | null
-          id?: never
-          municipio?: string | null
-          nome_candidato?: string | null
-          numero_urna?: number | null
-          sequencial_candidato?: string | null
-          sigla_partido?: string | null
-          total_votos?: number | null
-          turno?: number | null
-          zona?: number | null
-        }
-        Update: {
-          ano?: number
-          cargo?: string | null
-          codigo_municipio?: string | null
-          created_at?: string | null
-          id?: never
-          municipio?: string | null
-          nome_candidato?: string | null
-          numero_urna?: number | null
-          sequencial_candidato?: string | null
-          sigla_partido?: string | null
-          total_votos?: number | null
-          turno?: number | null
-          zona?: number | null
-        }
-        Relationships: []
-      }
       bd_eleicoes_votacao_partido: {
         Row: {
           ano: number
@@ -502,57 +562,6 @@ export type Database = {
           turno?: number | null
           votos_legenda?: number | null
           votos_nominais?: number | null
-          zona?: number | null
-        }
-        Relationships: []
-      }
-      bd_eleicoes_votacao_secao: {
-        Row: {
-          ano: number
-          cargo: string | null
-          codigo_municipio: string | null
-          created_at: string | null
-          id: number
-          municipio: string | null
-          nome_candidato: string | null
-          numero_urna: number | null
-          secao: number | null
-          sequencial_candidato: string | null
-          sigla_partido: string | null
-          total_votos: number | null
-          turno: number | null
-          zona: number | null
-        }
-        Insert: {
-          ano: number
-          cargo?: string | null
-          codigo_municipio?: string | null
-          created_at?: string | null
-          id?: never
-          municipio?: string | null
-          nome_candidato?: string | null
-          numero_urna?: number | null
-          secao?: number | null
-          sequencial_candidato?: string | null
-          sigla_partido?: string | null
-          total_votos?: number | null
-          turno?: number | null
-          zona?: number | null
-        }
-        Update: {
-          ano?: number
-          cargo?: string | null
-          codigo_municipio?: string | null
-          created_at?: string | null
-          id?: never
-          municipio?: string | null
-          nome_candidato?: string | null
-          numero_urna?: number | null
-          secao?: number | null
-          sequencial_candidato?: string | null
-          sigla_partido?: string | null
-          total_votos?: number | null
-          turno?: number | null
           zona?: number | null
         }
         Relationships: []
@@ -825,6 +834,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      documentos_ia: {
+        Row: {
+          categoria: string | null
+          chave_origem: string | null
+          chunk_numero: number | null
+          conteudo: string
+          criado_em: string | null
+          documento_original_id: string | null
+          embedding: string
+          fonte: string | null
+          id: number
+          tabela_origem: string | null
+        }
+        Insert: {
+          categoria?: string | null
+          chave_origem?: string | null
+          chunk_numero?: number | null
+          conteudo: string
+          criado_em?: string | null
+          documento_original_id?: string | null
+          embedding: string
+          fonte?: string | null
+          id?: number
+          tabela_origem?: string | null
+        }
+        Update: {
+          categoria?: string | null
+          chave_origem?: string | null
+          chunk_numero?: number | null
+          conteudo?: string
+          criado_em?: string | null
+          documento_original_id?: string | null
+          embedding?: string
+          fonte?: string | null
+          id?: number
+          tabela_origem?: string | null
+        }
+        Relationships: []
       }
       fiscais: {
         Row: {
