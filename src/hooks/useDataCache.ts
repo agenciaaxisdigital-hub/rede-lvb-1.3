@@ -53,9 +53,8 @@ export function useContagens() {
         total: (l.count ?? 0) + (e.count ?? 0),
       };
     },
-    staleTime: 3_000,
-    gcTime: 10 * 60 * 1000,
-    refetchInterval: 5000,
+    staleTime: 60_000,
+    gcTime: 15 * 60 * 1000,
   });
 }
 
@@ -121,10 +120,8 @@ export function useLiderancas(scope: 'own' | 'all' = 'own') {
       return data || [];
     },
     enabled: !!usuario,
-    staleTime: 3_000,
-    gcTime: 10 * 60 * 1000,
-    refetchInterval: scope === 'all' ? 10000 : 5000,
-    refetchIntervalInBackground: false,
+    staleTime: 60_000,
+    gcTime: 15 * 60 * 1000,
   });
 }
 
@@ -155,10 +152,8 @@ export function useEleitores(scope: 'own' | 'all' = 'own') {
       return data || [];
     },
     enabled: !!usuario,
-    staleTime: 3_000,
-    gcTime: 10 * 60 * 1000,
-    refetchInterval: scope === 'all' ? 10000 : 5000,
-    refetchIntervalInBackground: false,
+    staleTime: 60_000,
+    gcTime: 15 * 60 * 1000,
   });
 }
 
@@ -194,10 +189,8 @@ export function useFiscaisAdmin() {
       return data || [];
     },
     enabled: !!usuario,
-    staleTime: 3_000,
-    gcTime: 10 * 60 * 1000,
-    refetchInterval: 10000,
-    refetchIntervalInBackground: false,
+    staleTime: 60_000,
+    gcTime: 15 * 60 * 1000,
   });
 }
 
