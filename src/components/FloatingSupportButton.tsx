@@ -1,5 +1,5 @@
-import { useState, type CSSProperties } from 'react';
-import { Headphones, X } from 'lucide-react';
+import { useState } from 'react';
+import { MessageCircle, X, Headphones } from 'lucide-react';
 
 const PHONE = '5562993885258';
 const MESSAGE = encodeURIComponent('Olá! Preciso de ajuda com o sistema Rede Política.');
@@ -11,16 +11,14 @@ export default function FloatingSupportButton() {
     window.open(`https://wa.me/${PHONE}?text=${MESSAGE}`, '_blank', 'noopener');
   };
 
-  const fabStyle: CSSProperties = {
-    position: 'fixed',
-    bottom: 'calc(env(safe-area-inset-bottom, 0px) + 5rem)',
-    right: '1rem',
-    zIndex: 9999,
-  };
-
   return (
-    <div style={fabStyle} className="flex flex-col items-end gap-2">
-      {/* Tooltip / mini-card */}
+    <div
+      className="fixed z-[9999] flex flex-col items-end gap-2"
+      style={{
+        bottom: 'calc(env(safe-area-inset-bottom, 0px) + 5rem)',
+        right: '1rem',
+      }}
+    >
       {open && (
         <div
           className="rounded-2xl p-4 w-64 animate-in fade-in slide-in-from-bottom-2 duration-200"
@@ -57,26 +55,19 @@ export default function FloatingSupportButton() {
         </div>
       )}
 
-      {/* FAB */}
+      {/* Pill button like the reference image */}
       <button
         onClick={() => setOpen(!open)}
         aria-label="Suporte"
-        className="w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-90 hover:scale-105"
+        className="flex items-center gap-2 px-4 h-10 rounded-full text-white font-semibold text-sm transition-all active:scale-95 hover:scale-105 shadow-lg"
         style={{
           background: 'linear-gradient(135deg, #ec4899, #d4a054)',
           boxShadow: '0 4px 20px rgba(236,72,153,0.35), 0 2px 8px rgba(200,170,100,0.2)',
-          animation: 'supportPulse 3s ease-in-out infinite',
         }}
       >
-        {open ? <X size={20} className="text-white" strokeWidth={2.5} /> : <Headphones size={20} className="text-white" strokeWidth={2.5} />}
+        {open ? <X size={16} strokeWidth={2.5} /> : <MessageCircle size={16} strokeWidth={2.5} />}
+        Suporte/Ajuda
       </button>
-
-      <style>{`
-        @keyframes supportPulse {
-          0%, 100% { box-shadow: 0 4px 20px rgba(236,72,153,0.35), 0 2px 8px rgba(200,170,100,0.2); }
-          50% { box-shadow: 0 4px 28px rgba(236,72,153,0.5), 0 2px 12px rgba(200,170,100,0.3); }
-        }
-      `}</style>
     </div>
   );
 }
