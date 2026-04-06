@@ -73,8 +73,8 @@ function SelfPasswordChange() {
   const [aberto, setAberto] = useState(false);
 
   const handleAlterarSenha = async () => {
-    if (!novaSenha.trim() || novaSenha.length < 4) {
-      toast({ title: 'Senha deve ter ao menos 4 caracteres', variant: 'destructive' });
+    if (!novaSenha.trim() || novaSenha.length < 6) {
+      toast({ title: 'Senha deve ter ao menos 6 caracteres', variant: 'destructive' });
       return;
     }
     setSalvando(true);
@@ -146,7 +146,7 @@ function SelfPasswordChange() {
       </div>
       <button
         onClick={handleAlterarSenha}
-        disabled={salvando || novaSenha.length < 4}
+        disabled={salvando || novaSenha.length < 6}
         className="w-full h-11 bg-primary text-primary-foreground text-sm font-semibold rounded-xl active:scale-[0.97] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
       >
         {salvando ? <Loader2 size={16} className="animate-spin" /> : <KeyRound size={16} />}
@@ -293,8 +293,8 @@ export default function TabPerfil() {
         nomeUsuario = liderancas.find(l => l.id === selectedExternalId)?.nome || '';
       }
     }
-    if (!senhaNova.trim() || senhaNova.length < 4) {
-      toast({ title: 'Senha deve ter ao menos 4 caracteres', variant: 'destructive' });
+    if (!senhaNova.trim() || senhaNova.length < 6) {
+      toast({ title: 'Senha deve ter ao menos 6 caracteres', variant: 'destructive' });
       return;
     }
     if (!createCidade) {
@@ -359,7 +359,7 @@ export default function TabPerfil() {
   const handleEdit = async () => {
     if (!editUser) return;
     if (!editNome.trim()) { toast({ title: 'Nome não pode ser vazio', variant: 'destructive' }); return; }
-    if (editSenha && editSenha.length < 4) { toast({ title: 'Senha deve ter ao menos 4 caracteres', variant: 'destructive' }); return; }
+    if (editSenha && editSenha.length < 6) { toast({ title: 'Senha deve ter ao menos 6 caracteres', variant: 'destructive' }); return; }
 
     setEditSaving(true);
     try {

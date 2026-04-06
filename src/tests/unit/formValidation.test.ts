@@ -51,7 +51,7 @@ describe('Validação do formulário de Eleitor', () => {
 });
 
 describe('Validação de senha de usuário', () => {
-  const validarSenha = (senha: string) => senha.length >= 4;
+  const validarSenha = (senha: string) => senha.length >= 6;
 
   it('aceita senha com 4+ caracteres', () => {
     expect(validarSenha('1234')).toBe(true);

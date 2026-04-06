@@ -173,7 +173,7 @@ export default function TabUsuarios() {
 
   const handleCreate = async () => {
     if (!nome.trim()) { toast({ title: 'Informe o nome', variant: 'destructive' }); return; }
-    if (!senha.trim() || senha.length < 4) { toast({ title: 'Senha deve ter ao menos 4 caracteres', variant: 'destructive' }); return; }
+    if (!senha.trim() || senha.length < 6) { toast({ title: 'Senha deve ter ao menos 6 caracteres', variant: 'destructive' }); return; }
     if (!cidadeSelecionada) { setCidadeErro('Selecione a cidade do usuário'); return; }
     if (!creating) return;
 
@@ -237,7 +237,7 @@ export default function TabUsuarios() {
   const handleEdit = async () => {
     if (!editing) return;
     if (!editNome.trim()) { toast({ title: 'Nome não pode ser vazio', variant: 'destructive' }); return; }
-    if (editSenha && editSenha.length < 4) { toast({ title: 'Senha deve ter ao menos 4 caracteres', variant: 'destructive' }); return; }
+    if (editSenha && editSenha.length < 6) { toast({ title: 'Senha deve ter ao menos 6 caracteres', variant: 'destructive' }); return; }
 
     setEditSaving(true);
     try {

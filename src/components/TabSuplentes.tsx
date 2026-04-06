@@ -164,7 +164,7 @@ export default function TabSuplentes({ refreshKey }: Props) {
 
   const handleCreateAccess = async () => {
     if (!accessNome.trim()) { toast({ title: 'Informe o nome', variant: 'destructive' }); return; }
-    if (!accessSenha.trim() || accessSenha.length < 4) { toast({ title: 'Senha deve ter ao menos 4 caracteres', variant: 'destructive' }); return; }
+    if (!accessSenha.trim() || accessSenha.length < 6) { toast({ title: 'Senha deve ter ao menos 6 caracteres', variant: 'destructive' }); return; }
     if (!creatingAccess) return;
 
     setSaving(true);
@@ -206,7 +206,7 @@ export default function TabSuplentes({ refreshKey }: Props) {
     if (!editingUser) return;
     const { hierarquiaUser } = editingUser;
     if (!editNome.trim()) { toast({ title: 'Nome não pode ser vazio', variant: 'destructive' }); return; }
-    if (editSenha && editSenha.length < 4) { toast({ title: 'Senha deve ter ao menos 4 caracteres', variant: 'destructive' }); return; }
+    if (editSenha && editSenha.length < 6) { toast({ title: 'Senha deve ter ao menos 6 caracteres', variant: 'destructive' }); return; }
 
     setEditSaving(true);
     try {
