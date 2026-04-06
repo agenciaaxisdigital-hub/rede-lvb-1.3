@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, forwardRef } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { QueryClient } from "@tanstack/react-query";
@@ -98,7 +98,7 @@ function PwaSilentUpdater() {
   return null;
 }
 
-const App = forwardRef<HTMLDivElement>(function App(_props, _ref) {
+function App() {
   return (
     <PersistQueryClientProvider
       client={queryClient}
@@ -133,8 +133,6 @@ const App = forwardRef<HTMLDivElement>(function App(_props, _ref) {
       </TooltipProvider>
     </PersistQueryClientProvider>
   );
-});
-
-App.displayName = 'App';
+}
 
 export default App;
