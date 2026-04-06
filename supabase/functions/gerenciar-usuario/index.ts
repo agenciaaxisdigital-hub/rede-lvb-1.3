@@ -41,8 +41,8 @@ Deno.serve(async (req) => {
     // Self password change (any authenticated user)
     // ──────────────────────────────────────────
     if (acao === 'alterar_propria_senha') {
-      if (!nova_senha || nova_senha.length < 4) {
-        return jsonResponse({ error: 'Senha deve ter ao menos 4 caracteres' }, 400);
+      if (!nova_senha || nova_senha.length < 6) {
+        return jsonResponse({ error: 'Senha deve ter ao menos 6 caracteres' }, 400);
       }
       const { error } = await supabaseAdmin.auth.admin.updateUserById(caller.id, { password: nova_senha });
       if (error) throw error;
@@ -86,8 +86,8 @@ Deno.serve(async (req) => {
 
       // If password change requested, ensure we have an auth account
       if (nova_senha) {
-        if (nova_senha.length < 4) {
-          return jsonResponse({ error: 'Senha deve ter ao menos 4 caracteres' }, 400);
+        if (nova_senha.length < 6) {
+          return jsonResponse({ error: 'Senha deve ter ao menos 6 caracteres' }, 400);
         }
 
         // Fetch target user from hierarchy
