@@ -35,7 +35,10 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 function nomeToEmail(nome: string): string {
-  const slug = nome.toLowerCase().trim().replace(/\s+/g, '.').replace(/[^a-z0-9.]/g, '');
+  const trimmed = nome.trim();
+  // If the user already typed a full email address, use it as-is
+  if (trimmed.includes('@')) return trimmed.toLowerCase();
+  const slug = trimmed.toLowerCase().replace(/\s+/g, '.').replace(/[^a-z0-9.]/g, '');
   return `${slug}@rede.sarelli.com`;
 }
 
