@@ -232,7 +232,7 @@ export default function AdminDashboard() {
     { id: 'ranking', icon: Trophy, label: 'Ranking' },
     { id: 'usuarios', icon: UserCog, label: 'Usuários' },
     { id: 'registros', icon: Eye, label: 'Registros' },
-    
+    { id: 'localizacao', icon: MapPin, label: 'Localização' },
     ...(municipios.length > 1 ? [{ id: 'cidades' as VistaAtiva, icon: Building2, label: 'Cidades' }] : []),
   ];
 
