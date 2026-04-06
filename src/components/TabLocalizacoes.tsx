@@ -72,6 +72,7 @@ export default function TabLocalizacoes() {
   const [rastro, setRastro] = useState<Localizacao[]>([]);
   const [loadingRastro, setLoadingRastro] = useState(false);
   const [expandedList, setExpandedList] = useState(true);
+  const [enderecos, setEnderecos] = useState<Map<string, string>>(new Map());
   const mapRef = useRef<any>(null);
 
   /* ── Fetch latest location per user ── */
