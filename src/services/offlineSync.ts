@@ -2,6 +2,7 @@
 // Processes pending offline registrations with idempotency (operationId).
 
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 import { getAllPending, removeFromQueue, updateAttempts, getPendingCount, type OfflineRegistration } from '@/lib/offlineQueue';
 
 const MAX_ATTEMPTS = 5;
@@ -26,7 +27,7 @@ export async function syncOfflineData(): Promise<{ synced: number; failed: numbe
   try {
     const pending = await getAllPending();
     const count = pending.length;
-    console.log(`[OfflineSync] Queue count: ${count}`);
+    logger.info('sync_start', { count: pending.length });
     if (count === 0) { syncing = false; return { synced: 0, failed: 0 }; }
 
     for (const item of pending) {

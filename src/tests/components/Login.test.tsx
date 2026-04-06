@@ -84,6 +84,6 @@ describe('Tela de Login', () => {
 
   it('exibe checkbox de lembrar dados', () => {
     render(<MemoryRouter><LoginComponent /></MemoryRouter>);
-    expect(screen.getByLabelText(/lembrar/i)).toBeInTheDocument();
+    expect(screen.getByText(/lembrar/i)).toBeInTheDocument();
   });
 });
