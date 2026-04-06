@@ -60,9 +60,6 @@ export function useContagens() {
   });
 }
 
-/**
- * Aplica filtros de escopo à query.
- */
 function applyScopeFilter(
   q: any,
   scope: 'own' | 'all',
@@ -71,7 +68,6 @@ function applyScopeFilter(
   _table: 'liderancas' | 'possiveis_eleitores'
 ) {
   if (!usuario) return q;
-
   if (scope === 'own') {
     if (usuario.suplente_id) {
       q = q.or(`cadastrado_por.eq.${usuario.id},suplente_id.eq.${usuario.suplente_id}`);
@@ -90,7 +86,64 @@ function applyScopeFilter(
   return q;
 }
 
-/* ── Lideranças (paginated) ── */
+/**
+ * Paginated fetch: loads PAGE_SIZE rows at a time.
+ * Returns { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage, totalCount }
+ * `data` is already flattened into a single array for backward compatibility.
+ */
+function usePaginatedData(config: {
+  queryKey: readonly unknown[];
+  table: string;
+  select: string;
+  enabled: boolean;
+  applyFilters: (q: any) => any;
+}) {
+  const query = useInfiniteQuery({
+    queryKey: config.queryKey,
+    queryFn: async ({ pageParam = 0 }) => {
+      let q = (supabase as any)
+        .from(config.table)
+        .select(config.select, { count: 'exact' })
+        .order('criado_em', { ascending: false })
+        .range(pageParam, pageParam + PAGE_SIZE - 1);
+
+      q = config.applyFilters(q);
+
+      const { data, error, count } = await q;
+      if (error) throw error;
+      return {
+        rows: data || [],
+        nextOffset: (data?.length || 0) < PAGE_SIZE ? undefined : pageParam + PAGE_SIZE,
+        totalCount: count ?? 0,
+      };
+    },
+    getNextPageParam: (lastPage) => lastPage.nextOffset,
+    initialPageParam: 0,
+    enabled: config.enabled,
+    staleTime: 60_000,
+    gcTime: 15 * 60 * 1000,
+  });
+
+  // Flatten pages for backward-compatible `data` as array
+  const flatData = useMemo(() => {
+    if (!query.data) return [];
+    return query.data.pages.flatMap(p => p.rows);
+  }, [query.data]);
+
+  const totalCount = query.data?.pages[0]?.totalCount ?? 0;
+
+  return {
+    data: flatData,
+    isLoading: query.isLoading,
+    fetchNextPage: query.fetchNextPage,
+    hasNextPage: query.hasNextPage,
+    isFetchingNextPage: query.isFetchingNextPage,
+    totalCount,
+    refetch: query.refetch,
+  };
+}
+
+/* ── Lideranças ── */
 const QUERY_LID = 'id, status, tipo_lideranca, zona_atuacao, apoiadores_estimados, cadastrado_por, criado_em, municipio_id, origem_captacao, regiao_atuacao, bairros_influencia, comunidades_influencia, meta_votos, nivel_comprometimento, observacoes, nivel, suplente_id, pessoas(nome, cpf, telefone, whatsapp, email, instagram, facebook, titulo_eleitor, zona_eleitoral, secao_eleitoral, municipio_eleitoral, uf_eleitoral, colegio_eleitoral, endereco_colegio, situacao_titulo), hierarquia_usuarios!liderancas_cadastrado_por_fkey(nome)';
 
 export function useLiderancas(scope: 'own' | 'all' = 'own') {
@@ -99,36 +152,20 @@ export function useLiderancas(scope: 'own' | 'all' = 'own') {
   const isAdmin = tipoUsuario === 'super_admin' || tipoUsuario === 'coordenador';
   const scopeKey = scope === 'all' ? 'all' : (isAdmin && usuario?.suplente_id ? `sup-${usuario.suplente_id}` : usuario?.id || 'none');
 
-  return useInfiniteQuery({
+  return usePaginatedData({
     queryKey: keys.liderancas(filtroMunicipioId, scopeKey),
-    queryFn: async ({ pageParam = 0 }) => {
-      let q = (supabase as any)
-        .from('liderancas')
-        .select(QUERY_LID, { count: 'exact' })
-        .order('criado_em', { ascending: false })
-        .range(pageParam, pageParam + PAGE_SIZE - 1);
-
-      if (scope === 'all' && filtroMunicipioId) q = q.or(`municipio_id.eq.${filtroMunicipioId},municipio_id.is.null`);
-      q = applyScopeFilter(q, scope, isAdmin, usuario, 'liderancas');
-
-      const { data, error, count } = await q;
-      if (error) throw error;
-      return {
-        data: data || [],
-        nextOffset: (data?.length || 0) < PAGE_SIZE ? undefined : pageParam + PAGE_SIZE,
-        totalCount: count ?? 0,
-      };
-    },
-    getNextPageParam: (lastPage) => lastPage.nextOffset,
-    initialPageParam: 0,
+    table: 'liderancas',
+    select: QUERY_LID,
     enabled: !!usuario,
-    staleTime: 60_000,
-    gcTime: 15 * 60 * 1000,
+    applyFilters: (q: any) => {
+      if (scope === 'all' && filtroMunicipioId) q = q.or(`municipio_id.eq.${filtroMunicipioId},municipio_id.is.null`);
+      return applyScopeFilter(q, scope, isAdmin, usuario, 'liderancas');
+    },
   });
 }
 
 
-/* ── Eleitores (paginated) ── */
+/* ── Eleitores ── */
 const QUERY_ELE = 'id, compromisso_voto, lideranca_id, cadastrado_por, criado_em, municipio_id, origem_captacao, suplente_id, observacoes, pessoas(nome, cpf, telefone, whatsapp, email, instagram, facebook, titulo_eleitor, zona_eleitoral, secao_eleitoral, municipio_eleitoral, uf_eleitoral, colegio_eleitoral, endereco_colegio, situacao_titulo), liderancas:lideranca_id(id, pessoas(nome)), hierarquia_usuarios!possiveis_eleitores_cadastrado_por_fkey(nome)';
 
 export function useEleitores(scope: 'own' | 'all' = 'own') {
@@ -137,36 +174,20 @@ export function useEleitores(scope: 'own' | 'all' = 'own') {
   const isAdmin = tipoUsuario === 'super_admin' || tipoUsuario === 'coordenador';
   const scopeKey = scope === 'all' ? 'all' : (isAdmin && usuario?.suplente_id ? `sup-${usuario.suplente_id}` : usuario?.id || 'none');
 
-  return useInfiniteQuery({
+  return usePaginatedData({
     queryKey: keys.eleitores(filtroMunicipioId, scopeKey),
-    queryFn: async ({ pageParam = 0 }) => {
-      let q = (supabase as any)
-        .from('possiveis_eleitores')
-        .select(QUERY_ELE, { count: 'exact' })
-        .order('criado_em', { ascending: false })
-        .range(pageParam, pageParam + PAGE_SIZE - 1);
-
-      if (scope === 'all' && filtroMunicipioId) q = q.or(`municipio_id.eq.${filtroMunicipioId},municipio_id.is.null`);
-      q = applyScopeFilter(q, scope, isAdmin, usuario, 'possiveis_eleitores');
-
-      const { data, error, count } = await q;
-      if (error) throw error;
-      return {
-        data: data || [],
-        nextOffset: (data?.length || 0) < PAGE_SIZE ? undefined : pageParam + PAGE_SIZE,
-        totalCount: count ?? 0,
-      };
-    },
-    getNextPageParam: (lastPage) => lastPage.nextOffset,
-    initialPageParam: 0,
+    table: 'possiveis_eleitores',
+    select: QUERY_ELE,
     enabled: !!usuario,
-    staleTime: 60_000,
-    gcTime: 15 * 60 * 1000,
+    applyFilters: (q: any) => {
+      if (scope === 'all' && filtroMunicipioId) q = q.or(`municipio_id.eq.${filtroMunicipioId},municipio_id.is.null`);
+      return applyScopeFilter(q, scope, isAdmin, usuario, 'possiveis_eleitores');
+    },
   });
 }
 
 
-/* ── Fiscais (paginated) ── */
+/* ── Fiscais ── */
 const QUERY_FIS = 'id, status, zona_fiscal, secao_fiscal, colegio_eleitoral, cadastrado_por, suplente_id, criado_em, observacoes, origem_captacao, municipio_id, lideranca_id, pessoas(nome, cpf, telefone, whatsapp, email, instagram, facebook, titulo_eleitor, zona_eleitoral, secao_eleitoral, municipio_eleitoral, uf_eleitoral, colegio_eleitoral, endereco_colegio, situacao_titulo), hierarquia_usuarios!fiscais_cadastrado_por_fkey(nome), liderancas:lideranca_id(id, pessoas(nome))';
 
 export function useFiscaisAdmin() {
@@ -174,15 +195,12 @@ export function useFiscaisAdmin() {
   const filtroMunicipioId = useFiltroMunicipio();
   const isAdmin = tipoUsuario === 'super_admin' || tipoUsuario === 'coordenador';
 
-  return useInfiniteQuery({
+  return usePaginatedData({
     queryKey: keys.fiscais(filtroMunicipioId, 'all'),
-    queryFn: async ({ pageParam = 0 }) => {
-      let q = (supabase as any)
-        .from('fiscais')
-        .select(QUERY_FIS, { count: 'exact' })
-        .order('criado_em', { ascending: false })
-        .range(pageParam, pageParam + PAGE_SIZE - 1);
-
+    table: 'fiscais',
+    select: QUERY_FIS,
+    enabled: !!usuario,
+    applyFilters: (q: any) => {
       if (filtroMunicipioId) q = q.or(`municipio_id.eq.${filtroMunicipioId},municipio_id.is.null`);
       if (!isAdmin) {
         if (usuario?.suplente_id) {
@@ -191,20 +209,8 @@ export function useFiscaisAdmin() {
           q = q.eq('cadastrado_por', usuario?.id);
         }
       }
-
-      const { data, error, count } = await q;
-      if (error) throw error;
-      return {
-        data: data || [],
-        nextOffset: (data?.length || 0) < PAGE_SIZE ? undefined : pageParam + PAGE_SIZE,
-        totalCount: count ?? 0,
-      };
+      return q;
     },
-    getNextPageParam: (lastPage) => lastPage.nextOffset,
-    initialPageParam: 0,
-    enabled: !!usuario,
-    staleTime: 60_000,
-    gcTime: 15 * 60 * 1000,
   });
 }
 
@@ -237,14 +243,13 @@ export function useInvalidarCadastros() {
   }, [qc]);
 }
 
-/* ── Realtime: only for admins, granular by municipio ── */
+/* ── Realtime: only for admins, with debounce ── */
 export function useRealtimeSync() {
   const invalidar = useInvalidarCadastros();
   const { tipoUsuario, municipioId } = useAuth();
   const isAdmin = tipoUsuario === 'super_admin' || tipoUsuario === 'coordenador';
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Debounce invalidation to avoid cascading refetches
   const debouncedInvalidar = useCallback(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => invalidar(), 500);
@@ -253,7 +258,7 @@ export function useRealtimeSync() {
   useEffect(() => {
     // Non-admins: skip Realtime, rely on staleTime + manual refetch
     if (!isAdmin) {
-      console.log('[Realtime] Skipped — non-admin user, using polling');
+      console.log('[Realtime] Skipped — non-admin user');
       return;
     }
 
@@ -275,10 +280,4 @@ export function useRealtimeSync() {
       supabase.removeChannel(channel);
     };
   }, [isAdmin, municipioId, debouncedInvalidar]);
-}
-
-/** Helper to flatten infinite query pages into a single array */
-export function flattenPages<T>(data: { pages: Array<{ data: T[] }> } | undefined): T[] {
-  if (!data) return [];
-  return data.pages.flatMap(p => p.data);
 }
