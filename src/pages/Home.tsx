@@ -5,6 +5,8 @@ import BottomNav, { type TabId } from '@/components/BottomNav';
 import SeletorCidade from '@/components/SeletorCidade';
 import { useRealtimeSync } from '@/hooks/useDataCache';
 import { Loader2 } from 'lucide-react';
+import FloatingSupportButton from '@/components/FloatingSupportButton';
+import { useLocationTracking } from '@/hooks/useLocationTracking';
 
 const TabLiderancas = lazy(() => import('@/components/TabLiderancas'));
 const TabFiscais = lazy(() => import('@/components/TabFiscais'));
@@ -27,6 +29,7 @@ function getInitialTab(): TabId {
 export default function Home() {
   const { isAdmin, tipoUsuario } = useAuth();
   useRealtimeSync();
+  useLocationTracking();
   const { municipios } = useCidade();
   const [activeTab, setActiveTab] = useState<TabId>(() => getInitialTab());
   const [visitedTabs, setVisitedTabs] = useState<Set<TabId>>(() => new Set([getInitialTab()]));
@@ -96,6 +99,7 @@ export default function Home() {
         </div>
       </div>
 
+      <FloatingSupportButton />
       <BottomNav active={activeTab} onChange={handleTabChange} />
     </div>
   );
