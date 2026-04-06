@@ -69,22 +69,81 @@ Deno.serve(async (req) => {
 
     if (acao === 'atualizar') {
       const updates: Record<string, any> = {};
-      const hasValidAuth = auth_user_id && typeof auth_user_id === 'string' && auth_user_id.length === 36;
+      const trimmedNome = typeof novo_nome === 'string' ? novo_nome.trim() : '';
+      const hasValidAuth = typeof auth_user_id === 'string' && auth_user_id.length === 36;
 
-      if (novo_nome) {
-        updates.nome = novo_nome.trim();
-        if (hasValidAuth) {
-          try {
-            const newEmail = novo_nome.toLowerCase().trim().replace(/\s+/g, '.').replace(/[^a-z0-9.]/g, '') + '@rede.sarelli.com';
-            await supabaseAdmin.auth.admin.updateUserById(auth_user_id, { email: newEmail });
-          } catch (emailErr) {
-            console.error('Erro ao atualizar email:', emailErr);
-          }
-        }
+      if (trimmedNome) {
+        updates.nome = trimmedNome;
       }
 
       if (novo_municipio_id) {
         updates.municipio_id = novo_municipio_id;
+      }
+
+      let resolvedAuthUserId = hasValidAuth ? auth_user_id : null;
+
+      if (nova_senha) {
+        const nomeBase = trimmedNome || updates.nome || null;
+        const { data: targetUser, error: targetUserError } = await supabaseAdmin
+          .from('hierarquia_usuarios')
+          .select('id, nome, auth_user_id')
+          .eq('id', hierarquia_id)
+          .maybeSingle();
+
+        if (targetUserError) throw targetUserError;
+        if (!targetUser) {
+          return new Response(
+            JSON.stringify({ error: 'Usuário não encontrado' }),
+            { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        if (!resolvedAuthUserId && targetUser.auth_user_id && targetUser.auth_user_id.length === 36) {
+          resolvedAuthUserId = targetUser.auth_user_id;
+        }
+
+        if (!resolvedAuthUserId) {
+          const baseName = (nomeBase || targetUser.nome || '').trim();
+          const slug = baseName.toLowerCase().replace(/\s+/g, '.').replace(/[^a-z0-9.]/g, '');
+
+          if (!slug) {
+            return new Response(
+              JSON.stringify({ error: 'Nome inválido para criar login do usuário' }),
+              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+
+          const email = `${slug}@rede.sarelli.com`;
+          const { data: createdAuth, error: createAuthError } = await supabaseAdmin.auth.admin.createUser({
+            email,
+            password: nova_senha,
+            email_confirm: true,
+            user_metadata: {
+              name: baseName,
+            },
+          });
+
+          if (createAuthError) throw createAuthError;
+
+          resolvedAuthUserId = createdAuth.user?.id ?? null;
+          if (!resolvedAuthUserId) {
+            throw new Error('Conta de autenticação não foi criada corretamente');
+          }
+
+          updates.auth_user_id = resolvedAuthUserId;
+        } else {
+          const { error } = await supabaseAdmin.auth.admin.updateUserById(resolvedAuthUserId, { password: nova_senha });
+          if (error) throw error;
+        }
+      }
+
+      if (trimmedNome && resolvedAuthUserId) {
+        const newEmail = trimmedNome.toLowerCase().replace(/\s+/g, '.').replace(/[^a-z0-9.]/g, '') + '@rede.sarelli.com';
+        const { error: authUpdateError } = await supabaseAdmin.auth.admin.updateUserById(resolvedAuthUserId, {
+          email: newEmail,
+          user_metadata: { name: trimmedNome },
+        });
+        if (authUpdateError) throw authUpdateError;
       }
 
       if (Object.keys(updates).length > 0) {
@@ -92,19 +151,8 @@ Deno.serve(async (req) => {
         if (updateErr) throw updateErr;
       }
 
-      if (nova_senha) {
-        if (!hasValidAuth) {
-          return new Response(
-            JSON.stringify({ error: 'Usuário sem conta de autenticação vinculada. Não é possível alterar a senha.' }),
-            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-        const { error } = await supabaseAdmin.auth.admin.updateUserById(auth_user_id, { password: nova_senha });
-        if (error) throw error;
-      }
-
       return new Response(
-        JSON.stringify({ success: true, message: 'Usuário atualizado' }),
+        JSON.stringify({ success: true, message: 'Usuário atualizado', auth_user_id: resolvedAuthUserId }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
