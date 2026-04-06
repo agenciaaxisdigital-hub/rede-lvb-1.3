@@ -5,6 +5,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+function jsonResponse(body: Record<string, any>, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -22,52 +29,48 @@ Deno.serve(async (req) => {
     // Verify caller is authenticated
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Não autenticado' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return jsonResponse({ error: 'Não autenticado' }, 401);
     }
     const token = authHeader.replace('Bearer ', '');
     const { data: { user: caller } } = await supabaseAdmin.auth.getUser(token);
     if (!caller) {
-      return new Response(
-        JSON.stringify({ error: 'Token inválido' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return jsonResponse({ error: 'Token inválido' }, 401);
     }
 
-    // Allow self-password-change
+    // ──────────────────────────────────────────
+    // Self password change (any authenticated user)
+    // ──────────────────────────────────────────
     if (acao === 'alterar_propria_senha') {
       if (!nova_senha || nova_senha.length < 4) {
-        return new Response(
-          JSON.stringify({ error: 'Senha deve ter ao menos 4 caracteres' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        return jsonResponse({ error: 'Senha deve ter ao menos 4 caracteres' }, 400);
       }
       const { error } = await supabaseAdmin.auth.admin.updateUserById(caller.id, { password: nova_senha });
       if (error) throw error;
-      return new Response(
-        JSON.stringify({ success: true, message: 'Senha alterada com sucesso' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return jsonResponse({ success: true, message: 'Senha alterada com sucesso' });
     }
 
-    // For admin actions, verify caller is admin
+    // ──────────────────────────────────────────
+    // Admin-only actions below
+    // ──────────────────────────────────────────
     const { data: callerHier } = await supabaseAdmin
       .from('hierarquia_usuarios')
       .select('tipo')
       .eq('auth_user_id', caller.id)
       .eq('ativo', true)
       .maybeSingle();
-    
+
     if (!callerHier || !['super_admin', 'coordenador'].includes(callerHier.tipo)) {
-      return new Response(
-        JSON.stringify({ error: 'Acesso negado: apenas administradores podem gerenciar usuários' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return jsonResponse({ error: 'Acesso negado: apenas administradores podem gerenciar usuários' }, 403);
     }
 
+    // ──────────────────────────────────────────
+    // ATUALIZAR
+    // ──────────────────────────────────────────
     if (acao === 'atualizar') {
+      if (!hierarquia_id) {
+        return jsonResponse({ error: 'hierarquia_id é obrigatório' }, 400);
+      }
+
       const updates: Record<string, any> = {};
       const trimmedNome = typeof novo_nome === 'string' ? novo_nome.trim() : '';
       const hasValidAuth = typeof auth_user_id === 'string' && auth_user_id.length === 36;
@@ -75,15 +78,19 @@ Deno.serve(async (req) => {
       if (trimmedNome) {
         updates.nome = trimmedNome;
       }
-
       if (novo_municipio_id) {
         updates.municipio_id = novo_municipio_id;
       }
 
       let resolvedAuthUserId = hasValidAuth ? auth_user_id : null;
 
+      // If password change requested, ensure we have an auth account
       if (nova_senha) {
-        const nomeBase = trimmedNome || updates.nome || null;
+        if (nova_senha.length < 4) {
+          return jsonResponse({ error: 'Senha deve ter ao menos 4 caracteres' }, 400);
+        }
+
+        // Fetch target user from hierarchy
         const { data: targetUser, error: targetUserError } = await supabaseAdmin
           .from('hierarquia_usuarios')
           .select('id, nome, auth_user_id')
@@ -92,35 +99,39 @@ Deno.serve(async (req) => {
 
         if (targetUserError) throw targetUserError;
         if (!targetUser) {
-          return new Response(
-            JSON.stringify({ error: 'Usuário não encontrado' }),
-            { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
+          return jsonResponse({ error: 'Usuário não encontrado' }, 404);
         }
 
+        // Try to use existing auth_user_id from DB if not provided
         if (!resolvedAuthUserId && targetUser.auth_user_id && targetUser.auth_user_id.length === 36) {
           resolvedAuthUserId = targetUser.auth_user_id;
         }
 
-        if (!resolvedAuthUserId) {
-          const baseName = (nomeBase || targetUser.nome || '').trim();
+        if (resolvedAuthUserId) {
+          // Simply update password on existing auth account
+          const { error } = await supabaseAdmin.auth.admin.updateUserById(resolvedAuthUserId, { password: nova_senha });
+          if (error) throw error;
+        } else {
+          // No auth account exists — create one
+          const baseName = (trimmedNome || targetUser.nome || '').trim();
           const slug = baseName.toLowerCase().replace(/\s+/g, '.').replace(/[^a-z0-9.]/g, '');
 
           if (!slug) {
-            return new Response(
-              JSON.stringify({ error: 'Nome inválido para criar login do usuário' }),
-              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
+            return jsonResponse({ error: 'Nome inválido para criar login do usuário' }, 400);
           }
 
           const email = `${slug}@rede.sarelli.com`;
+
+          // Check if email already exists in auth
           const { data: authList, error: authListError } = await supabaseAdmin.auth.admin.listUsers({
             page: 1,
             perPage: 1000,
           });
           if (authListError) throw authListError;
 
-          const existingAuthUser = authList.users.find((user) => user.email?.toLowerCase() === email.toLowerCase()) ?? null;
+          const existingAuthUser = authList.users.find(
+            (user) => user.email?.toLowerCase() === email.toLowerCase()
+          ) ?? null;
 
           if (existingAuthUser) {
             resolvedAuthUserId = existingAuthUser.id;
@@ -135,13 +146,9 @@ Deno.serve(async (req) => {
               email,
               password: nova_senha,
               email_confirm: true,
-              user_metadata: {
-                name: baseName,
-              },
+              user_metadata: { name: baseName },
             });
-
             if (createAuthError) throw createAuthError;
-
             resolvedAuthUserId = createdAuth.user?.id ?? null;
             if (!resolvedAuthUserId) {
               throw new Error('Conta de autenticação não foi criada corretamente');
@@ -149,12 +156,10 @@ Deno.serve(async (req) => {
           }
 
           updates.auth_user_id = resolvedAuthUserId;
-        } else {
-          const { error } = await supabaseAdmin.auth.admin.updateUserById(resolvedAuthUserId, { password: nova_senha });
-          if (error) throw error;
         }
       }
 
+      // Update auth email/name if nome changed and user has auth account
       if (trimmedNome && resolvedAuthUserId) {
         const newEmail = trimmedNome.toLowerCase().replace(/\s+/g, '.').replace(/[^a-z0-9.]/g, '') + '@rede.sarelli.com';
         const { error: authUpdateError } = await supabaseAdmin.auth.admin.updateUserById(resolvedAuthUserId, {
@@ -169,18 +174,15 @@ Deno.serve(async (req) => {
         if (updateErr) throw updateErr;
       }
 
-      return new Response(
-        JSON.stringify({ success: true, message: 'Usuário atualizado', auth_user_id: resolvedAuthUserId }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return jsonResponse({ success: true, message: 'Usuário atualizado', auth_user_id: resolvedAuthUserId });
     }
 
+    // ──────────────────────────────────────────
+    // MOVER CIDADE
+    // ──────────────────────────────────────────
     if (acao === 'mover_cidade') {
       if (!hierarquia_id || !novo_municipio_id) {
-        return new Response(
-          JSON.stringify({ error: 'hierarquia_id e novo_municipio_id são obrigatórios' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        return jsonResponse({ error: 'hierarquia_id e novo_municipio_id são obrigatórios' }, 400);
       }
 
       const { error } = await supabaseAdmin
@@ -189,33 +191,41 @@ Deno.serve(async (req) => {
         .eq('id', hierarquia_id);
 
       if (error) throw error;
-
-      return new Response(
-        JSON.stringify({ success: true, message: 'Cidade do usuário atualizada' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return jsonResponse({ success: true, message: 'Cidade do usuário atualizada' });
     }
 
+    // ──────────────────────────────────────────
+    // DELETAR
+    // ──────────────────────────────────────────
     if (acao === 'deletar') {
-      await supabaseAdmin.from('hierarquia_usuarios').update({ ativo: false }).eq('id', hierarquia_id);
-      await supabaseAdmin.auth.admin.deleteUser(auth_user_id);
+      if (!hierarquia_id) {
+        return jsonResponse({ error: 'hierarquia_id é obrigatório' }, 400);
+      }
 
-      return new Response(
-        JSON.stringify({ success: true, message: 'Usuário removido' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      // Deactivate in hierarchy
+      const { error: deactivateErr } = await supabaseAdmin
+        .from('hierarquia_usuarios')
+        .update({ ativo: false })
+        .eq('id', hierarquia_id);
+
+      if (deactivateErr) throw deactivateErr;
+
+      // Only delete auth user if valid auth_user_id provided
+      const validAuthId = typeof auth_user_id === 'string' && auth_user_id.length === 36;
+      if (validAuthId) {
+        const { error: deleteAuthErr } = await supabaseAdmin.auth.admin.deleteUser(auth_user_id);
+        if (deleteAuthErr) {
+          console.error('Erro ao deletar auth user (não-fatal):', deleteAuthErr.message);
+        }
+      }
+
+      return jsonResponse({ success: true, message: 'Usuário removido' });
     }
 
-    return new Response(
-      JSON.stringify({ error: 'Ação inválida' }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({ error: 'Ação inválida' }, 400);
   } catch (error) {
     console.error('Error:', error);
     const message = error instanceof Error ? error.message : 'Erro interno ao gerenciar usuário';
-    return new Response(
-      JSON.stringify({ error: message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({ error: message }, 500);
   }
 });
