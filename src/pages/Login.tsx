@@ -1,10 +1,18 @@
-import { useState, lazy, Suspense } from 'react';
+import { useState, lazy, Suspense, type CSSProperties } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { User, Lock, Eye, EyeOff, LogIn } from 'lucide-react';
 import fernandaImg from '@/assets/fernanda-sarelli.webp';
 import logoSarelli from '@/assets/logo-sarelli.webp';
 
 const ConstellationBg = lazy(() => import('@/components/ConstellationBg'));
+
+/* ── animation helper ── */
+const entrance = (delay: number, bounce = false): CSSProperties => ({
+  opacity: 0,
+  transform: 'translateY(30px) scale(0.95)',
+  animation: `loginEntrance 0.6s ${bounce ? 'cubic-bezier(0.34,1.56,0.64,1)' : 'cubic-bezier(0.16,1,0.3,1)'} ${delay}s forwards`,
+});
 
 export default function Login() {
   const { signIn } = useAuth();
@@ -26,71 +34,93 @@ export default function Login() {
     if (error) {
       toast({ title: 'Erro ao entrar', description: 'Nome ou senha incorretos', variant: 'destructive' });
     }
-    if (remember) {
-      localStorage.setItem("saved_user", username);
-    } else {
-      localStorage.removeItem("saved_user");
-    }
+    if (remember) localStorage.setItem("saved_user", username);
+    else localStorage.removeItem("saved_user");
   };
 
   return (
     <div
       className="min-h-[100dvh] flex flex-col items-center overflow-y-auto overscroll-contain relative"
-      style={{ background: '#fdf2f8' }}
+      style={{ background: 'linear-gradient(180deg, #fef2f2 0%, #fdf2f8 40%, #fefefe 100%)' }}
     >
+      {/* Canvas constellation */}
       <Suspense fallback={null}>
         <ConstellationBg />
       </Suspense>
 
-      <div className="w-full max-w-[460px] mx-auto px-5 relative z-10 flex flex-col items-center animate-fade-in py-8 my-auto">
-        {/* Foto circular */}
-        <div
-          className="w-[120px] h-[120px] rounded-full overflow-hidden flex-shrink-0"
-          style={{
-            border: '4px solid #f9a8d4',
-            boxShadow: '0 0 0 6px rgba(249,168,212,0.25), 0 8px 24px rgba(0,0,0,0.08)',
-          }}
-        >
-          <img src={fernandaImg} alt="Dra. Fernanda Sarelli" className="w-full h-full object-cover" loading="eager" decoding="sync" />
+      {/* Overlay radial */}
+      <div className="fixed inset-0 z-[1] pointer-events-none" style={{
+        background: 'radial-gradient(ellipse at 50% 10%, rgba(200,170,100,0.07) 0%, transparent 60%), radial-gradient(ellipse at 50% 90%, rgba(236,72,153,0.05) 0%, transparent 60%)',
+      }} />
+
+      {/* Main container */}
+      <div className="w-full max-w-[24rem] mx-auto px-4 relative z-10 flex flex-col items-center justify-start pt-8 md:justify-center md:pt-0 min-h-[100dvh]">
+
+        {/* Photo */}
+        <div style={entrance(0.1, true)}>
+          <div
+            className="w-[90px] h-[90px] md:w-[110px] md:h-[110px] rounded-full overflow-hidden flex-shrink-0"
+            style={{
+              border: '3px solid #ec4899',
+              boxShadow: '0 4px 25px rgba(236,72,153,0.3)',
+            }}
+          >
+            <img
+              src={fernandaImg}
+              alt="Dra. Fernanda Sarelli"
+              className="w-full h-full object-cover"
+              style={{ objectPosition: '50% 15%' }}
+              loading="eager"
+              decoding="sync"
+            />
+          </div>
         </div>
 
         {/* Logo */}
-        <img
-          src={logoSarelli}
-          alt="Sarelli"
-          className="h-[72px] object-contain mt-3 flex-shrink-0"
-          loading="eager"
-          decoding="sync"
-        />
+        <div style={entrance(0.2, true)}>
+          <img
+            src={logoSarelli}
+            alt="Sarelli"
+            className="h-36 md:h-44 object-contain flex-shrink-0"
+            style={{ marginTop: '-1.5rem' }}
+            loading="eager"
+            decoding="sync"
+          />
+        </div>
 
-        {/* Subtítulo */}
+        {/* Subtitle */}
         <p
-          className="text-[13px] font-bold uppercase tracking-[0.22em] mt-3 mb-5 text-center flex-shrink-0"
-          style={{ color: '#ec4899' }}
+          style={{ ...entrance(0.3), marginTop: '-1rem', color: '#c8aa64', fontSize: '12px', fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase' as const }}
+          className="text-center flex-shrink-0"
         >
-          Cadastro de Campanha
+          Painel de Pagamentos
         </p>
 
-        {/* Card do formulário */}
+        {/* Form card (glassmorphism) */}
         <div
-          className="w-full rounded-2xl px-6 py-7 flex-shrink-0"
+          className="w-full flex-shrink-0 mt-5"
           style={{
-            background: 'rgba(252, 231, 243, 0.55)',
-            border: '1.5px solid rgba(249, 168, 212, 0.5)',
+            ...entrance(0.3),
+            borderRadius: '20px',
+            padding: 'clamp(1.25rem, 3vw, 1.75rem)',
+            background: 'linear-gradient(160deg, rgba(255,255,255,0.38), rgba(255,240,245,0.18) 50%, rgba(255,255,255,0.08))',
+            backdropFilter: 'blur(20px) saturate(1.5)',
+            WebkitBackdropFilter: 'blur(20px) saturate(1.5)',
+            border: '2px solid rgba(236,150,170,0.5)',
+            boxShadow: '0 8px 40px rgba(236,72,153,0.08), 0 2px 12px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.5), 0 0 20px rgba(236,150,170,0.15)',
+            animation: `glassPulse 4s ease-in-out infinite, loginEntrance 0.6s cubic-bezier(0.16,1,0.3,1) 0.3s forwards`,
+            opacity: 0,
+            transform: 'translateY(30px) scale(0.95)',
           }}
         >
-          <form onSubmit={handleLogin} className="space-y-5">
-            {/* Usuário */}
-            <div className="space-y-2">
-              <label className="text-[13px] uppercase tracking-[0.18em] font-extrabold block" style={{ color: '#1f2937' }}>
+          <form onSubmit={handleLogin} className="space-y-4">
+            {/* Username */}
+            <div style={entrance(0.35)}>
+              <label style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, color: '#555' }} className="block mb-1.5">
                 Usuário
               </label>
               <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: '#d4a053' }}>
-                  <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-                  </svg>
-                </div>
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-[18px] h-[18px]" style={{ color: '#c8aa64' }} strokeWidth={1.8} />
                 <input
                   data-testid="input-nome"
                   type="text"
@@ -101,28 +131,24 @@ export default function Login() {
                   autoCapitalize="none"
                   autoCorrect="off"
                   autoComplete="username"
-                  className="w-full h-[52px] pl-12 pr-4 rounded-xl text-[15px] outline-none transition-all placeholder:text-gray-400"
+                  className="w-full h-12 pl-10 pr-4 rounded-xl text-sm outline-none transition-all placeholder:text-gray-400 focus:border-pink-400 focus:ring-2 focus:ring-pink-200"
                   style={{
-                    background: 'rgba(253, 242, 248, 0.85)',
-                    border: '1px solid rgba(249, 168, 212, 0.35)',
-                    color: '#374151',
+                    background: 'rgba(255,255,255,0.55)',
+                    border: '1px solid rgba(200,170,100,0.3)',
+                    color: '#333',
                     fontSize: '16px',
                   }}
                 />
               </div>
             </div>
 
-            {/* Senha */}
-            <div className="space-y-2">
-              <label className="text-[13px] uppercase tracking-[0.18em] font-extrabold block" style={{ color: '#1f2937' }}>
+            {/* Password */}
+            <div style={entrance(0.4)}>
+              <label style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, color: '#555' }} className="block mb-1.5">
                 Senha
               </label>
               <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: '#d4a053' }}>
-                  <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                </div>
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-[18px] h-[18px]" style={{ color: '#c8aa64' }} strokeWidth={1.8} />
                 <input
                   data-testid="input-senha"
                   type={showPassword ? "text" : "password"}
@@ -131,36 +157,36 @@ export default function Login() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   autoComplete="current-password"
-                  className="w-full h-[52px] pl-12 pr-12 rounded-xl text-[15px] outline-none transition-all placeholder:text-gray-400"
+                  className="w-full h-12 pl-10 pr-12 rounded-xl text-sm outline-none transition-all placeholder:text-gray-400 focus:border-pink-400 focus:ring-2 focus:ring-pink-200"
                   style={{
-                    background: 'rgba(253, 242, 248, 0.85)',
-                    border: '1px solid rgba(249, 168, 212, 0.35)',
-                    color: '#374151',
+                    background: 'rgba(255,255,255,0.55)',
+                    border: '1px solid rgba(200,170,100,0.3)',
+                    color: '#333',
                     fontSize: '16px',
                   }}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 transition-colors p-0.5"
-                  style={{ color: '#d4a053' }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5"
+                  style={{ color: '#c8aa64' }}
                   tabIndex={-1}
                 >
                   {showPassword
-                    ? <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 4.411m0 0L21 21" /></svg>
-                    : <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                    ? <EyeOff className="w-[18px] h-[18px]" strokeWidth={1.8} />
+                    : <Eye className="w-[18px] h-[18px]" strokeWidth={1.8} />
                   }
                 </button>
               </div>
             </div>
 
-            {/* Lembrar */}
-            <div className="flex items-center gap-3">
+            {/* Remember */}
+            <div className="flex items-center gap-2.5" style={entrance(0.45)}>
               <div
                 onClick={() => setRemember(!remember)}
-                className="w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center cursor-pointer transition-all flex-shrink-0"
+                className="w-4 h-4 rounded-sm border flex items-center justify-center cursor-pointer transition-all flex-shrink-0"
                 style={{
-                  borderColor: remember ? '#ec4899' : '#d1d5db',
+                  borderColor: remember ? '#ec4899' : '#ccc',
                   background: remember ? '#ec4899' : 'transparent',
                 }}
               >
@@ -170,57 +196,72 @@ export default function Login() {
                   </svg>
                 )}
               </div>
-              <label
-                onClick={() => setRemember(!remember)}
-                className="text-sm cursor-pointer select-none"
-                style={{ color: '#4b5563' }}
-              >
+              <label onClick={() => setRemember(!remember)} className="cursor-pointer select-none" style={{ fontSize: '12px', color: '#777' }}>
                 Lembrar meus dados
               </label>
             </div>
 
-            {/* Botão Entrar */}
+            {/* Submit */}
             <button
               data-testid="btn-entrar"
               type="submit"
               disabled={loading}
-              className="w-full h-[52px] rounded-xl font-semibold text-[15px] text-white transition-all active:scale-[0.97] disabled:opacity-60 shadow-md hover:shadow-lg hover:brightness-110"
+              className="w-full h-12 rounded-xl font-bold text-white transition-all active:scale-[0.97] disabled:opacity-60 hover:brightness-110 flex items-center justify-center gap-2.5"
               style={{
-                background: 'linear-gradient(135deg, #ec4899 0%, #f472b6 30%, #f59e0b 100%)',
+                ...entrance(0.5),
+                background: 'linear-gradient(135deg, #ec4899, #d4a054)',
+                boxShadow: '0 4px 20px rgba(236,72,153,0.3), 0 2px 8px rgba(200,170,100,0.2)',
               }}
             >
-              {loading
-                ? <span className="flex items-center justify-center gap-2">
-                    <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" />
-                    Entrando...
-                  </span>
-                : <span className="flex items-center justify-center gap-2.5">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
-                    </svg>
-                    Entrar
-                  </span>
-              }
+              {loading ? (
+                <>
+                  <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" />
+                  Entrando...
+                </>
+              ) : (
+                <>
+                  <LogIn className="w-5 h-5" strokeWidth={2.5} />
+                  Entrar
+                </>
+              )}
             </button>
           </form>
         </div>
 
-        {/* Rodapé */}
-        <div className="text-center mt-5 space-y-1 flex-shrink-0">
-          <p className="text-[12px] tracking-wide" style={{ color: '#9ca3af' }}>
+        {/* Footer */}
+        <div className="text-center mt-5 space-y-0.5 flex-shrink-0 pb-6" style={entrance(0.6)}>
+          <p style={{ fontSize: '10px', color: '#bbb' }}>
             Pré-candidata a Deputada Estadual — GO 2026
           </p>
           <a
             href="https://drafernandasarelli.com.br"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[12px] hover:underline transition-colors tracking-wide inline-block"
-            style={{ color: '#ec4899' }}
+            className="hover:underline transition-colors inline-block"
+            style={{ fontSize: '10px', color: '#ec4899' }}
           >
             drafernandasarelli.com.br
           </a>
         </div>
       </div>
+
+      {/* Keyframes */}
+      <style>{`
+        @keyframes loginEntrance {
+          from { opacity: 0; transform: translateY(30px) scale(0.95); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes glassPulse {
+          0%, 100% {
+            border-color: rgba(236,150,170,0.4);
+            box-shadow: 0 8px 40px rgba(236,72,153,0.06), 0 0 15px rgba(236,150,170,0.1), inset 0 1px 0 rgba(255,255,255,0.5);
+          }
+          50% {
+            border-color: rgba(236,150,170,0.65);
+            box-shadow: 0 8px 40px rgba(236,72,153,0.12), 0 0 25px rgba(236,150,170,0.2), inset 0 1px 0 rgba(255,255,255,0.5);
+          }
+        }
+      `}</style>
     </div>
   );
 }
