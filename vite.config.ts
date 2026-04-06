@@ -86,7 +86,7 @@ export default defineConfig(({ mode }) => ({
         // Pre-cache only the app shell essentials
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2}'],
         cleanupOutdatedCaches: true,
-        skipWaiting: false, // We use "prompt" registerType — user decides when to update
+        skipWaiting: true, // Auto-update without user prompt
         clientsClaim: true,
       },
     }),
