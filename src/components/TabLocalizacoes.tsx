@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { MapPin, Clock, User, ChevronDown, ChevronUp, Loader2, RefreshCw, Navigation } from 'lucide-react';
+import { MapPin, Clock, User, ChevronDown, ChevronUp, Loader2, RefreshCw, Navigation, ExternalLink } from 'lucide-react';
+import { format } from 'date-fns';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
