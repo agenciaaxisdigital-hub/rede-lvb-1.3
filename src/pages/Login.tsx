@@ -4,6 +4,7 @@ import { toast } from '@/hooks/use-toast';
 import { User, Lock, Eye, EyeOff, LogIn } from 'lucide-react';
 import fernandaImg from '@/assets/fernanda-sarelli.webp';
 import logoSarelli from '@/assets/logo-sarelli.webp';
+import FloatingSupportButton from '@/components/FloatingSupportButton';
 
 const ConstellationBg = lazy(() => import('@/components/ConstellationBg'));
 
@@ -244,6 +245,8 @@ export default function Login() {
           </a>
         </div>
       </div>
+
+      <FloatingSupportButton />
 
       {/* Keyframes */}
       <style>{`
