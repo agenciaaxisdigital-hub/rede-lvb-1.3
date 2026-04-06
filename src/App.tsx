@@ -1,7 +1,8 @@
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useState, useCallback } from "react";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,11 +11,12 @@ import { CidadeProvider } from "@/contexts/CidadeContext";
 import LoadingScreen from "@/components/LoadingScreen";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { startAutoSync, syncOfflineData } from "@/services/offlineSync";
+import { createIdbPersister } from "@/lib/queryPersistence";
+import { useRegisterSW } from 'virtual:pwa-register/react';
 
 const Login = lazy(() => import("./pages/Login"));
 const Home = lazy(() => import("./pages/Home"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
-
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,6 +28,11 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+const idbPersister = createIdbPersister();
+
+// Only persist critical data queries (liderancas, eleitores, fiscais, municipios, etc.)
+const PERSISTED_QUERY_PREFIXES = ['liderancas', 'eleitores', 'fiscais', 'contagens', 'hierarquia_usuarios'];
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading, usuario } = useAuth();
@@ -49,7 +56,6 @@ function AppRoutes() {
         <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
         <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
         <Route path="/admin" element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
-        
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>
@@ -61,7 +67,6 @@ function OfflineSyncManager() {
   
   useEffect(() => {
     if (!user) return;
-    // Defer sync start to avoid blocking initial render
     const timer = setTimeout(() => {
       startAutoSync();
     }, 3000);
@@ -77,8 +82,69 @@ function OfflineSyncManager() {
   return null;
 }
 
+/** PWA Update Banner — prompts user to reload when new version is available */
+function PwaUpdatePrompt() {
+  const {
+    needRefresh: [needRefresh, setNeedRefresh],
+    updateServiceWorker,
+  } = useRegisterSW({
+    onRegisteredSW(swUrl, registration) {
+      console.log('[SW] Registered:', swUrl);
+      // Check for updates every 60s
+      if (registration) {
+        setInterval(() => {
+          registration.update().catch(() => {});
+        }, 60_000);
+      }
+    },
+    onRegisterError(error) {
+      console.error('[SW] Registration error:', error);
+    },
+  });
+
+  const close = useCallback(() => {
+    setNeedRefresh(false);
+  }, [setNeedRefresh]);
+
+  if (!needRefresh) return null;
+
+  return (
+    <div className="fixed top-4 left-4 right-4 z-[100] animate-in slide-in-from-top-4 duration-300">
+      <div className="bg-card border border-border rounded-xl shadow-2xl p-4 flex items-center gap-3 max-w-md mx-auto">
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-foreground">Nova versão disponível</p>
+          <p className="text-xs text-muted-foreground">Atualize para a última versão.</p>
+        </div>
+        <button
+          onClick={() => updateServiceWorker(true)}
+          className="px-4 py-2 text-xs font-semibold rounded-lg text-white"
+          style={{ background: 'linear-gradient(135deg, #ec4899, #f59e0b)' }}
+        >
+          Atualizar
+        </button>
+        <button onClick={close} className="text-muted-foreground hover:text-foreground text-lg leading-none">×</button>
+      </div>
+    </div>
+  );
+}
+
 const App = () => (
-  <QueryClientProvider client={queryClient}>
+  <PersistQueryClientProvider
+    client={queryClient}
+    persistOptions={{
+      persister: idbPersister,
+      maxAge: 24 * 60 * 60 * 1000, // 24h
+      buster: '', // Change this to invalidate all persisted caches
+      dehydrateOptions: {
+        shouldDehydrateQuery: (query) => {
+          // Only persist queries whose key starts with one of our critical prefixes
+          const key = query.queryKey[0];
+          if (typeof key !== 'string') return false;
+          return PERSISTED_QUERY_PREFIXES.includes(key) && query.state.status === 'success';
+        },
+      },
+    }}
+  >
     <TooltipProvider>
       <Toaster />
       <Analytics />
@@ -87,6 +153,7 @@ const App = () => (
         <AuthProvider>
           <CidadeProvider>
             <ErrorBoundary>
+              <PwaUpdatePrompt />
               <OfflineSyncManager />
               <AppRoutes />
             </ErrorBoundary>
@@ -94,7 +161,7 @@ const App = () => (
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
-  </QueryClientProvider>
+  </PersistQueryClientProvider>
 );
 
 export default App;

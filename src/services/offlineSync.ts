@@ -1,9 +1,10 @@
 // ── Offline Sync Service ─────────────────────────────────────────────────────
-// Processes pending offline registrations when back online.
+// Processes pending offline registrations with idempotency (operationId).
 
 import { supabase } from '@/integrations/supabase/client';
-import { getAllPending, removeFromQueue, updateAttempts, type OfflineRegistration } from '@/lib/offlineQueue';
+import { getAllPending, removeFromQueue, updateAttempts, getPendingCount, type OfflineRegistration } from '@/lib/offlineQueue';
 
+const MAX_ATTEMPTS = 5;
 let syncing = false;
 let listeners: Array<() => void> = [];
 
@@ -24,23 +25,36 @@ export async function syncOfflineData(): Promise<{ synced: number; failed: numbe
 
   try {
     const pending = await getAllPending();
-    if (pending.length === 0) { syncing = false; return { synced: 0, failed: 0 }; }
+    const count = pending.length;
+    console.log(`[OfflineSync] Queue count: ${count}`);
+    if (count === 0) { syncing = false; return { synced: 0, failed: 0 }; }
 
     for (const item of pending) {
+      // Skip items that have exceeded max attempts
+      if ((item.attempts || 0) >= MAX_ATTEMPTS) {
+        console.warn(`[OfflineSync] Skipping item ${item.id} (operationId=${item.operationId}) — max attempts (${MAX_ATTEMPTS}) reached`);
+        failed++;
+        continue;
+      }
+
       try {
         await syncSingleRegistration(item);
         await removeFromQueue(item.id!);
         synced++;
-      } catch (err) {
-        console.error('[OfflineSync] Failed to sync item', item.id, err);
-        await updateAttempts(item.id!, (item.attempts || 0) + 1);
+        console.log(`[OfflineSync] Synced item ${item.id} operationId=${item.operationId}`);
+      } catch (err: any) {
+        const errorMsg = err?.message || String(err);
+        console.error(`[OfflineSync] Failed item ${item.id} operationId=${item.operationId}:`, errorMsg);
+        await updateAttempts(item.id!, (item.attempts || 0) + 1, errorMsg);
         failed++;
       }
     }
 
+    const remaining = await getPendingCount();
+    console.log(`[OfflineSync] Done — synced=${synced}, failed=${failed}, remaining=${remaining}`);
     notifyListeners();
   } catch (err) {
-    console.error('[OfflineSync] Sync error', err);
+    console.error('[OfflineSync] Sync error:', err);
   } finally {
     syncing = false;
   }
@@ -49,6 +63,15 @@ export async function syncOfflineData(): Promise<{ synced: number; failed: numbe
 }
 
 async function syncSingleRegistration(item: OfflineRegistration) {
+  // ── Idempotency check: see if this operationId was already processed ──
+  // We store operationId in the registro's observacoes or a dedicated field.
+  // For deduplication, check if a record with this operationId already exists.
+  const existingCheck = await checkOperationIdExists(item);
+  if (existingCheck) {
+    console.log(`[OfflineSync] operationId=${item.operationId} already exists in DB, skipping`);
+    return; // Already synced — safe to remove from queue
+  }
+
   let pessoaId: string;
 
   if (item.pessoaExistenteId) {
@@ -64,7 +87,14 @@ async function syncSingleRegistration(item: OfflineRegistration) {
     pessoaId = data!.id;
   }
 
-  const registro = { ...item.registro, pessoa_id: pessoaId };
+  // Tag the registro with operationId in observacoes for future dedup
+  const registro = {
+    ...item.registro,
+    pessoa_id: pessoaId,
+    observacoes: item.registro.observacoes
+      ? `${item.registro.observacoes} [opId:${item.operationId}]`
+      : `[opId:${item.operationId}]`,
+  };
 
   if (item.type === 'lideranca') {
     const { error } = await (supabase as any).from('liderancas').insert(registro);
@@ -78,20 +108,38 @@ async function syncSingleRegistration(item: OfflineRegistration) {
   }
 }
 
+async function checkOperationIdExists(item: OfflineRegistration): Promise<boolean> {
+  const table = item.type === 'lideranca' ? 'liderancas'
+    : item.type === 'fiscal' ? 'fiscais'
+    : 'possiveis_eleitores';
+
+  try {
+    const { data } = await (supabase as any)
+      .from(table)
+      .select('id')
+      .ilike('observacoes', `%[opId:${item.operationId}]%`)
+      .limit(1);
+    return data && data.length > 0;
+  } catch {
+    return false; // If check fails, proceed with insert (better than losing data)
+  }
+}
+
 // Auto-sync setup
 let syncInterval: ReturnType<typeof setInterval> | null = null;
 let onlineHandler: (() => void) | null = null;
 
 export function startAutoSync() {
-  // Prevent duplicate listeners
   if (syncInterval) return;
 
-  // Sync immediately if online
+  getPendingCount().then(count => {
+    console.log(`[OfflineSync] startAutoSync — queue count: ${count}`);
+  });
+
   if (navigator.onLine) {
     syncOfflineData();
   }
 
-  // Sync when coming back online (single handler)
   if (!onlineHandler) {
     onlineHandler = () => {
       console.log('[OfflineSync] Back online, syncing...');

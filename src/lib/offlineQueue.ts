@@ -1,97 +1,86 @@
-// ── Offline Queue using IndexedDB ────────────────────────────────────────────
+// ── Offline Queue using Dexie (IndexedDB) ────────────────────────────────────
 // Stores pending registrations when offline and syncs when back online.
+// Each item gets a unique operationId (UUID) for idempotency/deduplication.
 
-const DB_NAME = 'rede-sarelli-offline';
-const DB_VERSION = 1;
-const STORE_NAME = 'pending_registrations';
-
-function openDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
+import Dexie, { type Table } from 'dexie';
 
 export interface OfflineRegistration {
   id?: number;
+  operationId: string; // UUID for idempotency
   type: 'lideranca' | 'fiscal' | 'eleitor';
   pessoa: Record<string, any>;
   registro: Record<string, any>;
   pessoaExistenteId?: string | null;
   createdAt: string;
   attempts: number;
+  lastError?: string | null;
 }
 
-export async function addToOfflineQueue(reg: Omit<OfflineRegistration, 'id' | 'createdAt' | 'attempts'>): Promise<void> {
-  const db = await openDB();
-  const tx = db.transaction(STORE_NAME, 'readwrite');
-  tx.objectStore(STORE_NAME).add({
+class OfflineDB extends Dexie {
+  pending_registrations!: Table<OfflineRegistration, number>;
+
+  constructor() {
+    super('rede-sarelli-offline');
+    this.version(2).stores({
+      pending_registrations: '++id, operationId, type, createdAt, attempts',
+    });
+    // Auto-upgrade from v1 (raw IDB) — Dexie handles schema migration
+    this.version(1).stores({
+      pending_registrations: '++id',
+    });
+  }
+}
+
+const db = new OfflineDB();
+
+function generateOperationId(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
+
+export async function addToOfflineQueue(
+  reg: Omit<OfflineRegistration, 'id' | 'operationId' | 'createdAt' | 'attempts' | 'lastError'>
+): Promise<string> {
+  const operationId = generateOperationId();
+  await db.pending_registrations.add({
     ...reg,
+    operationId,
     createdAt: new Date().toISOString(),
     attempts: 0,
+    lastError: null,
   });
-  return new Promise((resolve, reject) => {
-    tx.oncomplete = () => { db.close(); resolve(); };
-    tx.onerror = () => { db.close(); reject(tx.error); };
-  });
+  console.log(`[OfflineQueue] Added item operationId=${operationId}, type=${reg.type}`);
+  return operationId;
 }
 
 export async function getPendingCount(): Promise<number> {
   try {
-    const db = await openDB();
-    const tx = db.transaction(STORE_NAME, 'readonly');
-    const store = tx.objectStore(STORE_NAME);
-    const count = store.count();
-    return new Promise((resolve) => {
-      count.onsuccess = () => { db.close(); resolve(count.result); };
-      count.onerror = () => { db.close(); resolve(0); };
-    });
+    return await db.pending_registrations.count();
   } catch {
     return 0;
   }
 }
 
 export async function getAllPending(): Promise<OfflineRegistration[]> {
-  const db = await openDB();
-  const tx = db.transaction(STORE_NAME, 'readonly');
-  const store = tx.objectStore(STORE_NAME);
-  const req = store.getAll();
-  return new Promise((resolve, reject) => {
-    req.onsuccess = () => { db.close(); resolve(req.result); };
-    req.onerror = () => { db.close(); reject(req.error); };
-  });
+  return db.pending_registrations.orderBy('createdAt').toArray();
 }
 
 export async function removeFromQueue(id: number): Promise<void> {
-  const db = await openDB();
-  const tx = db.transaction(STORE_NAME, 'readwrite');
-  tx.objectStore(STORE_NAME).delete(id);
-  return new Promise((resolve, reject) => {
-    tx.oncomplete = () => { db.close(); resolve(); };
-    tx.onerror = () => { db.close(); reject(tx.error); };
-  });
+  await db.pending_registrations.delete(id);
 }
 
-export async function updateAttempts(id: number, attempts: number): Promise<void> {
-  const db = await openDB();
-  const tx = db.transaction(STORE_NAME, 'readwrite');
-  const store = tx.objectStore(STORE_NAME);
-  const getReq = store.get(id);
-  getReq.onsuccess = () => {
-    if (getReq.result) {
-      getReq.result.attempts = attempts;
-      store.put(getReq.result);
-    }
-  };
-  return new Promise((resolve, reject) => {
-    tx.oncomplete = () => { db.close(); resolve(); };
-    tx.onerror = () => { db.close(); reject(tx.error); };
-  });
+export async function updateAttempts(id: number, attempts: number, lastError?: string): Promise<void> {
+  await db.pending_registrations.update(id, { attempts, lastError: lastError || null });
 }
+
+export async function getByOperationId(operationId: string): Promise<OfflineRegistration | undefined> {
+  return db.pending_registrations.where('operationId').equals(operationId).first();
+}
+
+export { db as offlineDb };

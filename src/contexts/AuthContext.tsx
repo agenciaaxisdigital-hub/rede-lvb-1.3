@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-
 import { resolverMunicipioId, buscarNomeMunicipio } from '@/lib/resolverMunicipio';
 import type { User } from '@supabase/supabase-js';
 
@@ -24,7 +23,6 @@ interface AuthContextType {
   isAdmin: boolean;
   isSuplente: boolean;
   isLideranca: boolean;
-  
   tipoUsuario: TipoUsuario | null;
   municipioId: string | null;
   municipioNome: string | null;
@@ -47,34 +45,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [municipioNome, setMunicipioNome] = useState<string | null>(null);
 
   const resolverMunicipio = async (usr: HierarquiaUsuario) => {
+    const t0 = performance.now();
     try {
-      // 1. Se tem municipio_id direto
       if (usr.municipio_id) {
         setMunicipioId(usr.municipio_id);
         const nome = await buscarNomeMunicipio(usr.municipio_id);
         setMunicipioNome(nome);
+        console.log(`[Auth] resolverMunicipio (direto) ${(performance.now() - t0).toFixed(0)}ms`);
         return;
       }
-      // 2. Se tem suplente_id, buscar via suplente_municipio
       if (usr.suplente_id) {
         const munId = await resolverMunicipioId(usr.suplente_id);
         if (munId) {
           setMunicipioId(munId);
           const nome = await buscarNomeMunicipio(munId);
           setMunicipioNome(nome);
+          console.log(`[Auth] resolverMunicipio (suplente) ${(performance.now() - t0).toFixed(0)}ms`);
           return;
         }
       }
-      // 3. Avulso sem municipio
       setMunicipioId(null);
       setMunicipioNome(null);
-    } catch {
+    } catch (err) {
+      console.error('[Auth] resolverMunicipio error:', err);
       setMunicipioId(null);
       setMunicipioNome(null);
     }
   };
 
-  const fetchUsuario = async (authUserId: string) => {
+  const fetchUsuario = async (authUserId: string): Promise<HierarquiaUsuario | null> => {
+    const t0 = performance.now();
     try {
       const { data, error } = await supabase
         .from('hierarquia_usuarios')
@@ -82,51 +82,70 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq('auth_user_id', authUserId)
         .eq('ativo', true)
         .single();
+      console.log(`[Auth] fetchUsuario ${(performance.now() - t0).toFixed(0)}ms`);
       if (error) {
-        console.error('Erro ao buscar usuário:', error.message);
-        setUsuario(null);
-        return;
+        console.error('[Auth] fetchUsuario error:', error.message);
+        return null;
       }
-      if (data) {
-        const usr = data as unknown as HierarquiaUsuario;
-        setUsuario(usr);
-        await resolverMunicipio(usr);
-      } else {
-        setUsuario(null);
-      }
+      return data as unknown as HierarquiaUsuario;
     } catch (err) {
-      console.error('Erro inesperado ao buscar usuário:', err);
-      setUsuario(null);
+      console.error('[Auth] fetchUsuario unexpected error:', err);
+      return null;
     }
+  };
+
+  /** Parallelized init: fetchUsuario + resolverMunicipio run concurrently where possible */
+  const initializeUser = async (authUserId: string) => {
+    const t0 = performance.now();
+    console.log('[Auth] ⏱ initializeUser start');
+
+    const usr = await fetchUsuario(authUserId);
+    if (!usr) {
+      setUsuario(null);
+      setMunicipioId(null);
+      setMunicipioNome(null);
+      console.log(`[Auth] ⏱ initializeUser done (no user) ${(performance.now() - t0).toFixed(0)}ms`);
+      return;
+    }
+
+    // Set usuario immediately so UI can start rendering
+    setUsuario(usr);
+
+    // Resolve municipio in parallel (non-blocking for initial render)
+    await resolverMunicipio(usr);
+    console.log(`[Auth] ⏱ initializeUser done ${(performance.now() - t0).toFixed(0)}ms`);
   };
 
   useEffect(() => {
     let initialized = false;
     let active = true;
+    const t0 = performance.now();
 
     const safetyTimeout = setTimeout(() => {
       if (active && !initialized) {
-        console.warn('Auth timeout - forcing loading=false');
+        console.warn('[Auth] Safety timeout (4s) — forcing loading=false');
         setLoading(false);
         initialized = true;
       }
     }, 4000);
 
+    console.log('[Auth] ⏱ getSession start');
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      console.log(`[Auth] ⏱ getSession done ${(performance.now() - t0).toFixed(0)}ms`);
       try {
         setUser(session?.user ?? null);
         if (session?.user) {
-          await fetchUsuario(session.user.id);
+          await initializeUser(session.user.id);
         }
       } catch (err) {
-        console.error('Erro na inicialização:', err);
+        console.error('[Auth] Initialization error:', err);
       } finally {
         if (active) setLoading(false);
         initialized = true;
         clearTimeout(safetyTimeout);
       }
     }).catch((err) => {
-      console.error('Erro ao obter sessão:', err);
+      console.error('[Auth] getSession error:', err);
       if (active) setLoading(false);
       initialized = true;
       clearTimeout(safetyTimeout);
@@ -137,14 +156,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         setUser(session?.user ?? null);
         if (session?.user) {
-          await fetchUsuario(session.user.id);
+          await initializeUser(session.user.id);
         } else {
           setUsuario(null);
           setMunicipioId(null);
           setMunicipioNome(null);
         }
       } catch (err) {
-        console.error('Erro no auth state change:', err);
+        console.error('[Auth] Auth state change error:', err);
       } finally {
         if (active) setLoading(false);
       }
@@ -158,8 +177,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (nome: string, password: string) => {
+    const t0 = performance.now();
+    console.log('[Auth] ⏱ signIn start');
     const email = nomeToEmail(nome);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
+    console.log(`[Auth] ⏱ signIn done ${(performance.now() - t0).toFixed(0)}ms, error=${!!error}`);
     return { error: error?.message ?? null };
   };
 
@@ -181,7 +203,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAdmin: tipo === 'super_admin' || tipo === 'coordenador',
       isSuplente: tipo === 'suplente',
       isLideranca: tipo === 'lideranca',
-      
       tipoUsuario: tipo,
       municipioId,
       municipioNome,
