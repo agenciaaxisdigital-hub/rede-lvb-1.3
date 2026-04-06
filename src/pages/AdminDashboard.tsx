@@ -12,6 +12,9 @@ import {
 } from 'lucide-react';
 import { exportAllCadastros, exportCadastrosFiltered } from '@/lib/exportXlsx';
 import SeletorCidade from '@/components/SeletorCidade';
+import { lazy, Suspense } from 'react';
+
+const TabLocalizacoes = lazy(() => import('@/components/TabLocalizacoes'));
 
 
 /* ── types ── */
