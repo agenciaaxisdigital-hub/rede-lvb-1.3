@@ -1,7 +1,7 @@
-import { lazy, Suspense, useEffect, useState, useCallback, forwardRef } from "react";
+import { lazy, Suspense, useEffect, forwardRef } from "react";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
@@ -31,7 +31,6 @@ const queryClient = new QueryClient({
 
 const idbPersister = createIdbPersister();
 
-// Only persist critical data queries (liderancas, eleitores, fiscais, municipios, etc.)
 const PERSISTED_QUERY_PREFIXES = ['liderancas', 'eleitores', 'fiscais', 'contagens', 'hierarquia_usuarios'];
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -82,15 +81,10 @@ function OfflineSyncManager() {
   return null;
 }
 
-/** PWA Update Banner — prompts user to reload when new version is available */
-function PwaUpdatePrompt() {
-  const {
-    needRefresh: [needRefresh, setNeedRefresh],
-    updateServiceWorker,
-  } = useRegisterSW({
-    onRegisteredSW(swUrl, registration) {
-      console.log('[SW] Registered:', swUrl);
-      // Check for updates every 60s
+/** PWA silent auto-update — no popup, reloads automatically */
+function PwaSilentUpdater() {
+  useRegisterSW({
+    onRegisteredSW(_swUrl, registration) {
       if (registration) {
         setInterval(() => {
           registration.update().catch(() => {});
@@ -101,31 +95,7 @@ function PwaUpdatePrompt() {
       console.error('[SW] Registration error:', error);
     },
   });
-
-  const close = useCallback(() => {
-    setNeedRefresh(false);
-  }, [setNeedRefresh]);
-
-  if (!needRefresh) return null;
-
-  return (
-    <div className="fixed top-4 left-4 right-4 z-[100] animate-in slide-in-from-top-4 duration-300">
-      <div className="bg-card border border-border rounded-xl shadow-2xl p-4 flex items-center gap-3 max-w-md mx-auto">
-        <div className="flex-1">
-          <p className="text-sm font-semibold text-foreground">Nova versão disponível</p>
-          <p className="text-xs text-muted-foreground">Atualize para a última versão.</p>
-        </div>
-        <button
-          onClick={() => updateServiceWorker(true)}
-          className="px-4 py-2 text-xs font-semibold rounded-lg text-white"
-          style={{ background: 'linear-gradient(135deg, #ec4899, #f59e0b)' }}
-        >
-          Atualizar
-        </button>
-        <button onClick={close} className="text-muted-foreground hover:text-foreground text-lg leading-none">×</button>
-      </div>
-    </div>
-  );
+  return null;
 }
 
 const App = forwardRef<HTMLDivElement>(function App(_props, _ref) {
@@ -153,7 +123,7 @@ const App = forwardRef<HTMLDivElement>(function App(_props, _ref) {
           <AuthProvider>
             <CidadeProvider>
               <ErrorBoundary>
-                <PwaUpdatePrompt />
+                <PwaSilentUpdater />
                 <OfflineSyncManager />
                 <AppRoutes />
               </ErrorBoundary>
