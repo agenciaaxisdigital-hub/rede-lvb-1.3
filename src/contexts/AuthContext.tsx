@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { resolverMunicipioId, buscarNomeMunicipio } from '@/lib/resolverMunicipio';
+import { logger } from '@/lib/logger';
 import type { User } from '@supabase/supabase-js';
 
 export type TipoUsuario = 'super_admin' | 'coordenador' | 'suplente' | 'lideranca';
@@ -213,16 +214,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!initialized || !active) return;
 
-      console.log(`[Auth] onAuthStateChange: event=${event}`);
+      logger.info('auth_state_change', { event });
 
-      // Log specific events
       if (event === 'TOKEN_REFRESHED') {
-        console.log('[Auth] Token refreshed successfully');
+        logger.info('token_refreshed');
         setIsOfflineMode(false);
       }
 
       if (event === 'SIGNED_OUT') {
-        console.log('[Auth] User signed out — clearing local data');
+        logger.info('signed_out');
         setUser(null);
         setUsuario(null);
         setMunicipioId(null);
