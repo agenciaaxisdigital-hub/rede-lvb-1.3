@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, forwardRef } from 'react';
 
 interface Particle {
   x: number;
@@ -12,7 +12,7 @@ interface Particle {
   hue: number;
 }
 
-export default function ConstellationBg() {
+const ConstellationBg = forwardRef<HTMLCanvasElement>(function ConstellationBg(_props, _ref) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -193,4 +193,6 @@ export default function ConstellationBg() {
       className="fixed inset-0 w-full h-full z-0"
     />
   );
-}
+});
+
+export default ConstellationBg;
