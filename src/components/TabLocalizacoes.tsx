@@ -110,6 +110,25 @@ export default function TabLocalizacoes() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  /* ── Reverse geocode addresses ── */
+  useEffect(() => {
+    if (localizacoes.length === 0) return;
+    localizacoes.forEach(async (loc) => {
+      if (enderecos.has(loc.usuario_id)) return;
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${loc.latitude}&lon=${loc.longitude}&format=json&addressdetails=1&accept-language=pt-BR`);
+        const data = await res.json();
+        if (data?.display_name) {
+          setEnderecos(prev => {
+            const next = new Map(prev);
+            next.set(loc.usuario_id, data.display_name);
+            return next;
+          });
+        }
+      } catch { /* silenciar */ }
+    });
+  }, [localizacoes]);
+
   /* ── Fetch user trail ── */
   const fetchRastro = useCallback(async (userId: string) => {
     setLoadingRastro(true);
