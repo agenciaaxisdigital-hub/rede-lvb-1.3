@@ -9,6 +9,7 @@ import { formatCPF, cleanCPF, validateCPF, maskCPF } from '@/lib/cpf';
 import { checkCpfDuplicateByUser } from '@/lib/cpfDuplicateCheck';
 import { resolverLigacaoPolitica } from '@/lib/resolverLigacaoPolitica';
 import { toast } from '@/hooks/use-toast';
+import { useEvento } from '@/contexts/EventoContext';
 import { addToOfflineQueue } from '@/lib/offlineQueue';
 
 import CampoLigacaoPolitica from '@/components/CampoLigacaoPolitica';
@@ -198,6 +199,7 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
       compromisso_voto: form.compromisso_voto,
       observacoes: form.observacoes || null,
       municipio_id: ligMunicipioId || null,
+      evento_id: eventoAtivo?.id || null,
     };
 
     // Offline: salvar na fila
