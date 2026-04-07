@@ -162,64 +162,23 @@ export default function CampoLigacaoPolitica({
   const buscarLiderancas = useCallback(async (q: string) => {
     setLoadingLid(true);
     try {
-      let query = (supabase as any)
-        .from('liderancas')
-        .select('id, municipio_id, regiao_atuacao, suplente_id, pessoas(nome)')
-        .eq('status', 'Ativa')
-        .order('criado_em', { ascending: false })
-        .limit(20);
-
-      if (cidadeAtivaId) {
-        query = query.eq('municipio_id', cidadeAtivaId);
-      }
-
-      const [{ data }, usuariosInternos] = await Promise.all([
-        query,
-        buscarUsuariosInternos(['lideranca'], q),
-      ]);
-
-      let results: LiderancaResult[] = [];
-
-      if (data) {
-        results = (data as any[]).map(l => ({
-          id: l.id,
-          lideranca_id: l.id,
-          nome: l.pessoas?.nome || '—',
-          regiao_atuacao: l.regiao_atuacao,
-          suplente_id: l.suplente_id,
-          municipio_id: l.municipio_id,
-          origem: 'local',
-        }));
-
-        if (q) {
-          const termo = normalizarTexto(q);
-          results = results.filter(l => normalizarTexto(l.nome).includes(termo));
-        }
-      }
+      const usuariosInternos = await buscarUsuariosInternos(['lideranca'], q);
 
       const internosMapeados: LiderancaResult[] = usuariosInternos.map((u) => ({
         id: `interno-${u.id}`,
         lideranca_id: null,
         nome: u.nome,
-        regiao_atuacao: 'Usuário interno',
+        regiao_atuacao: null,
         suplente_id: u.suplente_id || null,
         municipio_id: u.municipio_id || null,
         origem: 'interna',
         hierarquia_id: u.id,
       }));
 
-      const vistos = new Set<string>();
-      const lista = [...internosMapeados, ...results].filter((item) => {
-        const chave = `${item.id}::${normalizarTexto(item.nome)}`;
-        if (vistos.has(chave)) return false;
-        vistos.add(chave);
-        return true;
-      });
-
-      setLiderancasLocal(lista.slice(0, 20));
+      setLiderancasLocal(internosMapeados.slice(0, 20));
     } catch {}
     setLoadingLid(false);
-  }, [buscarUsuariosInternos, cidadeAtivaId]);
+  }, [buscarUsuariosInternos]);
 
   // Trigger searches on mount
   useEffect(() => {
