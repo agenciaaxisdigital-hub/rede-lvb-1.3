@@ -344,7 +344,7 @@ export default function TabCadastrar({ onSaved }: Props) {
             <input type="number" value={form.apoiadores_estimados} onChange={e => update('apoiadores_estimados', e.target.value)} placeholder="0" className={inputCls} />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Meta votos</label>
+            <label className="text-xs font-medium text-muted-foreground">Meta votos <span className="text-primary">*</span></label>
             <input type="number" value={form.meta_votos} onChange={e => update('meta_votos', e.target.value)} placeholder="0" className={inputCls} />
           </div>
         </div>
