@@ -374,13 +374,6 @@ export default function TabFiscais({ refreshKey, onSaved, viewOnly }: Props) {
               <label className="text-xs font-medium text-muted-foreground">Título de eleitor <span className="text-primary">*</span></label>
               <input type="text" value={form.titulo_eleitor} onChange={e => update('titulo_eleitor', e.target.value)} className={inputCls} />
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Situação</label>
-              <select value={form.situacao_titulo} onChange={e => update('situacao_titulo', e.target.value)} className={selectCls}>
-                <option value="">Selecione</option>
-                {situacoesTitulo.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
