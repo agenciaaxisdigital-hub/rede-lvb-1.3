@@ -331,7 +331,7 @@ export default function TabFiscais({ refreshKey, onSaved, viewOnly }: Props) {
         </div>
         <div className="section-card">
           <h3 className="section-title">👤 Dados Pessoais</h3>
-          <Info label="CPF" value={p.cpf ? maskCPF(p.cpf) : null} />
+          <Info label="CPF" value={p.cpf ? formatCPF(p.cpf) : null} />
           <Info label="WhatsApp" value={p.whatsapp} />
           <Info label="Rede social" value={p.instagram || p.facebook} />
           <Info label="Região" value={f.origem_captacao} />
@@ -530,6 +530,9 @@ export default function TabFiscais({ refreshKey, onSaved, viewOnly }: Props) {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-foreground truncate">{f.pessoas?.nome || '—'}</p>
+              {f.pessoas?.cpf && (
+                <p className="text-[10px] text-muted-foreground truncate">CPF: {formatCPF(f.pessoas.cpf)}</p>
+              )}
               {f.origem_captacao && (
                 <p className="text-[10px] text-muted-foreground truncate">{f.origem_captacao}</p>
               )}
