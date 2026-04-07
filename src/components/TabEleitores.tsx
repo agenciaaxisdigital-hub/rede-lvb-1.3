@@ -517,6 +517,9 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
                   <span className="font-semibold text-foreground text-sm truncate">{e.pessoas?.nome || '—'}</span>
                   {compromissoBadge(e.compromisso_voto)}
                 </div>
+                {e.origem_captacao && (
+                  <p className="text-[10px] text-muted-foreground truncate">{e.origem_captacao}</p>
+                )}
                 <p className="text-xs text-muted-foreground truncate">
                   {e.liderancas?.pessoas?.nome ? `Líder: ${e.liderancas.pessoas.nome}` : ''}
                   {!e.liderancas && (e.pessoas?.zona_eleitoral ? `Z${e.pessoas.zona_eleitoral}` : '')}{!e.liderancas && (e.pessoas?.secao_eleitoral ? ` S${e.pessoas.secao_eleitoral}` : '')}

@@ -260,8 +260,10 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
                     </div>
 
                     <div className="flex items-center gap-2 flex-wrap">
-                      
-                      {c.telefone && (
+                      {c.regiao && (
+                        <span className="text-[10px] text-muted-foreground truncate">{c.regiao}</span>
+                      )}
+                      {!c.regiao && c.telefone && (
                         <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
                           <Phone size={9} /> {c.telefone}
                         </span>
