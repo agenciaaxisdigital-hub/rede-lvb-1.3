@@ -22,23 +22,23 @@ export default function FloatingSupportButton() {
   };
 
   return (
-    <div className="fixed bottom-20 right-3 z-[9999] flex flex-col items-end gap-1.5">
+    <div className="fixed top-[calc(env(safe-area-inset-top,12px)+20px)] right-3 z-[9999] flex items-center gap-1.5">
       <button
         onClick={handleConheca}
-        aria-label="Conheça Doutora"
-        className="flex items-center gap-1.5 px-3 h-7 rounded-full text-[11px] font-medium transition-all active:scale-95 hover:opacity-90"
+        aria-label="Site"
+        className="flex items-center gap-1 px-2.5 h-6 rounded-full text-[10px] font-medium transition-all active:scale-95 hover:opacity-90"
         style={pillStyle}
       >
-        <Globe size={12} strokeWidth={2} />
-        Conheça Doutora
+        <Globe size={11} strokeWidth={2} />
+        Site
       </button>
       <button
         onClick={handleOpen}
         aria-label="Suporte"
-        className="flex items-center gap-1.5 px-3 h-7 rounded-full text-[11px] font-medium transition-all active:scale-95 hover:opacity-90"
+        className="flex items-center gap-1 px-2.5 h-6 rounded-full text-[10px] font-medium transition-all active:scale-95 hover:opacity-90"
         style={pillStyle}
       >
-        <MessageCircle size={12} strokeWidth={2} />
+        <MessageCircle size={11} strokeWidth={2} />
         Suporte
       </button>
     </div>
