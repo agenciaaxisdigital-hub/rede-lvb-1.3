@@ -166,9 +166,9 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
     // Offline: salvar na fila
     if (!navigator.onLine) {
       try {
-        await addToOfflineQueue({ type: 'eleitor', pessoa: pessoaData, registro: registroData, pessoaExistenteId });
+        await addToOfflineQueue({ type: 'eleitor', pessoa: pessoaData, registro: registroData, pessoaExistenteId: null });
         toast({ title: '📱 Salvo offline!', description: 'Será enviado quando voltar a internet.' });
-        setForm({ ...emptyForm }); setPessoaExistenteId(null); setCpfStatus('idle'); setCpfNomePessoa('');
+        setForm({ ...emptyForm });
         setMode('list'); onSaved?.();
       } catch (err: any) { toast({ title: 'Erro ao salvar offline', description: err.message, variant: 'destructive' }); }
       finally { setSaving(false); }
@@ -176,21 +176,15 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
     }
 
     try {
-      let pessoaId: string;
-      if (pessoaExistenteId) {
-        pessoaId = pessoaExistenteId;
-        await supabase.from('pessoas').update({ ...pessoaData, atualizado_em: new Date().toISOString() }).eq('id', pessoaId);
-      } else {
-        const { data: novaPessoa, error } = await supabase.from('pessoas').insert(pessoaData as any).select('id').single();
-        if (error) throw error;
-        pessoaId = novaPessoa!.id;
-      }
-
-      const { error } = await (supabase as any).from('possiveis_eleitores').insert({ ...registroData, pessoa_id: pessoaId });
+      const { data: novaPessoa, error } = await supabase.from('pessoas').insert(pessoaData as any).select('id').single();
       if (error) throw error;
+      const pessoaId = novaPessoa!.id;
+
+      const { error: errEle } = await (supabase as any).from('possiveis_eleitores').insert({ ...registroData, pessoa_id: pessoaId });
+      if (errEle) throw errEle;
 
       toast({ title: '✅ Eleitor cadastrado!' });
-      setForm({ ...emptyForm }); setPessoaExistenteId(null); setCpfStatus('idle'); setCpfNomePessoa('');
+      setForm({ ...emptyForm });
       setMode('list'); invalidarCadastros(); onSaved?.();
     } catch (err: any) {
       toast({ title: 'Erro ao salvar', description: err.message, variant: 'destructive' });
