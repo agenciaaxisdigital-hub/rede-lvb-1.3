@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Loader2, Search, ChevronRight, ArrowLeft, Phone, MessageCircle, Trash2, Download, WifiOff } from 'lucide-react';
+import { Loader2, Search, ChevronRight, ArrowLeft, Phone, MessageCircle, Trash2, Download, WifiOff, ExternalLink } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useInvalidarCadastros } from '@/hooks/useDataCache';
@@ -369,35 +369,38 @@ export default function TabFiscais({ refreshKey, onSaved, viewOnly }: Props) {
 
         <div className="section-card">
           <h2 className="section-title">🗳️ Dados Eleitorais</h2>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Título de eleitor <span className="text-primary">*</span></label>
-              <input type="text" value={form.titulo_eleitor} onChange={e => update('titulo_eleitor', e.target.value)} className={inputCls} />
-            </div>
+          <button type="button" onClick={() => window.open('https://www.tse.jus.br/servicos-eleitorais/autoatendimento-eleitoral#/atendimento-eleitor', '_blank')}
+            className="w-full flex items-center justify-center gap-2 h-10 px-4 border border-border rounded-xl text-sm font-medium text-primary bg-primary/5 hover:bg-primary/10 active:scale-[0.97] transition-all">
+            <ExternalLink size={16} /> Consultar dados no TSE
+          </button>
+          <p className="text-[11px] text-muted-foreground -mt-2">Abra o site do TSE, consulte os dados eleitorais e preencha abaixo.</p>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Título de eleitor <span className="text-primary">*</span></label>
+            <input type="text" value={form.titulo_eleitor} onChange={e => update('titulo_eleitor', e.target.value)} placeholder="Número do título" className={inputCls} />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Zona eleitoral <span className="text-primary">*</span></label>
-              <input type="text" value={form.zona_eleitoral} onChange={e => update('zona_eleitoral', e.target.value)} className={inputCls} />
+              <label className="text-xs font-medium text-muted-foreground">Zona <span className="text-primary">*</span></label>
+              <input type="text" value={form.zona_eleitoral} onChange={e => update('zona_eleitoral', e.target.value)} placeholder="045" className={inputCls} />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Seção eleitoral <span className="text-primary">*</span></label>
-              <input type="text" value={form.secao_eleitoral} onChange={e => update('secao_eleitoral', e.target.value)} className={inputCls} />
+              <label className="text-xs font-medium text-muted-foreground">Seção <span className="text-primary">*</span></label>
+              <input type="text" value={form.secao_eleitoral} onChange={e => update('secao_eleitoral', e.target.value)} placeholder="0123" className={inputCls} />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Município eleitoral <span className="text-primary">*</span></label>
-              <input type="text" value={form.municipio_eleitoral} onChange={e => update('municipio_eleitoral', e.target.value)} className={inputCls} />
+          <div className="grid grid-cols-3 gap-2">
+            <div className="col-span-2 space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Município <span className="text-primary">*</span></label>
+              <input type="text" value={form.municipio_eleitoral} onChange={e => update('municipio_eleitoral', e.target.value)} placeholder="Cidade" className={inputCls} />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">UF</label>
-              <input type="text" value={form.uf_eleitoral} readOnly className={`${inputCls} bg-muted/50`} />
+              <input type="text" value="GO" readOnly className={`${inputCls} bg-muted cursor-not-allowed`} />
             </div>
           </div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">Colégio eleitoral <span className="text-primary">*</span></label>
-            <input type="text" value={form.colegio_eleitoral} onChange={e => update('colegio_eleitoral', e.target.value)} className={inputCls} />
+            <input type="text" value={form.colegio_eleitoral} onChange={e => update('colegio_eleitoral', e.target.value)} placeholder="Nome da escola / local" className={inputCls} />
           </div>
         </div>
 
