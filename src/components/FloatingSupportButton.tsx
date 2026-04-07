@@ -22,7 +22,7 @@ export default function FloatingSupportButton() {
   };
 
   return (
-    <div className="fixed top-[env(safe-area-inset-top,12px)] right-3 z-[9999] flex items-center gap-1.5 mt-1">
+    <div className="fixed top-[env(safe-area-inset-top,12px)] left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-1.5 mt-1">
       <button
         onClick={handleConheca}
         aria-label="Conheça Doutora"

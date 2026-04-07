@@ -175,7 +175,10 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
 
   const handleSave = async () => {
     if (!form.nome.trim()) { toast({ title: 'Preencha o nome', variant: 'destructive' }); return; }
+    if (!form.cpf || form.cpf.length !== 11) { toast({ title: 'Informe o CPF', variant: 'destructive' }); return; }
+    if (form.cpf.length === 11 && !validateCPF(form.cpf)) { toast({ title: 'CPF inválido', variant: 'destructive' }); return; }
     if (!form.whatsapp.trim()) { toast({ title: 'Informe o WhatsApp', variant: 'destructive' }); return; }
+    if (!form.instagram.trim()) { toast({ title: 'Informe a rede social', variant: 'destructive' }); return; }
     if (!form.titulo_eleitor.trim()) { toast({ title: 'Informe o título de eleitor', variant: 'destructive' }); return; }
     if (!form.zona_eleitoral.trim()) { toast({ title: 'Informe a zona eleitoral', variant: 'destructive' }); return; }
     if (!form.secao_eleitoral.trim()) { toast({ title: 'Informe a seção eleitoral', variant: 'destructive' }); return; }
@@ -371,7 +374,7 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
           </div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground flex items-center gap-2">
-              CPF
+              CPF <span className="text-primary">*</span>
               {cpfStatus === 'validando' && <Loader2 size={12} className="animate-spin text-muted-foreground" />}
               {cpfStatus === 'confirmado' && <CheckCircle2 size={12} className="text-emerald-500" />}
             </label>
@@ -391,7 +394,7 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
             <input type="tel" value={form.whatsapp} onChange={e => update('whatsapp', e.target.value)} placeholder="(00) 00000-0000" className={inputCls} />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Rede social</label>
+            <label className="text-xs font-medium text-muted-foreground">Rede social <span className="text-primary">*</span></label>
             <input type="text" value={form.instagram} onChange={e => update('instagram', e.target.value)} placeholder="Instagram ou Facebook (@ ou link)" className={inputCls} />
           </div>
         </div>

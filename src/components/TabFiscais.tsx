@@ -206,7 +206,10 @@ export default function TabFiscais({ refreshKey, onSaved, viewOnly }: Props) {
 
   const handleSave = async () => {
     if (!form.nome.trim()) { toast({ title: 'Preencha o nome', variant: 'destructive' }); return; }
+    if (!form.cpf || form.cpf.length !== 11) { toast({ title: 'Informe o CPF', variant: 'destructive' }); return; }
+    if (form.cpf.length === 11 && !validateCPF(form.cpf)) { toast({ title: 'CPF inválido', variant: 'destructive' }); return; }
     if (!form.whatsapp.trim()) { toast({ title: 'Informe o WhatsApp', variant: 'destructive' }); return; }
+    if (!form.instagram.trim()) { toast({ title: 'Informe a rede social', variant: 'destructive' }); return; }
     if (!form.titulo_eleitor.trim()) { toast({ title: 'Informe o título de eleitor', variant: 'destructive' }); return; }
     if (!form.zona_eleitoral.trim()) { toast({ title: 'Informe a zona eleitoral', variant: 'destructive' }); return; }
     if (!form.secao_eleitoral.trim()) { toast({ title: 'Informe a seção eleitoral', variant: 'destructive' }); return; }
@@ -392,36 +395,20 @@ export default function TabFiscais({ refreshKey, onSaved, viewOnly }: Props) {
           </div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground flex items-center gap-2">
-              CPF
+              CPF <span className="text-primary">*</span>
               {cpfStatus === 'validando' && <Loader2 size={12} className="animate-spin text-muted-foreground" />}
               {cpfStatus === 'confirmado' && <CheckCircle2 size={12} className="text-emerald-500" />}
             </label>
             <input type="text" value={maskCPF(form.cpf)} onChange={e => handleCPFChange(e.target.value)} placeholder="000.000.000-00" maxLength={14} className={`${inputCls} ${cpfBorderCls}`} />
             {cpfStatus === 'confirmado' && cpfNomePessoa && <p className="text-[10px] text-emerald-600">✓ {cpfNomePessoa}</p>}
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">WhatsApp <span className="text-primary">*</span></label>
-              <input type="tel" value={form.whatsapp} onChange={e => update('whatsapp', e.target.value)} placeholder="(62) 99999-9999" className={inputCls} />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Telefone</label>
-              <input type="tel" value={form.telefone} onChange={e => update('telefone', e.target.value)} className={inputCls} />
-            </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">WhatsApp <span className="text-primary">*</span></label>
+            <input type="tel" value={form.whatsapp} onChange={e => update('whatsapp', e.target.value)} placeholder="(62) 99999-9999" className={inputCls} />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">E-mail</label>
-            <input type="email" value={form.email} onChange={e => update('email', e.target.value)} className={inputCls} />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Instagram</label>
-              <input type="text" value={form.instagram} onChange={e => update('instagram', e.target.value)} className={inputCls} />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Facebook</label>
-              <input type="text" value={form.facebook} onChange={e => update('facebook', e.target.value)} className={inputCls} />
-            </div>
+            <label className="text-xs font-medium text-muted-foreground">Rede social <span className="text-primary">*</span></label>
+            <input type="text" value={form.instagram} onChange={e => update('instagram', e.target.value)} placeholder="Instagram ou Facebook (@ ou link)" className={inputCls} />
           </div>
         </div>
 
@@ -463,10 +450,6 @@ export default function TabFiscais({ refreshKey, onSaved, viewOnly }: Props) {
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">Colégio eleitoral <span className="text-primary">*</span></label>
             <input type="text" value={form.colegio_eleitoral} onChange={e => update('colegio_eleitoral', e.target.value)} className={inputCls} />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Endereço colégio</label>
-            <input type="text" value={form.endereco_colegio} onChange={e => update('endereco_colegio', e.target.value)} className={inputCls} />
           </div>
         </div>
 
