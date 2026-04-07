@@ -439,7 +439,7 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
         <div className="section-card">
           <h2 className="section-title">⭐ Perfil e Status</h2>
           
-          <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">Região de atuação <span className="text-primary">*</span></label><textarea value={form.regiao_atuacao} onChange={e => update('regiao_atuacao', e.target.value)} rows={2} className={textareaCls} /></div>
+          <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">Região de atuação <span className="text-primary">*</span></label><textarea value={form.regiao_atuacao} onChange={e => update('regiao_atuacao', e.target.value)} rows={2} placeholder="Ex: Setor Bueno, Jardim América..." className={textareaCls} /></div>
           <div className="space-y-1"><label className="text-xs font-medium text-muted-foreground">Quantos votos pode trazer <span className="text-primary">*</span></label><input type="number" value={form.meta_votos} onChange={e => update('meta_votos', e.target.value)} placeholder="Ex: 500" className={inputCls} /></div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">Comprometimento <span className="text-primary">*</span></label>
