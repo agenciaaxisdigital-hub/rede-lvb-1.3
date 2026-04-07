@@ -12,7 +12,7 @@ export default function FloatingSupportButton() {
   };
 
   const handleConheca = () => {
-    navigate('/');
+    window.open('https://drafernandasarelli.com.br', '_blank', 'noopener');
   };
 
   const pillStyle = {
