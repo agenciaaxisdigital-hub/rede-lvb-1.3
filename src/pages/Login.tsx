@@ -229,7 +229,6 @@ export default function Login() {
           </form>
         </div>
 
-        </div>
       </div>
 
       <FloatingSupportButton />
