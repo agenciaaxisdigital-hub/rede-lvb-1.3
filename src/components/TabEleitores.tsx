@@ -148,7 +148,7 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
         setCpfStatus('confirmado');
         setCpfNomePessoa(pessoa.nome);
         toast({ title: '✅ Pessoa encontrada!', description: `Dados de ${pessoa.nome} preenchidos` });
-      } else { setCpfStatus('idle'); setCpfDuplicado({ isDuplicate: false, tipos: [] }); }
+      } else { setCpfStatus('idle'); }
     } catch (err) { console.error(err); }
     finally { setValidandoCPF(false); }
   }, [validandoCPF, usuario?.id]);
@@ -158,7 +158,7 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
     update('cpf', cleaned);
     setCpfStatus('idle');
     setPessoaExistenteId(null);
-    setCpfDuplicado({ isDuplicate: false, tipos: [] });
+    
     if (cpfTimeoutRef.current) clearTimeout(cpfTimeoutRef.current);
     if (cleaned.length === 11) cpfTimeoutRef.current = setTimeout(() => validarCPF(cleaned), 500);
   };
@@ -368,14 +368,8 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
               {cpfStatus === 'confirmado' && <CheckCircle2 size={12} className="text-emerald-500" />}
             </label>
             <input type="text" inputMode="numeric" value={formatCPF(form.cpf)} onChange={e => handleCPFChange(e.target.value)} placeholder="000.000.000-00" className={`${inputCls} ${cpfBorderCls}`} maxLength={14} />
-            {cpfStatus === 'confirmado' && cpfNomePessoa && !cpfDuplicado.isDuplicate && (
+            {cpfStatus === 'confirmado' && cpfNomePessoa && (
               <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">✅ Pessoa encontrada: {cpfNomePessoa}</p>
-            )}
-            {cpfDuplicado.isDuplicate && (
-              <div className="p-2 rounded-lg bg-destructive/10 border border-destructive/30">
-                <p className="text-xs font-semibold text-destructive">⚠️ Você já cadastrou este CPF como: {cpfDuplicado.tipos.join(', ')}</p>
-                <p className="text-[10px] text-destructive/80 mt-0.5">Não é possível cadastrar o mesmo CPF duas vezes pelo mesmo usuário.</p>
-              </div>
             )}
           </div>
           <div className="space-y-1">
