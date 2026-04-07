@@ -528,6 +528,9 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
                     <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/15 text-blue-600 dark:text-blue-400">Visita</span>
                   )}
                 </div>
+                {l.regiao_atuacao && (
+                  <p className="text-[10px] text-muted-foreground truncate">{l.regiao_atuacao}</p>
+                )}
                 <p className="text-xs text-muted-foreground truncate">
                   {l.tipo_lideranca || '—'}{l.zona_atuacao ? ` · Z${l.zona_atuacao}` : ''}
                   {l.apoiadores_estimados ? ` · ${l.apoiadores_estimados} apoiadores` : ''}
