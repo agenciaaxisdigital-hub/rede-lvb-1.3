@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useInvalidarCadastros } from '@/hooks/useDataCache';
 import { useCidade } from '@/contexts/CidadeContext';
-import { formatCPF, cleanCPF, validateCPF, maskCPF } from '@/lib/cpf';
+import { formatCPF, cleanCPF, validateCPF } from '@/lib/cpf';
 
 import { resolverLigacaoPolitica } from '@/lib/resolverLigacaoPolitica';
 import { toast } from '@/hooks/use-toast';
