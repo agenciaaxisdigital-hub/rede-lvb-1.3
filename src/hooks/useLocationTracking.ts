@@ -10,17 +10,26 @@ export function useLocationTracking() {
   const { usuario } = useAuth();
 
   useEffect(() => {
-    if (!usuario?.id) return;
-    if (!('geolocation' in navigator)) return;
+    if (!usuario?.id) {
+      console.log('[Location] No usuario id, skipping');
+      return;
+    }
+    if (!('geolocation' in navigator)) {
+      console.log('[Location] Geolocation API not available');
+      return;
+    }
 
     let active = true;
+    console.log('[Location] Tracking started for user', usuario.id);
 
     const send = () => {
+      console.log('[Location] Requesting position...');
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
           if (!active) return;
+          console.log('[Location] Got position:', pos.coords.latitude, pos.coords.longitude, 'accuracy:', pos.coords.accuracy);
           try {
-            await supabase.from('localizacoes_usuarios').insert({
+            const { error } = await supabase.from('localizacoes_usuarios').insert({
               usuario_id: usuario.id,
               latitude: pos.coords.latitude,
               longitude: pos.coords.longitude,
@@ -30,12 +39,17 @@ export function useLocationTracking() {
               bateria_nivel: null,
               em_movimento: null,
             });
+            if (error) {
+              console.warn('[Location] insert error', error.message);
+            } else {
+              console.log('[Location] Position saved successfully');
+            }
           } catch (err) {
-            console.warn('[Location] insert error', err);
+            console.warn('[Location] insert exception', err);
           }
         },
-        (err) => console.warn('[Location] geolocation error', err.message),
-        { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+        (err) => console.warn('[Location] geolocation error', err.code, err.message),
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
       );
     };
 
