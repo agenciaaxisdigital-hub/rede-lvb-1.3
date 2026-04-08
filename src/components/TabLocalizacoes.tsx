@@ -88,7 +88,7 @@ export default function TabLocalizacoes() {
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [rastro, setRastro] = useState<Localizacao[]>([]);
-  const [loadingRastro, setLoadingRastro] = useState(false);
+  const [loadingRastro] = useState(false);
   const [expandedList, setExpandedList] = useState(true);
   const [expandedUserInList, setExpandedUserInList] = useState<string | null>(null);
   const [enderecos, setEnderecos] = useState<Map<string, string>>(new Map());
@@ -152,33 +152,19 @@ export default function TabLocalizacoes() {
     });
   }, [localizacoes]);
 
-  /* ── Fetch user trail ── */
-  const fetchRastro = useCallback(async (userId: string) => {
-    setLoadingRastro(true);
-    try {
-      const { data } = await supabase
-        .from('localizacoes_usuarios')
-        .select('id, usuario_id, latitude, longitude, precisao, criado_em')
-        .eq('usuario_id', userId)
-        .order('criado_em', { ascending: true })
-        .limit(200);
-      setRastro(data || []);
-    } catch (err) {
-      console.error('[Rastro] fetch error', err);
-    } finally {
-      setLoadingRastro(false);
-    }
-  }, []);
-
   const handleSelectUser = useCallback((userId: string) => {
     if (selectedUser === userId) {
       setSelectedUser(null);
       setRastro([]);
     } else {
       setSelectedUser(userId);
-      fetchRastro(userId);
+      // Use already-loaded 24h data, sorted ascending for polyline
+      const userLocs = (allLocalizacoes || [])
+        .filter(l => l.usuario_id === userId)
+        .sort((a, b) => new Date(a.criado_em).getTime() - new Date(b.criado_em).getTime());
+      setRastro(userLocs);
     }
-  }, [selectedUser, fetchRastro]);
+  }, [selectedUser, allLocalizacoes]);
 
   /* ── Build map data ── */
   const userNameMap = useMemo(() => {
