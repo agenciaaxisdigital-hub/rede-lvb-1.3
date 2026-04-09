@@ -79,10 +79,8 @@ function useFiscais() {
       return (data || []) as FiscalRow[];
     },
     enabled: !!usuario,
-    staleTime: 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-    refetchInterval: 5000,
-    refetchIntervalInBackground: false,
+    staleTime: 60_000,
+    gcTime: 15 * 60 * 1000,
   });
 }
 
