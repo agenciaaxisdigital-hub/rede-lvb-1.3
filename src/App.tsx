@@ -90,10 +90,10 @@ function PwaSilentUpdater() {
   } = useRegisterSW({
     onRegisteredSW(_swUrl, registration) {
       if (registration) {
-        // Check for updates every 60 seconds
+        // Check for updates every 10 seconds for fast OTA on mobile
         setInterval(() => {
           registration.update().catch(() => {});
-        }, 60_000);
+        }, 10_000);
       }
     },
     onRegisterError(error) {

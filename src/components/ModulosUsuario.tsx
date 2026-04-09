@@ -9,6 +9,12 @@ const MODULOS = [
   { id: 'cadastrar_eleitores', label: '🎯 Eleitores', desc: 'Pode cadastrar somente eleitores' },
 ];
 
+// Modules that are mutually exclusive — selecting one removes the other
+const MUTUALLY_EXCLUSIVE: Record<string, string[]> = {
+  cadastrar_liderancas: ['cadastrar_eleitores'],
+  cadastrar_eleitores: ['cadastrar_liderancas'],
+};
+
 interface Props {
   usuarioId: string;
   onClose?: () => void;
@@ -40,6 +46,7 @@ export default function ModulosUsuario({ usuarioId, onClose }: Props) {
 
     try {
       if (isActive) {
+        // Deactivate
         await (supabase as any)
           .from('usuario_modulos')
           .delete()
@@ -50,11 +57,32 @@ export default function ModulosUsuario({ usuarioId, onClose }: Props) {
           next.delete(modulo);
           return next;
         });
+        toast({ title: `Módulo removido` });
       } else {
+        // Activate — first remove mutually exclusive modules
+        const toRemove = MUTUALLY_EXCLUSIVE[modulo] || [];
+        for (const rem of toRemove) {
+          if (modulosAtivos.has(rem)) {
+            await (supabase as any)
+              .from('usuario_modulos')
+              .delete()
+              .eq('usuario_id', usuarioId)
+              .eq('modulo', rem);
+          }
+        }
+
+        // Insert new module
         await (supabase as any)
           .from('usuario_modulos')
           .insert({ usuario_id: usuarioId, modulo });
-        setModulosAtivos(prev => new Set([...prev, modulo]));
+
+        setModulosAtivos(prev => {
+          const next = new Set(prev);
+          toRemove.forEach(r => next.delete(r));
+          next.add(modulo);
+          return next;
+        });
+        toast({ title: `Módulo ativado` });
       }
     } catch (err: any) {
       toast({ title: 'Erro ao alterar módulo', description: err.message, variant: 'destructive' });
