@@ -368,7 +368,14 @@ export default function TabPerfil() {
       if (editNome.trim() !== editUser.nome) body.novo_nome = editNome.trim();
       if (editSenha.trim()) body.nova_senha = editSenha.trim();
       if (editCidade && editCidade !== (editUser.municipio_id || '')) body.novo_municipio_id = editCidade;
-      if (!body.novo_nome && !body.nova_senha && !body.novo_municipio_id) { toast({ title: 'Nenhuma alteração' }); setEditSaving(false); return; }
+      if (!body.novo_nome && !body.nova_senha && !body.novo_municipio_id) {
+        // Modules are saved independently via ModulosUsuario component
+        toast({ title: '✅ Módulos atualizados!' });
+        setEditSaving(false);
+        setView('list');
+        fetchAll();
+        return;
+      }
       const { data, error } = await supabase.functions.invoke('gerenciar-usuario', { body });
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
