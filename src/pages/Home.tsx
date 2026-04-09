@@ -44,6 +44,27 @@ export default function Home() {
   const isAdminOrCoord = tipoUsuario === 'super_admin' || tipoUsuario === 'coordenador';
   const showCitySelector = isAdminOrCoord && municipios.length > 0;
 
+  // Auto-correct tab if user doesn't have access to current tab
+  useEffect(() => {
+    if (!usuario?.id || isAdminOrCoord) return;
+    supabase.from('usuario_modulos').select('modulo').eq('usuario_id', usuario.id)
+      .then(({ data }) => {
+        if (!data) return;
+        const modulos = new Set(data.map((d: any) => d.modulo));
+        const hasLiderancas = modulos.has('master') || modulos.has('cadastrar_liderancas');
+        const hasEleitores = modulos.has('master') || modulos.has('cadastrar_liderancas') || modulos.has('cadastrar_eleitores');
+        
+        // If on liderancas/fiscais tab but only has eleitores module, redirect
+        if ((activeTab === 'liderancas' || activeTab === 'fiscais') && !hasLiderancas) {
+          if (hasEleitores) {
+            handleTabChange('eleitores');
+          } else {
+            handleTabChange('cadastros');
+          }
+        }
+      });
+  }, [usuario?.id, isAdminOrCoord]);
+
   useEffect(() => {
     try {
       localStorage.setItem(TAB_STORAGE_KEY, activeTab);
