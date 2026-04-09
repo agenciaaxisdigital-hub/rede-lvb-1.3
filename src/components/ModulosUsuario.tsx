@@ -8,7 +8,11 @@ const MODULOS = [
   { id: 'cadastrar_liderancas', label: '👥 Lideranças', desc: 'Pode cadastrar lideranças, fiscais e eleitores' },
   { id: 'cadastrar_eleitores', label: '🎯 Eleitores', desc: 'Pode cadastrar somente eleitores' },
 ];
-
+// Modules that are mutually exclusive — only one active at a time
+const MUTUALLY_EXCLUSIVE: Record<string, string[]> = {
+  cadastrar_liderancas: ['cadastrar_eleitores'],
+  cadastrar_eleitores: ['cadastrar_liderancas'],
+};
 
 interface Props {
   usuarioId: string;
@@ -54,12 +58,26 @@ export default function ModulosUsuario({ usuarioId, onClose }: Props) {
         });
         toast({ title: `Módulo removido` });
       } else {
-        // Activate
+        // Activate — remove mutually exclusive modules first
+        const toRemove = (MUTUALLY_EXCLUSIVE[modulo] || []).filter(m => modulosAtivos.has(m));
+        for (const rem of toRemove) {
+          await (supabase as any)
+            .from('usuario_modulos')
+            .delete()
+            .eq('usuario_id', usuarioId)
+            .eq('modulo', rem);
+        }
+
         await (supabase as any)
           .from('usuario_modulos')
           .insert({ usuario_id: usuarioId, modulo });
 
-        setModulosAtivos(prev => new Set([...prev, modulo]));
+        setModulosAtivos(prev => {
+          const next = new Set(prev);
+          toRemove.forEach(r => next.delete(r));
+          next.add(modulo);
+          return next;
+        });
         toast({ title: `Módulo ativado` });
       }
     } catch (err: any) {
