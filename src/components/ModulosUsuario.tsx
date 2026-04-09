@@ -43,20 +43,23 @@ export default function ModulosUsuario({ usuarioId, onClose }: Props) {
 
     try {
       if (modulosParaRemover.length > 0) {
-        await (supabase as any)
+        const { error: delErr } = await (supabase as any)
           .from('usuario_modulos')
           .delete()
           .eq('usuario_id', usuarioId)
           .in('modulo', modulosParaRemover);
+        if (delErr) throw delErr;
       }
 
       if (modulosParaAdicionar.length > 0) {
-        await (supabase as any)
+        const { error: insErr } = await (supabase as any)
           .from('usuario_modulos')
           .insert(modulosParaAdicionar.map(item => ({ usuario_id: usuarioId, modulo: item })));
+        if (insErr) throw insErr;
       }
 
       setModulosAtivos(nextModulos);
+      toast({ title: '✅ Permissão atualizada!' });
     } catch (err: any) {
       toast({ title: 'Erro ao alterar módulo', description: err.message, variant: 'destructive' });
     } finally {
