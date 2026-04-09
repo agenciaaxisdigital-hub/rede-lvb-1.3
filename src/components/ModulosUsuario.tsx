@@ -9,11 +9,6 @@ const MODULOS = [
   { id: 'cadastrar_eleitores', label: '🎯 Eleitores', desc: 'Pode cadastrar somente eleitores' },
 ];
 
-// Modules that are mutually exclusive — selecting one removes the other
-const MUTUALLY_EXCLUSIVE: Record<string, string[]> = {
-  cadastrar_liderancas: ['cadastrar_eleitores'],
-  cadastrar_eleitores: ['cadastrar_liderancas'],
-};
 
 interface Props {
   usuarioId: string;
