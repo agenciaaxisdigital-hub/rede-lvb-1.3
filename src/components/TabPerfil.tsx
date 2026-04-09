@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import ModulosUsuario from '@/components/ModulosUsuario';
-import { getDefaultModulesForTipo, toggleModuleSelection } from '@/lib/moduleSelection';
 
 const tipoLabels: Record<string, string> = {
   super_admin: 'Super Admin',
@@ -178,7 +177,7 @@ export default function TabPerfil() {
   const [tipoNovo, setTipoNovo] = useState<string>('suplente');
   const [senhaNova, setSenhaNova] = useState('');
   const [showSenha, setShowSenha] = useState(false);
-  const [selectedModulos, setSelectedModulos] = useState<Set<string>>(() => getDefaultModulesForTipo('suplente'));
+  const [selectedModulos, setSelectedModulos] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [externalSearch, setExternalSearch] = useState('');
   const [createCidade, setCreateCidade] = useState('');
@@ -276,7 +275,7 @@ export default function TabPerfil() {
     setTipoNovo('suplente');
     setSenhaNova('');
     setShowSenha(false);
-    setSelectedModulos(getDefaultModulesForTipo('suplente'));
+    setSelectedModulos(new Set());
     setExternalSearch('');
     setCreateCidade(municipios.length === 1 ? municipios[0].id : '');
   };
@@ -368,14 +367,8 @@ export default function TabPerfil() {
       if (editNome.trim() !== editUser.nome) body.novo_nome = editNome.trim();
       if (editSenha.trim()) body.nova_senha = editSenha.trim();
       if (editCidade && editCidade !== (editUser.municipio_id || '')) body.novo_municipio_id = editCidade;
-      if (!body.novo_nome && !body.nova_senha && !body.novo_municipio_id) {
-        // Modules are saved independently via ModulosUsuario component
-        toast({ title: '✅ Módulos atualizados!' });
-        setEditSaving(false);
-        setView('list');
-        fetchAll();
-        return;
-      }
+      if (!body.novo_nome && !body.nova_senha && !body.novo_municipio_id) { toast({ title: 'Nenhuma alteração' }); setEditSaving(false); return; }
+
       const { data, error } = await supabase.functions.invoke('gerenciar-usuario', { body });
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
@@ -411,7 +404,11 @@ export default function TabPerfil() {
   };
 
   const toggleModulo = (id: string) => {
-    setSelectedModulos(prev => toggleModuleSelection(prev, id));
+    setSelectedModulos(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
   };
 
   const IconComponent = tipoUsuario ? tipoIcons[tipoUsuario] : User;
@@ -595,12 +592,7 @@ export default function TabPerfil() {
                 ].map(opt => (
                   <button
                     key={opt.value}
-                    onClick={() => {
-                      setTipoNovo(opt.value);
-                      if (opt.value === 'suplente') {
-                        setSelectedModulos(getDefaultModulesForTipo(opt.value));
-                      }
-                    }}
+                    onClick={() => setTipoNovo(opt.value)}
                     className={`py-2.5 rounded-xl text-xs font-semibold transition-all ${
                       tipoNovo === opt.value
                         ? 'bg-primary text-primary-foreground shadow-lg'

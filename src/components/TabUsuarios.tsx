@@ -10,7 +10,6 @@ import {
   Navigation, Clock
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { getDefaultModulesForTipo, toggleModuleSelection } from '@/lib/moduleSelection';
 
 interface SuplenteExterno {
   id: string;
@@ -72,7 +71,7 @@ export default function TabUsuarios() {
   // Avulso: link to suplente/liderança
   const [linkedSuplenteId, setLinkedSuplenteId] = useState<string | null>(null);
   const [linkSearch, setLinkSearch] = useState('');
-  const [selectedModulos, setSelectedModulos] = useState<Set<string>>(() => getDefaultModulesForTipo('suplente'));
+  const [selectedModulos, setSelectedModulos] = useState<Set<string>>(new Set());
 
   // Edit user state
   const [editing, setEditing] = useState<HierarchyUser | null>(null);
@@ -153,7 +152,7 @@ export default function TabUsuarios() {
     setShowSenha(false);
     setLinkedSuplenteId(sup.id);
     setLinkSearch('');
-    setSelectedModulos(getDefaultModulesForTipo('suplente'));
+    setSelectedModulos(new Set());
     setCidadeSelecionada('');
     setCidadeErro('');
   };
@@ -167,7 +166,7 @@ export default function TabUsuarios() {
     setShowSenha(false);
     setLinkedSuplenteId(null);
     setLinkSearch('');
-    setSelectedModulos(getDefaultModulesForTipo('suplente'));
+    setSelectedModulos(new Set());
     setCidadeSelecionada('');
     setCidadeErro('');
   };
@@ -300,7 +299,12 @@ export default function TabUsuarios() {
   };
 
   const toggleModuloInline = (modulo: string) => {
-    setSelectedModulos(prev => toggleModuleSelection(prev, modulo));
+    setSelectedModulos(prev => {
+      const next = new Set(prev);
+      if (next.has(modulo)) next.delete(modulo);
+      else next.add(modulo);
+      return next;
+    });
   };
 
   const inputCls = "w-full h-11 px-3 bg-card border border-border rounded-xl text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30";
@@ -520,14 +524,7 @@ export default function TabUsuarios() {
                   { value: 'coordenador', label: 'Coordenador', icon: '📋' },
                 ].map(opt => (
                   <button key={opt.value}
-                    onClick={() => {
-                      setTipoUsuario(opt.value);
-                      setLinkedSuplenteId(null);
-                      setLinkSearch('');
-                      if (opt.value === 'suplente') {
-                        setSelectedModulos(getDefaultModulesForTipo(opt.value));
-                      }
-                    }}
+                    onClick={() => { setTipoUsuario(opt.value); setLinkedSuplenteId(null); setLinkSearch(''); }}
                     className={`py-2.5 rounded-xl text-xs font-semibold transition-all ${
                       tipoUsuario === opt.value
                         ? 'gradient-primary text-white shadow-lg'
