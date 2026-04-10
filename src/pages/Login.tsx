@@ -22,6 +22,11 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [remember, setRemember] = useState(() => !!localStorage.getItem("saved_user"));
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockedUntil, setLockedUntil] = useState<number | null>(null);
+
+  // Rate limiting: lock after 5 failed attempts
+  const isLocked = lockedUntil !== null && Date.now() < lockedUntil;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,11 +34,28 @@ export default function Login() {
       toast({ title: 'Preencha nome e senha', variant: 'destructive' });
       return;
     }
+    if (isLocked) {
+      const remainingSec = Math.ceil((lockedUntil! - Date.now()) / 1000);
+      toast({ title: `Aguarde ${remainingSec}s`, description: 'Muitas tentativas. Tente novamente em breve.', variant: 'destructive' });
+      return;
+    }
     setLoading(true);
     const { error } = await signIn(username, password);
     setLoading(false);
     if (error) {
-      toast({ title: 'Erro ao entrar', description: 'Nome ou senha incorretos', variant: 'destructive' });
+      const newCount = failedAttempts + 1;
+      setFailedAttempts(newCount);
+      if (newCount >= 5) {
+        // Lock for 30s after 5 failures, exponentially increasing
+        const lockMs = Math.min(30000 * Math.pow(2, Math.floor((newCount - 5) / 3)), 300000);
+        setLockedUntil(Date.now() + lockMs);
+        toast({ title: 'Conta temporariamente bloqueada', description: `Muitas tentativas. Aguarde ${Math.round(lockMs / 1000)}s.`, variant: 'destructive' });
+      } else {
+        toast({ title: 'Erro ao entrar', description: 'Nome ou senha incorretos', variant: 'destructive' });
+      }
+    } else {
+      setFailedAttempts(0);
+      setLockedUntil(null);
     }
     if (remember) localStorage.setItem("saved_user", username);
     else localStorage.removeItem("saved_user");
@@ -206,12 +228,12 @@ export default function Login() {
             <button
               data-testid="btn-entrar"
               type="submit"
-              disabled={loading}
+              disabled={loading || isLocked}
               className="w-full h-12 rounded-xl font-bold text-white transition-all active:scale-[0.97] disabled:opacity-60 hover:brightness-110 flex items-center justify-center gap-2.5"
               style={{
                 ...entrance(0.5),
-                background: 'linear-gradient(135deg, #ec4899, #d4a054)',
-                boxShadow: '0 4px 20px rgba(236,72,153,0.3), 0 2px 8px rgba(200,170,100,0.2)',
+                background: isLocked ? '#999' : 'linear-gradient(135deg, #ec4899, #d4a054)',
+                boxShadow: isLocked ? 'none' : '0 4px 20px rgba(236,72,153,0.3), 0 2px 8px rgba(200,170,100,0.2)',
               }}
             >
               {loading ? (
@@ -219,6 +241,8 @@ export default function Login() {
                   <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" />
                   Entrando...
                 </>
+              ) : isLocked ? (
+                'Aguarde...'
               ) : (
                 <>
                   <LogIn className="w-5 h-5" strokeWidth={2.5} />
