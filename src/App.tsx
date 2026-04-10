@@ -90,6 +90,7 @@ function OfflineSyncManager() {
 /** PWA silent auto-update — no popup, reloads automatically */
 function PwaSilentUpdater() {
   const updateBlockedRef = useRef(false);
+  const updateCheckFailures = useRef(0);
 
   const {
     needRefresh: [needRefresh],
@@ -98,13 +99,38 @@ function PwaSilentUpdater() {
     onRegisteredSW(_swUrl, registration) {
       if (registration) {
         // Check for updates every 30 seconds (balanced: fast OTA without battery drain)
-        setInterval(() => {
-          registration.update().catch(() => {});
+        setInterval(async () => {
+          try {
+            await registration.update();
+            updateCheckFailures.current = 0;
+          } catch (err) {
+            updateCheckFailures.current++;
+            // If SW update checks fail 5+ times, SW may be corrupt
+            if (updateCheckFailures.current >= 5) {
+              console.warn('[SW] Multiple update check failures — attempting SW recovery');
+              try {
+                await registration.unregister();
+                // Clear caches to prevent stale content
+                if ('caches' in window) {
+                  const names = await caches.keys();
+                  await Promise.all(names.map(n => caches.delete(n)));
+                }
+                console.log('[SW] Recovery complete — reloading');
+                window.location.reload();
+              } catch (recoveryErr) {
+                console.error('[SW] Recovery failed:', recoveryErr);
+              }
+            }
+          }
         }, 30_000);
       }
     },
     onRegisterError(error) {
       console.error('[SW] Registration error:', error);
+      // If SW fails to register, clear caches as fallback
+      if ('caches' in window) {
+        caches.keys().then(names => names.forEach(n => caches.delete(n)));
+      }
     },
   });
 
@@ -118,7 +144,7 @@ function PwaSilentUpdater() {
         if (pending > 0) {
           console.log(`[SW] ${pending} offline items pending, deferring update...`);
           updateBlockedRef.current = true;
-          return; // Will retry on next interval
+          return;
         }
         updateBlockedRef.current = false;
         updateServiceWorker(true);
@@ -138,6 +164,46 @@ function PwaSilentUpdater() {
       return () => { clearTimeout(t); clearInterval(retryInterval); };
     }
   }, [needRefresh, updateServiceWorker]);
+
+  return null;
+}
+
+/** Global unhandled error recovery — prevents permanent white screen */
+function GlobalErrorRecovery() {
+  useEffect(() => {
+    let errorCount = 0;
+    const resetTimer = setInterval(() => { errorCount = 0; }, 60_000);
+
+    const handleError = (event: ErrorEvent) => {
+      errorCount++;
+      console.error('[GlobalRecovery] Unhandled error:', event.error?.message);
+      
+      // If chunk load failures (common after PWA update), reload once
+      if (event.message?.includes('Failed to fetch dynamically imported module') ||
+          event.message?.includes('Loading chunk') ||
+          event.message?.includes('Loading CSS chunk')) {
+        console.warn('[GlobalRecovery] Chunk load failure — reloading');
+        window.location.reload();
+      }
+    };
+
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      const reason = event.reason?.message || String(event.reason);
+      if (reason.includes('Failed to fetch dynamically imported module') ||
+          reason.includes('Loading chunk')) {
+        console.warn('[GlobalRecovery] Async chunk failure — reloading');
+        window.location.reload();
+      }
+    };
+
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleRejection);
+    return () => {
+      clearInterval(resetTimer);
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleRejection);
+    };
+  }, []);
 
   return null;
 }
