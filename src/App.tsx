@@ -12,6 +12,7 @@ import { EventoProvider } from "@/contexts/EventoContext";
 import LoadingScreen from "@/components/LoadingScreen";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { startAutoSync, syncOfflineData } from "@/services/offlineSync";
+import SyncStatusBanner from "@/components/SyncStatusBanner";
 import { createIdbPersister } from "@/lib/queryPersistence";
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
@@ -142,6 +143,7 @@ function App() {
                 <ErrorBoundary>
                   <PwaSilentUpdater />
                   <OfflineSyncManager />
+                  <SyncStatusBanner />
                   <AppRoutes />
                 </ErrorBoundary>
               </EventoProvider>
