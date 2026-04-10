@@ -168,7 +168,7 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
       lideranca_id: ligLiderancaId || form.lideranca_id || null,
       compromisso_voto: form.compromisso_voto,
       observacoes: form.observacoes || null,
-      municipio_id: ligMunicipioId || null,
+      municipio_id: ligMunicipioId || cidadeAtiva?.id || null,
       evento_id: eventoAtivo?.id || null,
       origem_captacao: form.regiao_atuacao || null,
     };

@@ -196,7 +196,7 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
         observacoes: form.observacoes || null,
         cadastrado_por: usuario?.id || null,
         suplente_id: suplenteId,
-        municipio_id: ligMunicipioId || null,
+        municipio_id: ligMunicipioId || cidadeAtiva?.id || null,
         evento_id: eventoAtivo?.id || null,
       };
 
