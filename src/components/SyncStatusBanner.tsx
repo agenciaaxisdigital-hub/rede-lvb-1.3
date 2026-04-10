@@ -1,108 +1,108 @@
 import { useState, useEffect } from 'react';
-import { WifiOff, Wifi, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { WifiOff, Loader2, CheckCircle2, AlertCircle, CloudOff } from 'lucide-react';
 import { getPendingCount } from '@/lib/offlineQueue';
 import { onSyncStatusChange, syncOfflineData } from '@/services/offlineSync';
 
-type SyncState = 'online' | 'offline' | 'syncing' | 'synced' | 'error';
+type SyncState = 'idle' | 'offline' | 'syncing' | 'synced' | 'error';
 
 export default function SyncStatusBanner() {
   const [online, setOnline] = useState(navigator.onLine);
   const [pending, setPending] = useState(0);
-  const [syncState, setSyncState] = useState<SyncState>(navigator.onLine ? 'online' : 'offline');
+  const [syncState, setSyncState] = useState<SyncState>('idle');
   const [lastResult, setLastResult] = useState<{ synced: number; failed: number } | null>(null);
-  const [visible, setVisible] = useState(false);
 
-  // Track online/offline
   useEffect(() => {
-    const goOnline = () => { setOnline(true); setSyncState('syncing'); };
-    const goOffline = () => { setOnline(false); setSyncState('offline'); setVisible(true); };
+    const goOnline = () => { setOnline(true); };
+    const goOffline = () => { setOnline(false); setSyncState('offline'); };
     window.addEventListener('online', goOnline);
     window.addEventListener('offline', goOffline);
+    if (!navigator.onLine) setSyncState('offline');
     return () => {
       window.removeEventListener('online', goOnline);
       window.removeEventListener('offline', goOffline);
     };
   }, []);
 
-  // Poll pending count
   useEffect(() => {
     const check = () => getPendingCount().then(setPending).catch(() => {});
     check();
     const interval = setInterval(check, 3000);
-    const unsub = onSyncStatusChange(() => {
-      check();
-    });
+    const unsub = onSyncStatusChange(check);
     return () => { clearInterval(interval); unsub(); };
   }, []);
 
-  // Show banner when there are pending items or offline
+  // Auto-sync when back online with pending items
   useEffect(() => {
-    if (!online || pending > 0) {
-      setVisible(true);
-    }
-  }, [online, pending]);
-
-  // When back online with pending items, auto-sync
-  useEffect(() => {
-    if (online && pending > 0) {
+    if (online && pending > 0 && syncState !== 'syncing') {
       setSyncState('syncing');
       syncOfflineData().then(result => {
         setLastResult(result);
         setSyncState(result.failed > 0 ? 'error' : 'synced');
-        // Hide after success
         if (result.failed === 0) {
-          setTimeout(() => setVisible(false), 4000);
+          setTimeout(() => setSyncState('idle'), 4000);
         }
       });
-    } else if (online && pending === 0 && syncState === 'syncing') {
-      setSyncState('synced');
-      setTimeout(() => setVisible(false), 3000);
+    } else if (online && pending === 0 && syncState === 'offline') {
+      setSyncState('idle');
     }
   }, [online, pending]);
 
-  if (!visible) return null;
+  // Nothing to show
+  if (syncState === 'idle' && pending === 0) return null;
 
-  const config: Record<SyncState, { icon: React.ReactNode; text: string; bg: string }> = {
+  // Discrete floating pill at bottom-right, above bottom nav
+  const pills: Record<Exclude<SyncState, 'idle'>, { icon: React.ReactNode; text: string; cls: string }> = {
     offline: {
-      icon: <WifiOff size={16} />,
-      text: `Sem internet${pending > 0 ? ` • ${pending} cadastro${pending > 1 ? 's' : ''} salvo${pending > 1 ? 's' : ''} localmente` : ''}`,
-      bg: 'bg-amber-500/90',
+      icon: <WifiOff size={14} />,
+      text: pending > 0 ? `Offline · ${pending} pendente${pending > 1 ? 's' : ''}` : 'Sem internet',
+      cls: 'bg-amber-600 text-white',
     },
     syncing: {
-      icon: <Loader2 size={16} className="animate-spin" />,
-      text: `Sincronizando ${pending} cadastro${pending > 1 ? 's' : ''}...`,
-      bg: 'bg-blue-500/90',
+      icon: <Loader2 size={14} className="animate-spin" />,
+      text: `Sincronizando${pending > 0 ? ` (${pending})` : ''}...`,
+      cls: 'bg-blue-600 text-white',
     },
     synced: {
-      icon: <CheckCircle2 size={16} />,
-      text: lastResult ? `${lastResult.synced} cadastro${lastResult.synced > 1 ? 's' : ''} sincronizado${lastResult.synced > 1 ? 's' : ''}!` : 'Tudo sincronizado!',
-      bg: 'bg-emerald-500/90',
+      icon: <CheckCircle2 size={14} />,
+      text: lastResult ? `${lastResult.synced} sincronizado${lastResult.synced > 1 ? 's' : ''}` : 'Sincronizado!',
+      cls: 'bg-emerald-600 text-white',
     },
     error: {
-      icon: <AlertCircle size={16} />,
-      text: lastResult ? `${lastResult.synced} enviado${lastResult.synced > 1 ? 's' : ''}, ${lastResult.failed} com erro` : 'Erro na sincronização',
-      bg: 'bg-red-500/90',
-    },
-    online: {
-      icon: <Wifi size={16} />,
-      text: 'Conectado',
-      bg: 'bg-emerald-500/90',
+      icon: <AlertCircle size={14} />,
+      text: lastResult ? `${lastResult.failed} com erro` : 'Erro',
+      cls: 'bg-red-600 text-white',
     },
   };
 
-  const { icon, text, bg } = config[syncState];
+  // If idle but has pending items (shouldn't happen often, but handle gracefully)
+  if (syncState === 'idle' && pending > 0) {
+    return (
+      <div className="fixed bottom-20 right-3 z-50 flex items-center gap-1.5 px-3 py-1.5 rounded-full shadow-lg text-xs font-medium bg-amber-600 text-white animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <CloudOff size={14} />
+        <span>{pending} pendente{pending > 1 ? 's' : ''}</span>
+      </div>
+    );
+  }
+
+  const { icon, text, cls } = pills[syncState as Exclude<SyncState, 'idle'>];
 
   return (
-    <div className={`fixed top-0 left-0 right-0 z-[100] ${bg} text-white px-4 py-2 flex items-center justify-center gap-2 text-sm font-medium shadow-lg animate-in slide-in-from-top duration-300`}>
+    <div
+      className={`fixed bottom-20 right-3 z-50 flex items-center gap-1.5 px-3 py-1.5 rounded-full shadow-lg text-xs font-medium ${cls} animate-in fade-in slide-in-from-bottom-2 duration-300`}
+      onClick={() => {
+        if (syncState === 'error' && pending > 0) {
+          setSyncState('syncing');
+          syncOfflineData().then(r => {
+            setLastResult(r);
+            setSyncState(r.failed > 0 ? 'error' : 'synced');
+          });
+        }
+      }}
+    >
       {icon}
       <span>{text}</span>
-      {syncState === 'error' && pending > 0 && (
-        <button
-          onClick={() => { setSyncState('syncing'); syncOfflineData().then(r => { setLastResult(r); setSyncState(r.failed > 0 ? 'error' : 'synced'); }); }}
-          className="ml-2 px-2 py-0.5 bg-white/20 rounded text-xs hover:bg-white/30 transition"
-        >
-          Tentar novamente
-        </button>
+      {syncState === 'error' && (
+        <span className="ml-1 opacity-70 text-[10px]">Toque p/ tentar</span>
       )}
     </div>
   );

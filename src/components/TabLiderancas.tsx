@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Search, ChevronRight, Phone, MessageCircle, Trash2, ArrowLeft, XCircle, Download, Loader2, ExternalLink, PlusCircle } from 'lucide-react';
+import { Search, ChevronRight, Phone, MessageCircle, Trash2, ArrowLeft, XCircle, Download, Loader2, ExternalLink, PlusCircle, CloudOff } from 'lucide-react';
 import { exportAllCadastros } from '@/lib/exportXlsx';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,6 +12,7 @@ import { toast } from '@/hooks/use-toast';
 
 import CampoLigacaoPolitica from '@/components/CampoLigacaoPolitica';
 import SkeletonLista from '@/components/SkeletonLista';
+import { useOfflineItems, type OfflineListItem } from '@/hooks/useOfflineItems';
 
 const comprometimentos = ['Alto', 'Médio', 'Baixo'];
 const situacoesTitulo = ['Regular', 'Cancelado', 'Suspenso', 'Não informado'];
@@ -60,6 +61,7 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
   const { usuario, isAdmin, tipoUsuario, municipioId: authMunicipioId } = useAuth();
   const { cidadeAtiva, isTodasCidades, nomeMunicipioPorId } = useCidade();
   const { data: cachedData, isLoading: cacheLoading, refetch: refetchCache } = useLiderancas();
+  const offlineItems = useOfflineItems('lideranca');
   const invalidarCadastros = useInvalidarCadastros();
   const [mode, setMode] = useState<'list' | 'form' | 'detail'>('list');
   const [data, setData] = useState<LiderancaRow[]>([]);
@@ -445,7 +447,9 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
         </div>
       )}
 
-      <p className="text-xs text-muted-foreground">{filtered.length} liderança{filtered.length !== 1 ? 's' : ''}</p>
+      <p className="text-xs text-muted-foreground">
+        {filtered.length}{offlineItems.length > 0 ? ` + ${offlineItems.length} pendente${offlineItems.length > 1 ? 's' : ''}` : ''} liderança{filtered.length + offlineItems.length !== 1 ? 's' : ''}
+      </p>
 
       <button onClick={() => exportAllCadastros('lideranca')}
         className="w-full h-9 flex items-center justify-center gap-2 bg-card border border-border rounded-xl text-xs font-medium text-foreground active:scale-[0.97] transition-all">
@@ -454,11 +458,34 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
 
       {loading ? (
         <SkeletonLista />
-      ) : filtered.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground"><p className="text-sm">Nenhuma liderança encontrada</p></div>
       ) : (
         <div className="space-y-2">
-          {filtered.map(l => (
+          {/* Offline pending items */}
+          {offlineItems.map(item => (
+            <div key={item.id}
+              className="w-full text-left bg-card rounded-xl border border-amber-500/40 p-3 flex items-center gap-3 opacity-80">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="font-semibold text-foreground text-sm truncate">{item.nome}</span>
+                  <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                    <CloudOff size={10} />
+                    Pendente
+                  </span>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {item.registro?.regiao_atuacao || 'Aguardando sincronização'}
+                </p>
+                {item.lastError && item.attempts > 0 && (
+                  <p className="text-[10px] text-destructive mt-0.5">Tentativa {item.attempts}/5</p>
+                )}
+              </div>
+            </div>
+          ))}
+
+          {/* Server items */}
+          {filtered.length === 0 && offlineItems.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground"><p className="text-sm">Nenhuma liderança encontrada</p></div>
+          ) : filtered.map(l => (
             <button key={l.id} onClick={() => { fetchDetalhe(l.id); setMode('detail'); }}
               className="w-full text-left bg-card rounded-xl border border-border p-3 flex items-center gap-3 active:scale-[0.98] transition-transform">
               <div className="flex-1 min-w-0">
@@ -483,7 +510,6 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
               <ChevronRight size={16} className="text-muted-foreground shrink-0" />
             </button>
           ))}
-          {/* All data loaded from cache */}
         </div>
       )}
     </div>
