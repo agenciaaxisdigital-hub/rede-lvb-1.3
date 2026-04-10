@@ -51,3 +51,8 @@ if (isPreviewHost || isInIframe) {
 console.log(`[Main] ⏱ Before render: ${(performance.now() - t0).toFixed(1)}ms`);
 createRoot(document.getElementById("root")!).render(<App />);
 console.log(`[Main] ⏱ After render call: ${(performance.now() - t0).toFixed(1)}ms`);
+
+// Initialize Web Vitals tracking after first paint
+requestAnimationFrame(() => {
+  setTimeout(() => initWebVitals(), 0);
+});
