@@ -234,6 +234,7 @@ function App() {
             <CidadeProvider>
               <EventoProvider>
                 <ErrorBoundary>
+                  <GlobalErrorRecovery />
                   <PwaSilentUpdater />
                   <OfflineSyncManager />
                   <SyncStatusBanner />
