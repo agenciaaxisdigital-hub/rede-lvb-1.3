@@ -124,9 +124,8 @@ function usePaginatedData(config: {
     enabled: config.enabled,
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
-    refetchOnMount: 'always',
+    refetchOnMount: false,
     refetchOnReconnect: 'always',
-    refetchOnWindowFocus: true,
   });
 
   // Flatten pages for backward-compatible `data` as array
