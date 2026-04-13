@@ -10,6 +10,7 @@ interface SuplenteRow {
   regiao_atuacao: string | null;
   telefone: string | null;
   partido: string | null;
+  cargo_disputado: string | null;
   situacao: string | null;
   base_politica: string | null;
   expectativa_votos: number | null;
@@ -65,6 +66,7 @@ export default function TabSuplentes({ refreshKey }: Props) {
   const [newSupPartido, setNewSupPartido] = useState('');
   const [newSupRegiao, setNewSupRegiao] = useState('');
   const [newSupTelefone, setNewSupTelefone] = useState('');
+  const [newSupCargo, setNewSupCargo] = useState('');
   const [savingNewSup, setSavingNewSup] = useState(false);
 
   // Edit user state
@@ -329,11 +331,12 @@ export default function TabSuplentes({ refreshKey }: Props) {
         partido: newSupPartido.trim() || null,
         regiao_atuacao: newSupRegiao.trim() || null,
         telefone: newSupTelefone.trim() || null,
+        cargo_disputado: newSupCargo.trim() || null,
       });
       if (error) throw new Error(error.message);
       toast({ title: '✅ Suplente criado!', description: `${newSupNome.trim()} adicionado com sucesso` });
       setCreatingNewSuplente(false);
-      setNewSupNome(''); setNewSupPartido(''); setNewSupRegiao(''); setNewSupTelefone('');
+      setNewSupNome(''); setNewSupPartido(''); setNewSupRegiao(''); setNewSupTelefone(''); setNewSupCargo('');
       fetchAll();
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
@@ -377,6 +380,10 @@ export default function TabSuplentes({ refreshKey }: Props) {
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">Telefone</label>
               <input type="text" value={newSupTelefone} onChange={e => setNewSupTelefone(e.target.value)} className={inputCls} placeholder="(62) 99999-9999" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Cargo / Profissão</label>
+              <input type="text" value={newSupCargo} onChange={e => setNewSupCargo(e.target.value)} className={inputCls} placeholder="Ex: Assistente Social, Vereador..." />
             </div>
             <button
               onClick={handleCreateNewSuplente}
@@ -564,7 +571,7 @@ export default function TabSuplentes({ refreshKey }: Props) {
             <div>
               <h2 className="text-lg font-bold text-foreground">{selected.nome}</h2>
               <p className="text-xs text-muted-foreground">
-                {selected.partido || '—'} · {selected.regiao_atuacao || '—'} · {selected.situacao || '—'}
+                {[selected.cargo_disputado, selected.partido, selected.regiao_atuacao, selected.situacao].filter(Boolean).join(' · ') || '—'}
               </p>
             </div>
             {temAcesso ? (
@@ -685,7 +692,7 @@ export default function TabSuplentes({ refreshKey }: Props) {
                   <div className="flex-1 min-w-0">
                     <span className="font-semibold text-foreground text-sm truncate block">{s.nome}</span>
                     <p className="text-[10px] text-muted-foreground truncate">
-                      {s.partido || '—'} · {s.regiao_atuacao || '—'}
+                      {[s.cargo_disputado, s.partido, s.regiao_atuacao].filter(Boolean).join(' · ') || '—'}
                     </p>
                   </div>
                 </button>
