@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Search, ChevronRight, ArrowLeft, Phone, MessageCircle, Loader2, Users, ChevronDown, UserPlus, Eye, EyeOff, CheckCircle2, Pencil, Trash2, KeyRound, Save } from 'lucide-react';
+import { Search, ChevronRight, ArrowLeft, Phone, MessageCircle, Loader2, Users, ChevronDown, UserPlus, Eye, EyeOff, CheckCircle2, Pencil, Trash2, KeyRound, Save, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
@@ -58,6 +58,14 @@ export default function TabSuplentes({ refreshKey }: Props) {
   const [showSenha, setShowSenha] = useState(false);
   const [superiorId, setSuperiorId] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Create new suplente state
+  const [creatingNewSuplente, setCreatingNewSuplente] = useState(false);
+  const [newSupNome, setNewSupNome] = useState('');
+  const [newSupPartido, setNewSupPartido] = useState('');
+  const [newSupRegiao, setNewSupRegiao] = useState('');
+  const [newSupTelefone, setNewSupTelefone] = useState('');
+  const [savingNewSup, setSavingNewSup] = useState(false);
 
   // Edit user state
   const [editingUser, setEditingUser] = useState<{ hierarquiaUser: HierarchyUser; suplente: SuplenteRow } | null>(null);
@@ -312,7 +320,77 @@ export default function TabSuplentes({ refreshKey }: Props) {
     );
   };
 
+  const handleCreateNewSuplente = async () => {
+    if (!newSupNome.trim()) { toast({ title: 'Informe o nome do suplente', variant: 'destructive' }); return; }
+    setSavingNewSup(true);
+    try {
+      const { error } = await (supabase as any).from('suplentes').insert({
+        nome: newSupNome.trim(),
+        partido: newSupPartido.trim() || null,
+        regiao_atuacao: newSupRegiao.trim() || null,
+        telefone: newSupTelefone.trim() || null,
+      });
+      if (error) throw new Error(error.message);
+      toast({ title: '✅ Suplente criado!', description: `${newSupNome.trim()} adicionado com sucesso` });
+      setCreatingNewSuplente(false);
+      setNewSupNome(''); setNewSupPartido(''); setNewSupRegiao(''); setNewSupTelefone('');
+      fetchAll();
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+    } finally { setSavingNewSup(false); }
+  };
+
   const inputCls = "w-full h-11 px-3 bg-card border border-border rounded-xl text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30";
+
+  // CREATE NEW SUPLENTE VIEW
+  if (creatingNewSuplente) {
+    return (
+      <div className="space-y-4 pb-24">
+        <button onClick={() => setCreatingNewSuplente(false)} className="flex items-center gap-1 text-sm text-muted-foreground active:scale-95">
+          <ArrowLeft size={16} /> Voltar
+        </button>
+
+        <div className="section-card">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+              <Plus size={24} className="text-primary" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-foreground">Novo Suplente</h2>
+              <p className="text-xs text-muted-foreground">Cadastrar suplente local</p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Nome *</label>
+              <input type="text" value={newSupNome} onChange={e => setNewSupNome(e.target.value)} className={inputCls} placeholder="Nome completo" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Partido</label>
+              <input type="text" value={newSupPartido} onChange={e => setNewSupPartido(e.target.value)} className={inputCls} placeholder="Ex: PL, MDB..." />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Região de atuação</label>
+              <input type="text" value={newSupRegiao} onChange={e => setNewSupRegiao(e.target.value)} className={inputCls} placeholder="Ex: Aparecida de Goiânia" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Telefone</label>
+              <input type="text" value={newSupTelefone} onChange={e => setNewSupTelefone(e.target.value)} className={inputCls} placeholder="(62) 99999-9999" />
+            </div>
+            <button
+              onClick={handleCreateNewSuplente}
+              disabled={savingNewSup}
+              className="w-full h-12 gradient-primary text-white text-sm font-semibold rounded-xl shadow-lg active:scale-[0.97] transition-all disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
+            >
+              {savingNewSup ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
+              {savingNewSup ? 'Criando...' : 'Criar Suplente'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // EDIT USER VIEW
   if (editingUser) {
@@ -549,6 +627,15 @@ export default function TabSuplentes({ refreshKey }: Props) {
   // LIST VIEW
   return (
     <div className="space-y-3 pb-24">
+      {isAdmin && (
+        <button
+          onClick={() => setCreatingNewSuplente(true)}
+          className="w-full h-11 flex items-center justify-center gap-2 bg-primary/10 text-primary text-sm font-semibold rounded-xl border border-primary/20 active:scale-[0.97] transition-all"
+        >
+          <Plus size={16} /> Novo Suplente
+        </button>
+      )}
+
       <div className="relative">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
         <input
