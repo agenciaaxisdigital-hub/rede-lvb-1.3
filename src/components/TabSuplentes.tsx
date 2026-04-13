@@ -342,6 +342,56 @@ export default function TabSuplentes({ refreshKey }: Props) {
 
   const inputCls = "w-full h-11 px-3 bg-card border border-border rounded-xl text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30";
 
+  // CREATE NEW SUPLENTE VIEW
+  if (creatingNewSuplente) {
+    return (
+      <div className="space-y-4 pb-24">
+        <button onClick={() => setCreatingNewSuplente(false)} className="flex items-center gap-1 text-sm text-muted-foreground active:scale-95">
+          <ArrowLeft size={16} /> Voltar
+        </button>
+
+        <div className="section-card">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+              <Plus size={24} className="text-primary" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-foreground">Novo Suplente</h2>
+              <p className="text-xs text-muted-foreground">Cadastrar suplente local</p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Nome *</label>
+              <input type="text" value={newSupNome} onChange={e => setNewSupNome(e.target.value)} className={inputCls} placeholder="Nome completo" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Partido</label>
+              <input type="text" value={newSupPartido} onChange={e => setNewSupPartido(e.target.value)} className={inputCls} placeholder="Ex: PL, MDB..." />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Região de atuação</label>
+              <input type="text" value={newSupRegiao} onChange={e => setNewSupRegiao(e.target.value)} className={inputCls} placeholder="Ex: Aparecida de Goiânia" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Telefone</label>
+              <input type="text" value={newSupTelefone} onChange={e => setNewSupTelefone(e.target.value)} className={inputCls} placeholder="(62) 99999-9999" />
+            </div>
+            <button
+              onClick={handleCreateNewSuplente}
+              disabled={savingNewSup}
+              className="w-full h-12 gradient-primary text-white text-sm font-semibold rounded-xl shadow-lg active:scale-[0.97] transition-all disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
+            >
+              {savingNewSup ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
+              {savingNewSup ? 'Criando...' : 'Criar Suplente'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // EDIT USER VIEW
   if (editingUser) {
     const { hierarquiaUser, suplente } = editingUser;
