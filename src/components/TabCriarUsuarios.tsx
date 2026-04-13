@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCidade } from '@/contexts/CidadeContext';
 import { toast } from '@/hooks/use-toast';
 import {
-  Loader2, UserPlus, Users, User, CheckCircle2, Search, Eye, EyeOff, Shield
+  Loader2, UserPlus, Users, User, CheckCircle2, Search, Eye, EyeOff, Shield, Plus
 } from 'lucide-react';
 
 interface SuplenteExterno {
@@ -48,6 +48,10 @@ export default function TabCriarUsuarios() {
   const [vinculoTab, setVinculoTab] = useState<VinculoTab>('suplente');
   const [search, setSearch] = useState('');
   const [selecionado, setSelecionado] = useState<{ tipo: VinculoTab; id: string; nome: string } | null>(null);
+
+  // "Criar novo" (local suplente) mode
+  const [criarNovoMode, setCriarNovoMode] = useState(false);
+  const [novoProfissao, setNovoProfissao] = useState('');
 
   // Form state
   const [tipoAcesso, setTipoAcesso] = useState<TipoAcesso>('suplente');
@@ -107,12 +111,63 @@ export default function TabCriarUsuarios() {
     setShowSenha(false);
     setCidadeSelecionada('');
     setCidadeErro('');
+    setCriarNovoMode(false);
+  };
+
+  const handleStartCriarNovo = () => {
+    setCriarNovoMode(true);
+    setSelecionado(null);
+    setNome('');
+    setNovoProfissao('');
+    setSenha('');
+    setSuperiorId('');
+    setShowSenha(false);
+    setCidadeSelecionada('');
+    setCidadeErro('');
+    setTipoAcesso('suplente');
   };
 
   const handleCreate = async () => {
     if (!nome.trim()) { toast({ title: 'Informe o nome', variant: 'destructive' }); return; }
     if (!senha.trim() || senha.length < 6) { toast({ title: 'Senha deve ter pelo menos 6 caracteres', variant: 'destructive' }); return; }
     if (!cidadeSelecionada) { setCidadeErro('Selecione a cidade do usuário'); return; }
+
+    // For "criar novo" mode, we need to create the suplente first
+    if (criarNovoMode && !selecionado) {
+      setSaving(true);
+      try {
+        // 1. Create local suplente
+        const { data: newSup, error: supError } = await (supabase as any).from('suplentes').insert({
+          nome: nome.trim(),
+          cargo_disputado: novoProfissao.trim() || null,
+        }).select('id').single();
+
+        if (supError) throw new Error(supError.message);
+
+        // 2. Create user linked to this new suplente
+        const payload: any = {
+          nome: nome.trim(),
+          senha: senha.trim(),
+          tipo: 'suplente',
+          superior_id: superiorId || null,
+          municipio_id: cidadeSelecionada,
+          suplente_id: newSup.id,
+        };
+
+        const { data, error } = await supabase.functions.invoke('criar-usuario', { body: payload });
+        if (error) throw new Error(error.message || 'Erro ao criar usuário');
+        if (data?.error) throw new Error(data.error);
+
+        toast({ title: '✅ Usuário criado!', description: `${nome} pode acessar o sistema` });
+        setCriarNovoMode(false);
+        setSelecionado(null);
+        fetchAll();
+      } catch (err: any) {
+        toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+      } finally { setSaving(false); }
+      return;
+    }
+
     if (!selecionado) return;
 
     setSaving(true);
@@ -157,6 +212,9 @@ export default function TabCriarUsuarios() {
     );
   }
 
+  // Show form for "criar novo" mode
+  const showForm = selecionado || criarNovoMode;
+
   return (
     <div className="space-y-4 pb-24">
       <div className="section-card">
@@ -179,7 +237,7 @@ export default function TabCriarUsuarios() {
               { key: 'lideranca' as VinculoTab, label: 'Liderança', icon: Users },
             ]).map(({ key, label, icon: Icon }) => (
               <button key={key}
-                onClick={() => { setVinculoTab(key); setSearch(''); setSelecionado(null); }}
+                onClick={() => { setVinculoTab(key); setSearch(''); setSelecionado(null); setCriarNovoMode(false); }}
                 className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-1.5 ${
                   vinculoTab === key ? 'gradient-primary text-white shadow-lg' : 'bg-card border border-border text-muted-foreground'
                 }`}
@@ -190,81 +248,93 @@ export default function TabCriarUsuarios() {
           </div>
         </div>
 
-        {/* ── Search ── */}
-        <div className="space-y-2 mb-3">
-          <label className="text-xs font-medium text-muted-foreground">
-            Buscar {vinculoTab === 'suplente' ? 'suplente' : 'liderança'}
-          </label>
-          <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={search} onChange={e => { setSearch(e.target.value); setSelecionado(null); }}
-              placeholder={`Buscar ${vinculoTab === 'suplente' ? 'suplente' : 'liderança'}...`}
-              className="w-full h-11 pl-9 pr-3 bg-card border border-border rounded-xl text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30"
-            />
-          </div>
-        </div>
+        {/* ── Search + Criar Novo button (only for suplente tab) ── */}
+        {!showForm && (
+          <>
+            <div className="space-y-2 mb-3">
+              <label className="text-xs font-medium text-muted-foreground">
+                Buscar {vinculoTab === 'suplente' ? 'suplente' : 'liderança'}
+              </label>
+              <div className="relative">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  value={search} onChange={e => { setSearch(e.target.value); setSelecionado(null); }}
+                  placeholder={`Buscar ${vinculoTab === 'suplente' ? 'suplente' : 'liderança'}...`}
+                  className="w-full h-11 pl-9 pr-3 bg-card border border-border rounded-xl text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              </div>
+            </div>
 
-        {/* ── Results list ── */}
-        {!selecionado && (
-          <div className="space-y-1 max-h-[250px] overflow-y-auto">
-            {vinculoTab === 'suplente' ? (
-              supFiltrados.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">Nenhum suplente encontrado</p>
-              ) : (
-                supFiltrados.map(s => {
-                  const tem = suplentesComUsuario.has(s.id);
-                  return (
-                    <button key={s.id}
-                      onClick={() => !tem && handleSelect('suplente', s.id, s.nome)}
-                      disabled={tem}
-                      className={`w-full text-left p-3 rounded-xl border transition-all ${
-                        tem ? 'border-border bg-muted/30 opacity-60' : 'border-border bg-card hover:border-primary/30 active:scale-[0.98]'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-semibold text-foreground">{s.nome}</p>
-                          <p className="text-[10px] text-muted-foreground">{s.regiao_atuacao || s.partido || '—'}</p>
-                        </div>
-                        {tem && <span className="text-[10px] text-emerald-500 font-medium flex items-center gap-1"><CheckCircle2 size={12} /> Ativo</span>}
-                      </div>
-                    </button>
-                  );
-                })
-              )
-            ) : (
-              lidFiltradas.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">Nenhuma liderança encontrada</p>
-              ) : (
-                lidFiltradas.map(l => {
-                  const n = l.pessoas?.nome || '—';
-                  const tem = liderancaComUsuario(l);
-                  return (
-                    <button key={l.id}
-                      onClick={() => !tem && handleSelect('lideranca', l.id, n)}
-                      disabled={tem}
-                      className={`w-full text-left p-3 rounded-xl border transition-all ${
-                        tem ? 'border-border bg-muted/30 opacity-60' : 'border-border bg-card hover:border-primary/30 active:scale-[0.98]'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-semibold text-foreground">{n}</p>
-                          <p className="text-[10px] text-muted-foreground">{l.regiao_atuacao || l.tipo_lideranca || '—'}</p>
-                        </div>
-                        {tem && <span className="text-[10px] text-emerald-500 font-medium flex items-center gap-1"><CheckCircle2 size={12} /> Ativo</span>}
-                      </div>
-                    </button>
-                  );
-                })
-              )
+            {/* Criar Novo button */}
+            {vinculoTab === 'suplente' && (
+              <button
+                onClick={handleStartCriarNovo}
+                className="w-full mb-3 h-11 flex items-center justify-center gap-2 bg-primary/10 text-primary text-sm font-semibold rounded-xl border border-primary/20 active:scale-[0.97] transition-all"
+              >
+                <Plus size={16} /> Criar novo (sem vínculo externo)
+              </button>
             )}
-          </div>
+
+            {/* ── Results list ── */}
+            <div className="space-y-1 max-h-[250px] overflow-y-auto">
+              {vinculoTab === 'suplente' ? (
+                supFiltrados.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">Nenhum suplente encontrado</p>
+                ) : (
+                  supFiltrados.map(s => {
+                    const tem = suplentesComUsuario.has(s.id);
+                    return (
+                      <button key={s.id}
+                        onClick={() => !tem && handleSelect('suplente', s.id, s.nome)}
+                        disabled={tem}
+                        className={`w-full text-left p-3 rounded-xl border transition-all ${
+                          tem ? 'border-border bg-muted/30 opacity-60' : 'border-border bg-card hover:border-primary/30 active:scale-[0.98]'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">{s.nome}</p>
+                            <p className="text-[10px] text-muted-foreground">{s.regiao_atuacao || s.partido || '—'}</p>
+                          </div>
+                          {tem && <span className="text-[10px] text-emerald-500 font-medium flex items-center gap-1"><CheckCircle2 size={12} /> Ativo</span>}
+                        </div>
+                      </button>
+                    );
+                  })
+                )
+              ) : (
+                lidFiltradas.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">Nenhuma liderança encontrada</p>
+                ) : (
+                  lidFiltradas.map(l => {
+                    const n = l.pessoas?.nome || '—';
+                    const tem = liderancaComUsuario(l);
+                    return (
+                      <button key={l.id}
+                        onClick={() => !tem && handleSelect('lideranca', l.id, n)}
+                        disabled={tem}
+                        className={`w-full text-left p-3 rounded-xl border transition-all ${
+                          tem ? 'border-border bg-muted/30 opacity-60' : 'border-border bg-card hover:border-primary/30 active:scale-[0.98]'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">{n}</p>
+                            <p className="text-[10px] text-muted-foreground">{l.regiao_atuacao || l.tipo_lideranca || '—'}</p>
+                          </div>
+                          {tem && <span className="text-[10px] text-emerald-500 font-medium flex items-center gap-1"><CheckCircle2 size={12} /> Ativo</span>}
+                        </div>
+                      </button>
+                    );
+                  })
+                )
+              )}
+            </div>
+          </>
         )}
 
-        {/* ── Selected + Form ── */}
-        {selecionado && (
+        {/* ── Selected + Form (existing suplente/lideranca) ── */}
+        {selecionado && !criarNovoMode && (
           <div className="space-y-3 mt-2 pt-3 border-t border-border">
             {/* Selected indicator */}
             <div className="flex items-center justify-between bg-primary/5 border border-primary/20 rounded-xl p-3">
@@ -309,7 +379,85 @@ export default function TabCriarUsuarios() {
                 <input
                   type={showSenha ? 'text' : 'password'}
                   value={senha} onChange={e => setSenha(e.target.value)}
-                  className={inputCls} placeholder="Mínimo 4 caracteres"
+                  className={inputCls} placeholder="Mínimo 6 caracteres"
+                />
+                <button onClick={() => setShowSenha(!showSenha)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  {showSenha ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Superior */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Superior hierárquico</label>
+              <select value={superiorId} onChange={e => setSuperiorId(e.target.value)} className={inputCls}>
+                <option value="">Nenhum (raiz)</option>
+                {possiveisSuperior.map(u => (
+                  <option key={u.id} value={u.id}>{u.nome} ({u.tipo})</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Cidade */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Cidade *</label>
+              <select
+                value={cidadeSelecionada}
+                onChange={e => { setCidadeSelecionada(e.target.value); setCidadeErro(''); }}
+                className={`${inputCls} ${cidadeErro ? 'border-destructive ring-1 ring-destructive/30' : ''}`}
+              >
+                <option value="">Selecione a cidade...</option>
+                {municipios.map(m => (
+                  <option key={m.id} value={m.id}>{m.nome} – {m.uf}</option>
+                ))}
+              </select>
+              {cidadeErro && <p className="text-xs text-destructive mt-1">{cidadeErro}</p>}
+            </div>
+
+            {/* Submit */}
+            <button
+              onClick={handleCreate} disabled={saving}
+              className="w-full h-12 gradient-primary text-white text-sm font-semibold rounded-xl shadow-lg active:scale-[0.97] transition-all disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
+            >
+              {saving ? <Loader2 size={18} className="animate-spin" /> : <UserPlus size={18} />}
+              {saving ? 'Criando...' : 'Criar Usuário'}
+            </button>
+          </div>
+        )}
+
+        {/* ── Criar Novo (local suplente) Form ── */}
+        {criarNovoMode && (
+          <div className="space-y-3 mt-2 pt-3 border-t border-border">
+            <div className="flex items-center justify-between bg-primary/5 border border-primary/20 rounded-xl p-3">
+              <div>
+                <p className="text-xs text-muted-foreground">Modo:</p>
+                <p className="text-sm font-bold text-foreground">Novo usuário livre</p>
+                <p className="text-[10px] text-primary font-medium">Sem vínculo com sistema externo</p>
+              </div>
+              <button onClick={() => setCriarNovoMode(false)} className="text-xs text-muted-foreground underline">Voltar</button>
+            </div>
+
+            {/* Nome */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Nome *</label>
+              <input type="text" value={nome} onChange={e => setNome(e.target.value)} className={inputCls} placeholder="Nome completo" />
+            </div>
+
+            {/* Profissão / Cargo */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Profissão / Cargo</label>
+              <input type="text" value={novoProfissao} onChange={e => setNovoProfissao(e.target.value)} className={inputCls} placeholder="Ex: Assistente Social, Vereador..." />
+              <p className="text-[10px] text-muted-foreground">Se preenchido, aparece no lugar de "Suplente"</p>
+            </div>
+
+            {/* Senha */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Senha *</label>
+              <div className="relative">
+                <input
+                  type={showSenha ? 'text' : 'password'}
+                  value={senha} onChange={e => setSenha(e.target.value)}
+                  className={inputCls} placeholder="Mínimo 6 caracteres"
                 />
                 <button onClick={() => setShowSenha(!showSenha)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                   {showSenha ? <EyeOff size={16} /> : <Eye size={16} />}
