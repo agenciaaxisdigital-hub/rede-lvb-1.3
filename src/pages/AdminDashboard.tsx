@@ -890,6 +890,9 @@ export default function AdminDashboard() {
                 <p className="text-base font-bold text-foreground truncate">{popupUserData.usuario?.nome || 'Desconhecido'}</p>
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-primary/10 text-primary">{tipoLabel(popupUserData.usuario?.tipo || '')}</span>
+                  {getCargoTag(popupUserData.usuario?.suplente_id || null) && (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-accent/50 text-accent-foreground font-medium">{getCargoTag(popupUserData.usuario?.suplente_id || null)}</span>
+                  )}
                   {popupUserData.usuario?.municipio_id && (
                     <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
                       <MapPin size={9} />{nomeMunicipioPorId(popupUserData.usuario.municipio_id)}
