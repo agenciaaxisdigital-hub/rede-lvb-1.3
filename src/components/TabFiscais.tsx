@@ -311,9 +311,11 @@ export default function TabFiscais({ refreshKey, onSaved, viewOnly }: Props) {
           <Info label="Colégio" value={f.colegio_eleitoral} />
           <Info label="Status" value={f.status} />
         </div>
-        {f.liderancas && (
+        {(f.liderancas || (f as any).suplentes) && (
           <div className="section-card">
             <h3 className="section-title">🔗 Vinculado a</h3>
+            {(f as any).suplentes?.nome && <Info label="Suplente" value={(f as any).suplentes.nome} />}
+            {(f as any).suplentes?.cargo_disputado && <Info label="Cargo / Profissão" value={(f as any).suplentes.cargo_disputado} />}
             {f.liderancas?.pessoas?.nome && <Info label="Liderança" value={f.liderancas.pessoas.nome} />}
           </div>
         )}
