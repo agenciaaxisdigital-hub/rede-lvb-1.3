@@ -99,6 +99,7 @@ function usePaginatedData(config: {
   select: string;
   enabled: boolean;
   applyFilters: (q: any) => any;
+  fetchAllPages?: boolean;
 }) {
   const query = useInfiniteQuery({
     queryKey: config.queryKey,
@@ -128,7 +129,12 @@ function usePaginatedData(config: {
     refetchOnReconnect: 'always',
   });
 
-  // Flatten pages for backward-compatible `data` as array
+  useEffect(() => {
+    if (!config.fetchAllPages) return;
+    if (!query.hasNextPage || query.isFetchingNextPage || query.isLoading) return;
+    query.fetchNextPage();
+  }, [config.fetchAllPages, query.hasNextPage, query.isFetchingNextPage, query.isLoading, query.fetchNextPage, query.data?.pages.length]);
+
   const flatData = useMemo(() => {
     if (!query.data) return [];
     return query.data.pages.flatMap(p => p.rows);
@@ -161,6 +167,7 @@ export function useLiderancas(scope: 'own' | 'all' = 'own') {
     table: 'liderancas',
     select: QUERY_LID,
     enabled: !!usuario,
+    fetchAllPages: scope === 'all',
     applyFilters: (q: any) => {
       if (scope === 'all' && filtroMunicipioId) q = q.or(`municipio_id.eq.${filtroMunicipioId},municipio_id.is.null`);
       return applyScopeFilter(q, scope, isAdmin, usuario, 'liderancas');
@@ -183,6 +190,7 @@ export function useEleitores(scope: 'own' | 'all' = 'own') {
     table: 'possiveis_eleitores',
     select: QUERY_ELE,
     enabled: !!usuario,
+    fetchAllPages: scope === 'all',
     applyFilters: (q: any) => {
       if (scope === 'all' && filtroMunicipioId) q = q.or(`municipio_id.eq.${filtroMunicipioId},municipio_id.is.null`);
       return applyScopeFilter(q, scope, isAdmin, usuario, 'possiveis_eleitores');
@@ -204,6 +212,7 @@ export function useFiscaisAdmin() {
     table: 'fiscais',
     select: QUERY_FIS,
     enabled: !!usuario,
+    fetchAllPages: isAdmin,
     applyFilters: (q: any) => {
       if (filtroMunicipioId) q = q.or(`municipio_id.eq.${filtroMunicipioId},municipio_id.is.null`);
       if (!isAdmin) {
@@ -233,6 +242,7 @@ export function useUsuarios() {
     },
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
+    refetchOnReconnect: 'always',
   });
 }
 
@@ -244,6 +254,7 @@ export function useInvalidarCadastros() {
     qc.invalidateQueries({ queryKey: ['eleitores'] });
     qc.invalidateQueries({ queryKey: ['fiscais'] });
     qc.invalidateQueries({ queryKey: ['contagens'] });
+    qc.invalidateQueries({ queryKey: ['hierarquia_usuarios'] });
   }, [qc]);
 }
 
@@ -260,11 +271,12 @@ export function useRealtimeSync() {
   }, [invalidar]);
 
   useEffect(() => {
-    // Non-admins: skip Realtime, rely on staleTime + manual refetch
     if (!isAdmin) {
       console.log('[Realtime] Skipped — non-admin user');
       return;
     }
+
+    invalidar();
 
     const channelName = municipioId
       ? `cadastros-rt-${municipioId}`
@@ -277,11 +289,12 @@ export function useRealtimeSync() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'liderancas' }, () => debouncedInvalidar())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'possiveis_eleitores' }, () => debouncedInvalidar())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'fiscais' }, () => debouncedInvalidar())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'hierarquia_usuarios' }, () => debouncedInvalidar())
       .subscribe();
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       supabase.removeChannel(channel);
     };
-  }, [isAdmin, municipioId, debouncedInvalidar]);
+  }, [isAdmin, municipioId, debouncedInvalidar, invalidar]);
 }

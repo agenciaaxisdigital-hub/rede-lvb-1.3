@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCidade } from '@/contexts/CidadeContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { useLiderancas, useEleitores, useUsuarios, useFiscaisAdmin } from '@/hooks/useDataCache';
+import { useLiderancas, useEleitores, useUsuarios, useFiscaisAdmin, useRealtimeSync } from '@/hooks/useDataCache';
 import {
   ArrowLeft, Users, Target, Search, X, Shield,
   ChevronDown, ChevronUp, Loader2, Download, Trophy,
@@ -88,6 +88,8 @@ export default function AdminDashboard() {
   const { isAdmin, tipoUsuario } = useAuth();
   const { municipios, isTodasCidades, cidadeAtiva, setCidadeAtiva, nomeMunicipioPorId } = useCidade();
   const navigate = useNavigate();
+
+  useRealtimeSync();
 
   const [_loading, setLoading] = useState(true);
   const [periodo, setPeriodo] = useState<Periodo>('total');
