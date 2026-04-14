@@ -269,6 +269,30 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
         />
       </div>
 
+      {/* Tag filter */}
+      {tagsDisponiveis.length > 0 && (
+        <div className="flex gap-1.5 overflow-x-auto pb-1">
+          <button
+            onClick={() => setFiltroTag(null)}
+            className={`shrink-0 px-3 py-1.5 rounded-full text-[10px] font-semibold transition-all flex items-center gap-1 ${
+              !filtroTag ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+            }`}
+          >
+            <Tag size={10} /> Todas tags
+          </button>
+          {tagsDisponiveis.map(tag => (
+            <button key={tag}
+              onClick={() => setFiltroTag(filtroTag === tag ? null : tag)}
+              className={`shrink-0 px-3 py-1.5 rounded-full text-[10px] font-semibold transition-all active:scale-95 ${
+                filtroTag === tag ? 'bg-primary text-primary-foreground' : 'bg-emerald-500/10 text-emerald-600'
+              }`}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Export */}
       <button data-testid="btn-exportar" onClick={handleExport} disabled={exporting}
         className="w-full h-9 flex items-center justify-center gap-2 bg-card border border-border rounded-xl text-xs font-medium text-foreground active:scale-[0.97] transition-all disabled:opacity-50">
