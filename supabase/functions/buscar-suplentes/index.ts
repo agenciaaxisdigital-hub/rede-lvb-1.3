@@ -62,7 +62,24 @@ Deno.serve(async (req) => {
       mergedMap.set(String(loc.id), { ...loc, origem: 'local' });
     }
 
-    const merged = Array.from(mergedMap.values()).sort((a, b) =>
+    // 4. Deduplicate by normalized name — keep the one with more data (external preferred)
+    const byName = new Map<string, any>();
+    for (const item of mergedMap.values()) {
+      const key = (item.nome || '').trim().toUpperCase();
+      const existing = byName.get(key);
+      if (!existing) {
+        byName.set(key, item);
+      } else {
+        // Prefer external over local, or the one with more filled fields
+        const existingScore = (existing.origem === 'externo' ? 10 : 0) + (existing.partido ? 1 : 0) + (existing.cargo_disputado ? 1 : 0) + (existing.telefone ? 1 : 0);
+        const newScore = (item.origem === 'externo' ? 10 : 0) + (item.partido ? 1 : 0) + (item.cargo_disputado ? 1 : 0) + (item.telefone ? 1 : 0);
+        if (newScore > existingScore) {
+          byName.set(key, item);
+        }
+      }
+    }
+
+    const merged = Array.from(byName.values()).sort((a, b) =>
       (a.nome || '').localeCompare(b.nome || '')
     );
 
