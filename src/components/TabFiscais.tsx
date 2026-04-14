@@ -50,7 +50,7 @@ interface FiscalRow {
   liderancas: { id: string; pessoas: { nome: string } | null } | null;
 }
 
-const QUERY_FISCAL = 'id, status, zona_fiscal, secao_fiscal, colegio_eleitoral, cadastrado_por, suplente_id, criado_em, observacoes, origem_captacao, municipio_id, lideranca_id, pessoas(nome, cpf, telefone, whatsapp, email, instagram, facebook, titulo_eleitor, zona_eleitoral, secao_eleitoral, municipio_eleitoral, uf_eleitoral, colegio_eleitoral, endereco_colegio, situacao_titulo), hierarquia_usuarios!fiscais_cadastrado_por_fkey(nome), liderancas:lideranca_id(id, pessoas(nome))';
+const QUERY_FISCAL = 'id, status, zona_fiscal, secao_fiscal, colegio_eleitoral, cadastrado_por, suplente_id, criado_em, observacoes, origem_captacao, municipio_id, lideranca_id, pessoas(nome, cpf, telefone, whatsapp, email, instagram, facebook, titulo_eleitor, zona_eleitoral, secao_eleitoral, municipio_eleitoral, uf_eleitoral, colegio_eleitoral, endereco_colegio, situacao_titulo), hierarquia_usuarios!fiscais_cadastrado_por_fkey(nome), liderancas:lideranca_id(id, pessoas(nome)), suplentes:suplente_id(nome, cargo_disputado)';
 
 function useFiscais() {
   const { usuario, tipoUsuario } = useAuth();
@@ -311,9 +311,11 @@ export default function TabFiscais({ refreshKey, onSaved, viewOnly }: Props) {
           <Info label="Colégio" value={f.colegio_eleitoral} />
           <Info label="Status" value={f.status} />
         </div>
-        {f.liderancas && (
+        {(f.liderancas || (f as any).suplentes) && (
           <div className="section-card">
             <h3 className="section-title">🔗 Vinculado a</h3>
+            {(f as any).suplentes?.nome && <Info label="Suplente" value={(f as any).suplentes.nome} />}
+            {(f as any).suplentes?.cargo_disputado && <Info label="Cargo / Profissão" value={(f as any).suplentes.cargo_disputado} />}
             {f.liderancas?.pessoas?.nome && <Info label="Liderança" value={f.liderancas.pessoas.nome} />}
           </div>
         )}
@@ -484,6 +486,9 @@ export default function TabFiscais({ refreshKey, onSaved, viewOnly }: Props) {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-foreground truncate">{f.pessoas?.nome || '—'}</p>
+              {(f as any).suplentes?.nome && (
+                <p className="text-[10px] text-primary/70 truncate">🔗 {(f as any).suplentes.nome}{(f as any).suplentes.cargo_disputado ? ` · ${(f as any).suplentes.cargo_disputado}` : ''}</p>
+              )}
               {f.pessoas?.cpf && (
                 <p className="text-[10px] text-muted-foreground truncate">CPF: {formatCPF(f.pessoas.cpf)}</p>
               )}
@@ -493,6 +498,7 @@ export default function TabFiscais({ refreshKey, onSaved, viewOnly }: Props) {
               <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
                 {f.pessoas?.whatsapp && <span className="flex items-center gap-0.5"><Phone size={9} /> {f.pessoas.whatsapp}</span>}
                 {f.zona_fiscal && <span>Zona {f.zona_fiscal}</span>}
+                {f.liderancas?.pessoas?.nome && <span>Líder: {f.liderancas.pessoas.nome}</span>}
               </div>
               {isAdmin && f.hierarquia_usuarios && (
                 <p className="text-[10px] text-muted-foreground/60 mt-0.5">Por: {f.hierarquia_usuarios.nome}</p>

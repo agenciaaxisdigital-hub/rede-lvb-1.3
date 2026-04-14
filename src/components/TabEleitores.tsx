@@ -201,7 +201,7 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
     } finally { setSaving(false); }
   };
 
-  const QUERY_DETALHE_ELE = 'id, compromisso_voto, lideranca_id, cadastrado_por, observacoes, origem_captacao, criado_em, municipio_id, pessoas(*), liderancas:lideranca_id(id, pessoas(nome))';
+  const QUERY_DETALHE_ELE = 'id, compromisso_voto, lideranca_id, cadastrado_por, observacoes, origem_captacao, criado_em, municipio_id, pessoas(*), liderancas:lideranca_id(id, pessoas(nome)), suplentes:suplente_id(nome, cargo_disputado)';
 
   const fetchDetalhe = useCallback(async (id: string) => {
     const { data } = await (supabase as any).from('possiveis_eleitores').select(QUERY_DETALHE_ELE).eq('id', id).single();
@@ -287,9 +287,11 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
           <Info label="Colégio" value={p.colegio_eleitoral} />
         </div>
 
-        {e.liderancas && (
+        {(e.liderancas || (e as any).suplentes) && (
           <div className="section-card">
             <h3 className="section-title">🔗 Vinculado a</h3>
+            {(e as any).suplentes?.nome && <Info label="Suplente" value={(e as any).suplentes.nome} />}
+            {(e as any).suplentes?.cargo_disputado && <Info label="Cargo / Profissão" value={(e as any).suplentes.cargo_disputado} />}
             {e.liderancas?.pessoas?.nome && <Info label="Liderança" value={e.liderancas.pessoas.nome} />}
           </div>
         )}
@@ -474,6 +476,9 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
                   <span className="font-semibold text-foreground text-sm truncate">{e.pessoas?.nome || '—'}</span>
                   {compromissoBadge(e.compromisso_voto)}
                 </div>
+                {(e as any).suplentes?.nome && (
+                  <p className="text-[10px] text-primary/70 truncate">🔗 {(e as any).suplentes.nome}{(e as any).suplentes.cargo_disputado ? ` · ${(e as any).suplentes.cargo_disputado}` : ''}</p>
+                )}
                 {e.origem_captacao && (
                   <p className="text-[10px] text-muted-foreground truncate">{e.origem_captacao}</p>
                 )}

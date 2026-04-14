@@ -45,6 +45,7 @@ interface LiderancaRow {
   criado_em: string;
   pessoas: { nome: string; cpf: string | null; telefone: string | null; whatsapp: string | null; email: string | null; instagram: string | null; facebook: string | null; titulo_eleitor: string | null; zona_eleitoral: string | null; secao_eleitoral: string | null; municipio_eleitoral: string | null; uf_eleitoral: string | null; colegio_eleitoral: string | null; endereco_colegio: string | null; situacao_titulo: string | null; };
   hierarquia_usuarios: { nome: string } | null;
+  suplentes: { nome: string; cargo_disputado: string | null } | null;
   regiao_atuacao: string | null;
   bairros_influencia: string | null;
   comunidades_influencia: string | null;
@@ -244,7 +245,7 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
     return true;
   }), [data, searchQuery]);
 
-  const QUERY_DETALHE = 'id, status, tipo_lideranca, nivel, zona_atuacao, apoiadores_estimados, cadastrado_por, suplente_id, criado_em, regiao_atuacao, bairros_influencia, comunidades_influencia, origem_captacao, meta_votos, nivel_comprometimento, observacoes, municipio_id, pessoas(*), hierarquia_usuarios!liderancas_cadastrado_por_fkey(nome)';
+  const QUERY_DETALHE = 'id, status, tipo_lideranca, nivel, zona_atuacao, apoiadores_estimados, cadastrado_por, suplente_id, criado_em, regiao_atuacao, bairros_influencia, comunidades_influencia, origem_captacao, meta_votos, nivel_comprometimento, observacoes, municipio_id, pessoas(*), hierarquia_usuarios!liderancas_cadastrado_por_fkey(nome), suplentes:suplente_id(nome, cargo_disputado)';
 
   const fetchDetalhe = useCallback(async (id: string) => {
     const { data } = await (supabase as any).from('liderancas').select(QUERY_DETALHE).eq('id', id).single();
@@ -334,6 +335,13 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
           <Info label="Comprometimento" value={l.nivel_comprometimento} />
           <Info label="Observações" value={l.observacoes} />
         </div>
+        {l.suplentes && (
+          <div className="section-card">
+            <h3 className="section-title">🔗 Vinculado a</h3>
+            <Info label="Suplente" value={l.suplentes.nome} />
+            {l.suplentes.cargo_disputado && <Info label="Cargo / Profissão" value={l.suplentes.cargo_disputado} />}
+          </div>
+        )}
         <div className="space-y-2">
           {isAdmin && l.status !== 'Descartada' && (
             <button onClick={() => handleDiscard(l.id)} className="w-full h-11 border border-border rounded-xl text-muted-foreground font-medium flex items-center justify-center gap-2 active:scale-[0.97]">
@@ -514,6 +522,9 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
                     <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/15 text-blue-600 dark:text-blue-400">Visita</span>
                   )}
                 </div>
+                {l.suplentes?.nome && (
+                  <p className="text-[10px] text-primary/70 truncate">🔗 {l.suplentes.nome}{l.suplentes.cargo_disputado ? ` · ${l.suplentes.cargo_disputado}` : ''}</p>
+                )}
                 {l.regiao_atuacao && (
                   <p className="text-[10px] text-muted-foreground truncate">{l.regiao_atuacao}</p>
                 )}
