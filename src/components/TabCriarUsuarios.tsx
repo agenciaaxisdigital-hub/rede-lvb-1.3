@@ -155,6 +155,14 @@ export default function TabCriarUsuarios() {
           }).select('id').single();
           if (supError) throw new Error(supError.message);
           suplenteId = newSup.id;
+
+          // Create suplente_municipio mapping so city filters work correctly
+          if (cidadeSelecionada && suplenteId) {
+            await (supabase as any).from('suplente_municipio').insert({
+              suplente_id: suplenteId,
+              municipio_id: cidadeSelecionada,
+            }).then(() => {});
+          }
         }
 
         // Create user
