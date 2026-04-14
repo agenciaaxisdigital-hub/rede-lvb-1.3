@@ -33,7 +33,7 @@ interface HierarchyUser {
 }
 
 type VinculoTab = 'suplente' | 'lideranca';
-type TipoAcesso = 'suplente' | 'lideranca';
+type TipoAcesso = 'suplente' | 'lideranca' | 'coordenador';
 
 export default function TabCriarUsuarios() {
   const { isAdmin } = useAuth();
@@ -141,27 +141,35 @@ export default function TabCriarUsuarios() {
     if (!senha.trim() || senha.length < 6) { toast({ title: 'Senha deve ter pelo menos 6 caracteres', variant: 'destructive' }); return; }
     if (!cidadeSelecionada) { setCidadeErro('Selecione a cidade do usuário'); return; }
 
-    // For "criar novo" mode, we need to create the suplente first
+    // For "criar novo" mode, we need to create the suplente first (for suplente/lideranca types)
     if (criarNovoMode && !selecionado) {
       setSaving(true);
       try {
-        // 1. Create local suplente
-        const { data: newSup, error: supError } = await (supabase as any).from('suplentes').insert({
-          nome: nome.trim(),
-          cargo_disputado: novoProfissao.trim() || null,
-        }).select('id').single();
+        let suplenteId: string | null = null;
 
-        if (supError) throw new Error(supError.message);
+        // For suplente and lideranca types, create a local suplente to link to
+        if (tipoAcesso === 'suplente' || tipoAcesso === 'lideranca') {
+          const { data: newSup, error: supError } = await (supabase as any).from('suplentes').insert({
+            nome: nome.trim(),
+            cargo_disputado: novoProfissao.trim() || null,
+          }).select('id').single();
+          if (supError) throw new Error(supError.message);
+          suplenteId = newSup.id;
+        }
 
-        // 2. Create user linked to this new suplente
+        // Create user
         const payload: any = {
           nome: nome.trim(),
           senha: senha.trim(),
-          tipo: 'suplente',
+          tipo: tipoAcesso,
           superior_id: superiorId || null,
           municipio_id: cidadeSelecionada,
-          suplente_id: newSup.id,
         };
+
+        // Suplente and Liderança are always self-linked
+        if (suplenteId) {
+          payload.suplente_id = suplenteId;
+        }
 
         const { data, error } = await supabase.functions.invoke('criar-usuario', { body: payload });
         if (error) throw new Error(error.message || 'Erro ao criar usuário');
@@ -367,10 +375,11 @@ export default function TabCriarUsuarios() {
             {/* Tipo de acesso */}
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">Tipo de acesso</label>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 {([
                   { key: 'suplente' as TipoAcesso, label: 'Suplente', icon: User },
                   { key: 'lideranca' as TipoAcesso, label: 'Liderança', icon: Users },
+                  { key: 'coordenador' as TipoAcesso, label: 'Coordenador', icon: Shield },
                 ]).map(({ key, label, icon: Icon }) => (
                   <button key={key}
                     onClick={() => setTipoAcesso(key)}
@@ -466,20 +475,48 @@ export default function TabCriarUsuarios() {
 
             {/* Nome */}
             <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Nome *</label>
+              <label className="text-xs font-medium text-muted-foreground">Nome do usuário *</label>
               <input type="text" value={nome} onChange={e => setNome(e.target.value)} className={inputCls} placeholder="Nome completo" />
             </div>
 
-            {/* Profissão / Cargo */}
+            {/* Tipo de acesso */}
             <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Profissão / Cargo</label>
-              <input type="text" value={novoProfissao} onChange={e => setNovoProfissao(e.target.value)} className={inputCls} placeholder="Ex: Suplente, Assistente Social, Vereador..." />
-              <p className="text-[10px] text-muted-foreground">Vem como "Suplente" por padrão — edite para outra profissão se precisar</p>
+              <label className="text-xs font-medium text-muted-foreground">Tipo de acesso</label>
+              <div className="flex gap-2">
+                {([
+                  { key: 'suplente' as TipoAcesso, label: 'Suplente', icon: User },
+                  { key: 'lideranca' as TipoAcesso, label: 'Liderança', icon: Users },
+                  { key: 'coordenador' as TipoAcesso, label: 'Coordenador', icon: Shield },
+                ]).map(({ key, label, icon: Icon }) => (
+                  <button key={key}
+                    onClick={() => setTipoAcesso(key)}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                      tipoAcesso === key ? 'gradient-primary text-white shadow-lg' : 'bg-card border border-border text-muted-foreground'
+                    }`}
+                  >
+                    <Icon size={14} /> {label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                {tipoAcesso === 'suplente' && 'Suplente: cadastros ficam vinculados somente a ele'}
+                {tipoAcesso === 'lideranca' && 'Liderança: cadastros ficam vinculados somente a ela'}
+                {tipoAcesso === 'coordenador' && 'Coordenador: acesso total ao painel admin'}
+              </p>
+            </div>
+
+            {/* Profissão / Cargo — tag de filtro */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Profissão / Cargo (tag)</label>
+              <input type="text" value={novoProfissao} onChange={e => setNovoProfissao(e.target.value)} className={inputCls} placeholder="Ex: Assistente Social, Vereador, Empresário..." />
+              <p className="text-[10px] text-muted-foreground">
+                Essa tag aparece no sistema no lugar de "{tipoAcesso === 'lideranca' ? 'Liderança' : tipoAcesso === 'coordenador' ? 'Coordenador' : 'Suplente'}" — útil para filtros
+              </p>
             </div>
 
             {/* Senha */}
             <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Senha *</label>
+              <label className="text-xs font-medium text-muted-foreground">Senha de acesso *</label>
               <div className="relative">
                 <input
                   type={showSenha ? 'text' : 'password'}
