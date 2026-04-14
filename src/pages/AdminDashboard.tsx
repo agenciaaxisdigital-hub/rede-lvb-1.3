@@ -233,6 +233,22 @@ export default function AdminDashboard() {
     };
   }, [popupUser, filteredL, filteredE, filteredF, usuarios]);
 
+  const handleDeleteCadastro = async (id: string, tipo: 'lideranca' | 'eleitor' | 'fiscal') => {
+    if (!window.confirm('Tem certeza que deseja apagar este cadastro?')) return;
+    setDeletingId(id);
+    try {
+      const table = tipo === 'lideranca' ? 'liderancas' : tipo === 'fiscal' ? 'fiscais' : 'possiveis_eleitores';
+      const { error } = await (supabase as any).from(table).delete().eq('id', id);
+      if (error) throw error;
+      toast({ title: '🗑️ Registro apagado' });
+      queryClient.invalidateQueries({ queryKey: ['liderancas'] });
+      queryClient.invalidateQueries({ queryKey: ['eleitores'] });
+      queryClient.invalidateQueries({ queryKey: ['fiscais'] });
+    } catch (err: any) {
+      toast({ title: 'Erro ao apagar', description: err.message, variant: 'destructive' });
+    } finally { setDeletingId(null); }
+  };
+
   const vistaLabels: { id: VistaAtiva; icon: typeof BarChart3; label: string }[] = [
     { id: 'ranking', icon: Trophy, label: 'Ranking' },
     { id: 'usuarios', icon: UserCog, label: 'Usuários' },
