@@ -328,6 +328,11 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
                       <span className={`shrink-0 text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${config.color}`}>
                         {config.label}
                       </span>
+                      {c.cargo_tag && (
+                        <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded-full font-medium bg-emerald-500/10 text-emerald-600">
+                          {c.cargo_tag}
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-2 flex-wrap">
