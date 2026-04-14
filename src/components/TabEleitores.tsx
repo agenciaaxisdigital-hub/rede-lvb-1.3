@@ -287,9 +287,11 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
           <Info label="Colégio" value={p.colegio_eleitoral} />
         </div>
 
-        {e.liderancas && (
+        {(e.liderancas || (e as any).suplentes) && (
           <div className="section-card">
             <h3 className="section-title">🔗 Vinculado a</h3>
+            {(e as any).suplentes?.nome && <Info label="Suplente" value={(e as any).suplentes.nome} />}
+            {(e as any).suplentes?.cargo_disputado && <Info label="Cargo / Profissão" value={(e as any).suplentes.cargo_disputado} />}
             {e.liderancas?.pessoas?.nome && <Info label="Liderança" value={e.liderancas.pessoas.nome} />}
           </div>
         )}
