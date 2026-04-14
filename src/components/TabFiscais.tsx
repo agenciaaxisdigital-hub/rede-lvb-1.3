@@ -484,6 +484,9 @@ export default function TabFiscais({ refreshKey, onSaved, viewOnly }: Props) {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-foreground truncate">{f.pessoas?.nome || '—'}</p>
+              {(f as any).suplentes?.nome && (
+                <p className="text-[10px] text-primary/70 truncate">🔗 {(f as any).suplentes.nome}{(f as any).suplentes.cargo_disputado ? ` · ${(f as any).suplentes.cargo_disputado}` : ''}</p>
+              )}
               {f.pessoas?.cpf && (
                 <p className="text-[10px] text-muted-foreground truncate">CPF: {formatCPF(f.pessoas.cpf)}</p>
               )}
@@ -493,6 +496,7 @@ export default function TabFiscais({ refreshKey, onSaved, viewOnly }: Props) {
               <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
                 {f.pessoas?.whatsapp && <span className="flex items-center gap-0.5"><Phone size={9} /> {f.pessoas.whatsapp}</span>}
                 {f.zona_fiscal && <span>Zona {f.zona_fiscal}</span>}
+                {f.liderancas?.pessoas?.nome && <span>Líder: {f.liderancas.pessoas.nome}</span>}
               </div>
               {isAdmin && f.hierarquia_usuarios && (
                 <p className="text-[10px] text-muted-foreground/60 mt-0.5">Por: {f.hierarquia_usuarios.nome}</p>
