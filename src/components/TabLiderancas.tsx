@@ -245,7 +245,7 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
     return true;
   }), [data, searchQuery]);
 
-  const QUERY_DETALHE = 'id, status, tipo_lideranca, nivel, zona_atuacao, apoiadores_estimados, cadastrado_por, suplente_id, criado_em, regiao_atuacao, bairros_influencia, comunidades_influencia, origem_captacao, meta_votos, nivel_comprometimento, observacoes, municipio_id, pessoas(*), hierarquia_usuarios!liderancas_cadastrado_por_fkey(nome)';
+  const QUERY_DETALHE = 'id, status, tipo_lideranca, nivel, zona_atuacao, apoiadores_estimados, cadastrado_por, suplente_id, criado_em, regiao_atuacao, bairros_influencia, comunidades_influencia, origem_captacao, meta_votos, nivel_comprometimento, observacoes, municipio_id, pessoas(*), hierarquia_usuarios!liderancas_cadastrado_por_fkey(nome), suplentes:suplente_id(nome, cargo_disputado)';
 
   const fetchDetalhe = useCallback(async (id: string) => {
     const { data } = await (supabase as any).from('liderancas').select(QUERY_DETALHE).eq('id', id).single();
