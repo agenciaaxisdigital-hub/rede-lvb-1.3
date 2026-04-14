@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCidade } from '@/contexts/CidadeContext';
 import { toast } from '@/hooks/use-toast';
 import {
-  Loader2, UserPlus, Users, User, CheckCircle2, Search, Eye, EyeOff, Shield, Plus
+  Loader2, UserPlus, Users, User, CheckCircle2, Search, Eye, EyeOff, Shield, Plus, Pencil
 } from 'lucide-react';
 
 interface SuplenteExterno {
@@ -258,17 +258,25 @@ export default function TabCriarUsuarios() {
               <button key={key}
                 onClick={() => { setVinculoTab(key); setSearch(''); setSelecionado(null); setCriarNovoMode(false); }}
                 className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-1.5 ${
-                  vinculoTab === key ? 'gradient-primary text-white shadow-lg' : 'bg-card border border-border text-muted-foreground'
+                  vinculoTab === key && !criarNovoMode ? 'gradient-primary text-white shadow-lg' : 'bg-card border border-border text-muted-foreground'
                 }`}
               >
                 <Icon size={14} /> {label}
               </button>
             ))}
+            <button
+              onClick={() => { setCriarNovoMode(true); setSelecionado(null); setSearch(''); setNovoProfissao('Suplente'); }}
+              className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                criarNovoMode ? 'gradient-primary text-white shadow-lg' : 'bg-card border border-border text-muted-foreground'
+              }`}
+            >
+              <Pencil size={14} /> Livre
+            </button>
           </div>
         </div>
 
-        {/* ── Search + Criar Novo button (only for suplente tab) ── */}
-        {!showForm && (
+        {/* ── Search + list (only when NOT in criarNovoMode and no selection) ── */}
+        {!showForm && !criarNovoMode && (
           <>
             <div className="space-y-2 mb-3">
               <label className="text-xs font-medium text-muted-foreground">
@@ -284,15 +292,6 @@ export default function TabCriarUsuarios() {
               </div>
             </div>
 
-            {/* Criar Novo button */}
-            {vinculoTab === 'suplente' && (
-              <button
-                onClick={handleStartCriarNovo}
-                className="w-full mb-3 h-11 flex items-center justify-center gap-2 bg-primary/10 text-primary text-sm font-semibold rounded-xl border border-primary/20 active:scale-[0.97] transition-all"
-              >
-                <Plus size={16} /> Criar novo (sem vínculo externo)
-              </button>
-            )}
 
             {/* ── Results list ── */}
             <div className="space-y-1 max-h-[250px] overflow-y-auto">
