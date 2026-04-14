@@ -73,6 +73,7 @@ export default function TabUsuarios() {
   const [linkedSuplenteId, setLinkedSuplenteId] = useState<string | null>(null);
   const [linkSearch, setLinkSearch] = useState('');
   const [selectedModulos, setSelectedModulos] = useState<Set<string>>(new Set());
+  const [cargoTagLivre, setCargoTagLivre] = useState('');
 
   // Edit user state
   const [editing, setEditing] = useState<HierarchyUser | null>(null);
@@ -168,6 +169,7 @@ export default function TabUsuarios() {
     setLinkedSuplenteId(sup.id);
     setLinkSearch('');
     setSelectedModulos(new Set());
+    setCargoTagLivre(sup.cargo_disputado || '');
     setCidadeSelecionada('');
     setCidadeErro('');
   };
@@ -182,6 +184,7 @@ export default function TabUsuarios() {
     setLinkedSuplenteId(null);
     setLinkSearch('');
     setSelectedModulos(new Set());
+    setCargoTagLivre('');
     setCidadeSelecionada('');
     setCidadeErro('');
   };
@@ -194,6 +197,24 @@ export default function TabUsuarios() {
 
     setSaving(true);
     try {
+      let suplenteIdParaVinculo: string | null = null;
+
+      if (creating.tipo === 'suplente' && creating.suplenteId) {
+        suplenteIdParaVinculo = creating.suplenteId;
+      } else if (linkedSuplenteId && tipoUsuario === 'suplente') {
+        suplenteIdParaVinculo = linkedSuplenteId;
+      } else if (creating.tipo === 'avulso' && (tipoUsuario === 'suplente' || tipoUsuario === 'lideranca')) {
+        const cargoBase = cargoTagLivre.trim() || (tipoUsuario === 'lideranca' ? 'Liderança' : 'Suplente');
+        const { data: novoSuplente, error: novoSuplenteError } = await (supabase as any)
+          .from('suplentes')
+          .insert({ nome: nome.trim(), cargo_disputado: cargoBase })
+          .select('id')
+          .single();
+
+        if (novoSuplenteError) throw new Error(novoSuplenteError.message);
+        suplenteIdParaVinculo = novoSuplente.id;
+      }
+
       const payload: any = {
         nome: nome.trim(),
         senha: senha.trim(),
@@ -201,10 +222,9 @@ export default function TabUsuarios() {
         superior_id: superiorId || null,
         municipio_id: cidadeSelecionada,
       };
-      if (creating.tipo === 'suplente' && creating.suplenteId) {
-        payload.suplente_id = creating.suplenteId;
-      } else if (linkedSuplenteId && tipoUsuario === 'suplente') {
-        payload.suplente_id = linkedSuplenteId;
+
+      if (suplenteIdParaVinculo) {
+        payload.suplente_id = suplenteIdParaVinculo;
       }
 
       const { data, error } = await supabase.functions.invoke('criar-usuario', { body: payload });
@@ -222,6 +242,7 @@ export default function TabUsuarios() {
 
       toast({ title: '✅ Usuário criado!', description: `${nome} pode acessar o sistema` });
       setCreating(null);
+      setCargoTagLivre('');
       fetchAll();
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
@@ -552,6 +573,20 @@ export default function TabUsuarios() {
                 ))}
               </div>
             </div>
+
+            {creating.tipo === 'avulso' && (tipoUsuario === 'suplente' || tipoUsuario === 'lideranca') && (
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Profissão / Cargo (tag)</label>
+                <input
+                  type="text"
+                  value={cargoTagLivre}
+                  onChange={e => setCargoTagLivre(e.target.value)}
+                  className={inputCls}
+                  placeholder={tipoUsuario === 'lideranca' ? 'Ex: Assistente Social, Pastora, Médica...' : 'Ex: Assistente Social, Vereador, Empresário...'}
+                />
+                <p className="text-[10px] text-muted-foreground">Essa tag aparece no perfil da pessoa e no filtro dos cadastros.</p>
+              </div>
+            )}
 
             {/* Nome */}
             <div className="space-y-1">
