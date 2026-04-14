@@ -761,7 +761,7 @@ export default function AdminDashboard() {
           <div className="space-y-3">
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input type="text" placeholder="Buscar por nome ou CPF..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+              <input type="text" placeholder="Buscar por nome, CPF, cargo..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
                 className="w-full h-10 pl-9 pr-4 rounded-xl bg-muted border border-border text-sm text-foreground placeholder:text-muted-foreground" />
             </div>
 
@@ -783,6 +783,9 @@ export default function AdminDashboard() {
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-semibold text-foreground truncate">{r.pessoa?.nome || '—'}</p>
                     </div>
+                    {getCargoTag(r.suplente_id) && (
+                      <p className="text-[10px] text-primary/70 truncate">🔗 {getCargoTag(r.suplente_id)}</p>
+                    )}
                     <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground">
                       <span>{r.pessoa?.cpf || 'Sem CPF'}</span>
                       <span>{r.pessoa?.telefone || 'Sem tel.'}</span>
