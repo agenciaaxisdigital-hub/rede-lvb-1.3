@@ -607,6 +607,21 @@ export default function TabPerfil() {
               </div>
             </div>
 
+            {/* Profissão / Cargo (tag) — only for livre mode with suplente/lideranca */}
+            {createMode === 'livre' && (tipoNovo === 'suplente' || tipoNovo === 'lideranca') && (
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Profissão / Cargo (tag)</label>
+                <input
+                  type="text"
+                  value={cargoTagPerfil}
+                  onChange={e => setCargoTagPerfil(e.target.value)}
+                  className={inputCls}
+                  placeholder="Ex: Assistente Social, Vereador, Empresário..."
+                />
+                <p className="text-[10px] text-muted-foreground">Essa tag aparece no perfil e nos filtros de cadastros</p>
+              </div>
+            )}
+
             {/* Senha */}
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
