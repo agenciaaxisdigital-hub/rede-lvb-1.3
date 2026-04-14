@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCidade } from '@/contexts/CidadeContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useLiderancas, useEleitores, useFiscaisAdmin, useInvalidarCadastros } from '@/hooks/useDataCache';
-import { Search, Users, Target, Phone, MapPin, Loader2, Download, UserCheck, Calendar, ChevronDown, Mail, MessageCircle, CreditCard, FileText, Globe, Trash2 } from 'lucide-react';
+import { Search, Users, Target, Phone, MapPin, Loader2, Download, UserCheck, Calendar, ChevronDown, Mail, MessageCircle, CreditCard, FileText, Globe, Trash2, Tag } from 'lucide-react';
 import { exportAllCadastros } from '@/lib/exportXlsx';
 import { formatCPF } from '@/lib/cpf';
 import { toast } from '@/hooks/use-toast';
@@ -47,6 +47,7 @@ interface CadastroUnificado {
   lideranca_nome: string | null;
   // Eleitor specific
   compromisso_voto: string | null;
+  cargo_tag: string | null;
 }
 
 const tipoConfig = {
@@ -108,6 +109,7 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
     origem_captacao: item.origem_captacao || null,
     lideranca_nome: null as string | null,
     compromisso_voto: null as string | null,
+    cargo_tag: item.suplentes?.cargo_disputado || null,
   });
 
   const cadastros = useMemo(() => {
