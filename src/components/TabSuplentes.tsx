@@ -434,6 +434,12 @@ export default function TabSuplentes({ refreshKey }: Props) {
             </div>
 
             <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Cargo / Profissão</label>
+              <input type="text" value={editCargo} onChange={e => setEditCargo(e.target.value)} className={inputCls} placeholder="Ex: Suplente, Assistente Social, Vereador..." />
+              <p className="text-[10px] text-muted-foreground">Aparece no lugar de "Suplente" nas listas</p>
+            </div>
+
+            <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
                 <KeyRound size={12} /> Nova senha (deixe vazio para manter)
               </label>
