@@ -74,6 +74,7 @@ export default function TabSuplentes({ refreshKey }: Props) {
   const [editNome, setEditNome] = useState('');
   const [editSenha, setEditSenha] = useState('');
   const [showEditSenha, setShowEditSenha] = useState(false);
+  const [editCargo, setEditCargo] = useState('');
   const [editSaving, setEditSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 

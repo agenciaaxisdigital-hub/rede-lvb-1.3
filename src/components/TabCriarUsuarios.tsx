@@ -52,6 +52,8 @@ export default function TabCriarUsuarios() {
   // "Criar novo" (local suplente) mode
   const [criarNovoMode, setCriarNovoMode] = useState(false);
   const [novoProfissao, setNovoProfissao] = useState('');
+  // Cargo field for existing suplente
+  const [cargoExistente, setCargoExistente] = useState('');
 
   // Form state
   const [tipoAcesso, setTipoAcesso] = useState<TipoAcesso>('suplente');
