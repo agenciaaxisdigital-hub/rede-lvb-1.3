@@ -306,6 +306,20 @@ export default function TabPerfil() {
 
     setSaving(true);
     try {
+      let suplenteIdParaVinculo: string | null = null;
+
+      // For livre mode with suplente/lideranca, create a local suplente with the cargo tag
+      if (createMode === 'livre' && (tipoNovo === 'suplente' || tipoNovo === 'lideranca')) {
+        const cargoBase = cargoTagPerfil.trim() || (tipoNovo === 'lideranca' ? 'Liderança' : 'Suplente');
+        const { data: novoSup, error: novoSupError } = await (supabase as any)
+          .from('suplentes')
+          .insert({ nome: nomeUsuario, cargo_disputado: cargoBase })
+          .select('id')
+          .single();
+        if (novoSupError) throw new Error(novoSupError.message);
+        suplenteIdParaVinculo = novoSup.id;
+      }
+
       const body: any = {
         nome: nomeUsuario,
         senha: senhaNova.trim(),
@@ -315,6 +329,9 @@ export default function TabPerfil() {
       };
       if (createMode === 'suplente' && selectedExternalId) {
         body.suplente_id = selectedExternalId;
+      }
+      if (suplenteIdParaVinculo) {
+        body.suplente_id = suplenteIdParaVinculo;
       }
 
       const { data, error } = await supabase.functions.invoke('criar-usuario', { body });
