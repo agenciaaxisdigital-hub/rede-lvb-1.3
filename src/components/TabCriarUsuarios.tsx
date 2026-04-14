@@ -114,6 +114,13 @@ export default function TabCriarUsuarios() {
     setCidadeSelecionada('');
     setCidadeErro('');
     setCriarNovoMode(false);
+    // Load existing cargo for suplente
+    if (tipo === 'suplente') {
+      const sup = suplentes.find(s => s.id === id);
+      setCargoExistente((sup as any)?.cargo_disputado || 'Suplente');
+    } else {
+      setCargoExistente('');
+    }
   };
 
   const handleStartCriarNovo = () => {
