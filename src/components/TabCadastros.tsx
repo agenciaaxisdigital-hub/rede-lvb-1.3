@@ -393,14 +393,30 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
                             </div>
                           )}
                         </div>
-                      </>
-                    );
-                  })()}
-                </div>
-              )}
-            </div>
-          );
-        })}
+                         {isAdmin && (
+                           <div className="pt-2 border-t border-border">
+                             <button
+                               onClick={(e) => { e.stopPropagation(); handleDelete(c); }}
+                               disabled={deletingId === `${c.tipo}-${c.id}`}
+                               className="w-full h-9 flex items-center justify-center gap-2 bg-destructive/10 text-destructive text-xs font-semibold rounded-xl border border-destructive/20 active:scale-[0.97] transition-all disabled:opacity-50"
+                             >
+                               {deletingId === `${c.tipo}-${c.id}` ? (
+                                 <Loader2 size={14} className="animate-spin" />
+                               ) : (
+                                 <Trash2 size={14} />
+                               )}
+                               Apagar registro
+                             </button>
+                           </div>
+                         )}
+                       </>
+                     );
+                   })()}
+                 </div>
+               )}
+             </div>
+           );
+         })}
 
         {filtered.length === 0 && !loading && (
           <div className="text-center py-8">
