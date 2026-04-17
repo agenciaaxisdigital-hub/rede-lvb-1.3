@@ -885,18 +885,22 @@ export default function TabPerfil() {
               )}
 
               {/* Stats */}
-              <div className="flex gap-2 mb-3">
-                <div className="flex-1 bg-muted/50 rounded-lg px-3 py-2 text-center">
+              <div className="grid grid-cols-4 gap-2 mb-3">
+                <div className="bg-muted/50 rounded-lg px-3 py-2 text-center">
                   <p className="text-lg font-bold text-foreground">{usuarios.length}</p>
                   <p className="text-[10px] text-muted-foreground">Total</p>
                 </div>
-                <div className="flex-1 bg-blue-500/5 rounded-lg px-3 py-2 text-center">
+                <div className="bg-blue-500/5 rounded-lg px-3 py-2 text-center">
                   <p className="text-lg font-bold text-blue-600">{usuarios.filter(u => u.tipo === 'suplente').length}</p>
                   <p className="text-[10px] text-muted-foreground">Suplentes</p>
                 </div>
-                <div className="flex-1 bg-purple-500/5 rounded-lg px-3 py-2 text-center">
+                <div className="bg-purple-500/5 rounded-lg px-3 py-2 text-center">
                   <p className="text-lg font-bold text-purple-600">{usuarios.filter(u => u.tipo === 'lideranca').length}</p>
                   <p className="text-[10px] text-muted-foreground">Lideranças</p>
+                </div>
+                <div className="bg-primary/5 rounded-lg px-3 py-2 text-center">
+                  <p className="text-lg font-bold text-primary">{usuarios.filter(u => u.tipo === 'fernanda').length}</p>
+                  <p className="text-[10px] text-muted-foreground">Fernanda</p>
                 </div>
               </div>
 
