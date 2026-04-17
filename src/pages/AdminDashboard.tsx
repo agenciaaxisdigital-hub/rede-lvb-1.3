@@ -631,6 +631,8 @@ export default function AdminDashboard() {
                   const uLiderancas = filteredL.filter(r => r.cadastrado_por === u.id);
                   const uEleitores = filteredE.filter(r => r.cadastrado_por === u.id);
                   const uFiscais = filteredF.filter(r => r.cadastrado_por === u.id);
+                  const uFernanda = filteredFern.filter(r => r.cadastrado_por === u.id);
+                  const isFernanda = u.tipo === 'fernanda';
 
                   return (
                     <div key={u.id} className="section-card !p-0 overflow-hidden">
