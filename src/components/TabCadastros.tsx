@@ -9,8 +9,10 @@ import { formatCPF } from '@/lib/cpf';
 import { toast } from '@/hooks/use-toast';
 
 import SkeletonLista from '@/components/SkeletonLista';
+import ListaCadastrosFernanda from '@/components/ListaCadastrosFernanda';
 
 type TipoFiltro = 'todos' | 'lideranca' | 'fiscal' | 'eleitor';
+type FonteFiltro = 'rede' | 'fernanda';
 
 interface CadastroUnificado {
   id: string;
@@ -63,6 +65,8 @@ interface Props {
 
 export default function TabCadastros({ refreshKey, onSaved }: Props) {
   const { tipoUsuario, isAdmin } = useAuth();
+  const isAdminOrCoord = isAdmin || tipoUsuario === 'coordenador';
+  const [fonte, setFonte] = useState<FonteFiltro>('rede');
   const scope = isAdmin ? 'all' : 'own';
   const queryOptions = isAdmin ? { ignoreCityFilter: true } : undefined;
   const { data: lidData, isLoading: lidLoading } = useLiderancas(scope, queryOptions);
@@ -231,6 +235,32 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
 
   return (
     <div className="space-y-3 pb-24">
+      {/* Toggle fonte (Rede vs Fernanda) - só para admin/coord */}
+      {isAdminOrCoord && (
+        <div className="grid grid-cols-2 gap-2 p-1 bg-muted rounded-xl">
+          <button
+            onClick={() => setFonte('rede')}
+            className={`py-2 rounded-lg text-xs font-semibold transition-all ${
+              fonte === 'rede' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'
+            }`}
+          >
+            Rede (Lideranças, Fiscais, Eleitores)
+          </button>
+          <button
+            onClick={() => setFonte('fernanda')}
+            className={`py-2 rounded-lg text-xs font-semibold transition-all ${
+              fonte === 'fernanda' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'
+            }`}
+          >
+            🩷 Fernanda
+          </button>
+        </div>
+      )}
+
+      {fonte === 'fernanda' && isAdminOrCoord ? (
+        <ListaCadastrosFernanda />
+      ) : (
+      <>
       {/* Stats grid */}
       <div className="grid grid-cols-4 gap-2">
         {[
