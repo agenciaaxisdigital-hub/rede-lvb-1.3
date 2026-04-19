@@ -367,7 +367,7 @@ export default function TabCadastrosFernanda() {
         ] as const).map(opt => (
           <button
             key={opt.v}
-            onClick={() => { setPeriodo(opt.v); setDataEspecifica(undefined); }}
+            onClick={() => { setPeriodo(opt.v); setIntervalo(undefined); }}
             className={cn(
               'shrink-0 px-3 h-8 rounded-full text-[11px] font-semibold transition-all active:scale-95',
               periodo === opt.v
@@ -389,22 +389,43 @@ export default function TabCadastrosFernanda() {
               )}
             >
               <CalendarIcon size={11} />
-              {periodo === 'data' && dataEspecifica
-                ? format(dataEspecifica, "dd/MM/yy", { locale: ptBR })
-                : 'Data'}
+              {periodo === 'data' && intervalo?.from
+                ? intervalo.to && intervalo.to.getTime() !== intervalo.from.getTime()
+                  ? `${format(intervalo.from, 'dd/MM', { locale: ptBR })} – ${format(intervalo.to, 'dd/MM', { locale: ptBR })}`
+                  : format(intervalo.from, 'dd/MM/yy', { locale: ptBR })
+                : 'Escolher datas'}
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
+            <div className="p-2 pb-0 text-[11px] text-muted-foreground text-center">
+              Toque no dia inicial e depois no dia final
+            </div>
             <Calendar
-              mode="single"
-              selected={dataEspecifica}
-              onSelect={(d) => {
-                if (d) { setDataEspecifica(d); setPeriodo('data'); setDatePickerOpen(false); }
+              mode="range"
+              selected={intervalo as any}
+              onSelect={(range: any) => {
+                setIntervalo(range);
+                if (range?.from) setPeriodo('data');
               }}
+              numberOfMonths={1}
               initialFocus
               locale={ptBR}
               className={cn('p-3 pointer-events-auto')}
             />
+            <div className="p-2 pt-0 flex gap-2">
+              <button
+                onClick={() => { setIntervalo(undefined); setPeriodo('hoje'); setDatePickerOpen(false); }}
+                className="flex-1 h-8 rounded-lg bg-muted text-[11px] font-semibold"
+              >
+                Limpar
+              </button>
+              <button
+                onClick={() => setDatePickerOpen(false)}
+                className="flex-1 h-8 rounded-lg gradient-primary text-white text-[11px] font-semibold"
+              >
+                Aplicar
+              </button>
+            </div>
           </PopoverContent>
         </Popover>
       </div>
