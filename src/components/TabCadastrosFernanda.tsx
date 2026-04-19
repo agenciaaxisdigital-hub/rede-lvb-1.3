@@ -47,7 +47,7 @@ export default function TabCadastrosFernanda() {
   const [selected, setSelected] = useState<CadastroFernanda | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [periodo, setPeriodo] = useState<'todos' | 'hoje' | 'ontem' | 'semana' | 'mes' | 'data'>('hoje');
-  const [dataEspecifica, setDataEspecifica] = useState<Date | undefined>(undefined);
+  const [intervalo, setIntervalo] = useState<{ from?: Date; to?: Date } | undefined>(undefined);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   const carregar = useCallback(async () => {
