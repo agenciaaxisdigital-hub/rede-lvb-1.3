@@ -356,24 +356,54 @@ export default function TabCadastrosFernanda() {
       {/* Filtro por período */}
       <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-0.5 scrollbar-hide">
         {([
-          { v: 'todos', l: 'Todos' },
           { v: 'hoje', l: 'Hoje' },
           { v: 'ontem', l: 'Ontem' },
           { v: 'semana', l: '7 dias' },
           { v: 'mes', l: '30 dias' },
+          { v: 'todos', l: 'Todos' },
         ] as const).map(opt => (
           <button
             key={opt.v}
-            onClick={() => setPeriodo(opt.v)}
-            className={`shrink-0 px-3 h-8 rounded-full text-[11px] font-semibold transition-all active:scale-95 ${
+            onClick={() => { setPeriodo(opt.v); setDataEspecifica(undefined); }}
+            className={cn(
+              'shrink-0 px-3 h-8 rounded-full text-[11px] font-semibold transition-all active:scale-95',
               periodo === opt.v
                 ? 'gradient-primary text-white shadow-sm'
                 : 'bg-card border border-border text-muted-foreground'
-            }`}
+            )}
           >
             {opt.l}
           </button>
         ))}
+        <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+          <PopoverTrigger asChild>
+            <button
+              className={cn(
+                'shrink-0 px-3 h-8 rounded-full text-[11px] font-semibold transition-all active:scale-95 flex items-center gap-1',
+                periodo === 'data'
+                  ? 'gradient-primary text-white shadow-sm'
+                  : 'bg-card border border-border text-muted-foreground'
+              )}
+            >
+              <CalendarIcon size={11} />
+              {periodo === 'data' && dataEspecifica
+                ? format(dataEspecifica, "dd/MM/yy", { locale: ptBR })
+                : 'Data'}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={dataEspecifica}
+              onSelect={(d) => {
+                if (d) { setDataEspecifica(d); setPeriodo('data'); setDatePickerOpen(false); }
+              }}
+              initialFocus
+              locale={ptBR}
+              className={cn('p-3 pointer-events-auto')}
+            />
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* Count */}
