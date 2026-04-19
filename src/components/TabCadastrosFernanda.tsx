@@ -115,7 +115,7 @@ export default function TabCadastrosFernanda() {
       || (c.cidade || '').toLowerCase().includes(q)
       || (c.instagram || '').toLowerCase().includes(q)
     );
-  }, [cadastros, busca, periodo]);
+  }, [cadastros, busca, periodo, dataEspecifica]);
 
   const handleSalvar = async () => {
     if (!form.nome.trim()) { toast({ title: 'Informe o nome', variant: 'destructive' }); return; }
