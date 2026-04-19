@@ -404,7 +404,7 @@ export default function TabCadastrosFernanda() {
                     )}
                   </div>
                   <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground/70 mt-1">
-                    <Calendar size={9} /> {new Date(c.criado_em).toLocaleDateString('pt-BR')}
+                    <CalendarIcon size={9} /> {new Date(c.criado_em).toLocaleDateString('pt-BR')}
                   </div>
                 </div>
                 <ChevronRight size={16} className="text-muted-foreground shrink-0 mt-1" />
