@@ -117,6 +117,57 @@ export default function SecaoAfiliados() {
     }
   };
 
+  const criarManual = async () => {
+    if (!mNome.trim() || mNome.trim().length < 2) {
+      toast({ title: 'Informe o nome', variant: 'destructive' }); return;
+    }
+    if (!mTelefone.trim()) {
+      toast({ title: 'Informe o telefone', variant: 'destructive' }); return;
+    }
+    setSavingManual(true);
+    try {
+      // 1) Cria pessoa
+      const { data: pessoa, error: pErr } = await (supabase as any)
+        .from('pessoas')
+        .insert({
+          nome: mNome.trim(),
+          telefone: mTelefone.trim(),
+          whatsapp: mWhats.trim() || mTelefone.trim(),
+          email: mEmail.trim() || null,
+          cpf: mCpf.trim() || null,
+          data_nascimento: mNasc || null,
+          instagram: mInsta.trim() || null,
+          municipio_eleitoral: mCidade.trim() || null,
+          origem: 'afiliado_manual',
+        })
+        .select('id')
+        .single();
+      if (pErr) throw pErr;
+
+      // 2) Cria hierarquia ativa (sem auth_user_id, sem link)
+      const { error: hErr } = await (supabase as any)
+        .from('hierarquia_usuarios')
+        .insert({
+          nome: mNome.trim(),
+          tipo: 'afiliado',
+          ativo: true,
+          superior_id: usuario?.id || null,
+          municipio_id: usuario?.municipio_id || null,
+        });
+      if (hErr) throw hErr;
+
+      toast({ title: '✅ Afiliado cadastrado manualmente!' });
+      setShowManual(false);
+      setMNome(''); setMTelefone(''); setMWhats(''); setMEmail('');
+      setMCpf(''); setMNasc(''); setMInsta(''); setMCidade('');
+      fetchAfiliados();
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+    } finally {
+      setSavingManual(false);
+    }
+  };
+
   if (!isAdmin) return null;
 
   const pendentes = items.filter(i => !i.auth_user_id);
