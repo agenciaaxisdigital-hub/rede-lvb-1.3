@@ -50,6 +50,19 @@ Deno.serve(async (req) => {
     }
 
     // ──────────────────────────────────────────
+    // Get login (email) of an auth user — for admins
+    // ──────────────────────────────────────────
+    if (acao === 'obter_login') {
+      if (!auth_user_id) return jsonResponse({ error: 'auth_user_id obrigatório' }, 400);
+      const { data: u, error } = await supabaseAdmin.auth.admin.getUserById(auth_user_id);
+      if (error) return jsonResponse({ error: error.message }, 400);
+      const email = u?.user?.email || '';
+      // Strip synthetic suffix used by nomeToEmail (e.g. @rede.local)
+      const login = email.includes('@') ? email.split('@')[0] : email;
+      return jsonResponse({ success: true, email, login });
+    }
+
+    // ──────────────────────────────────────────
     // Admin-only actions below
     // ──────────────────────────────────────────
     const { data: callerHier } = await supabaseAdmin

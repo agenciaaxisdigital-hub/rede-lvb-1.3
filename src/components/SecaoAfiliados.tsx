@@ -22,6 +22,7 @@ export default function SecaoAfiliados() {
   const { usuario, isAdmin } = useAuth();
   const [items, setItems] = useState<AfiliadoItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [logins, setLogins] = useState<Record<string, string>>({});
   const [creating, setCreating] = useState(false);
   const [showManual, setShowManual] = useState(false);
   const [savingManual, setSavingManual] = useState(false);
@@ -109,6 +110,29 @@ export default function SecaoAfiliados() {
   useEffect(() => {
     if (isAdmin) fetchAfiliados();
   }, [isAdmin, fetchAfiliados]);
+
+  // Carrega login (email) dos afiliados ativos
+  useEffect(() => {
+    const ativos = items.filter(i => i.auth_user_id && !logins[i.id]);
+    if (ativos.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const updates: Record<string, string> = {};
+      await Promise.all(ativos.map(async (it) => {
+        try {
+          const { data } = await supabase.functions.invoke('gerenciar-usuario', {
+            body: { acao: 'obter_login', auth_user_id: it.auth_user_id },
+          });
+          const d: any = data;
+          if (d?.login) updates[it.id] = d.login;
+        } catch {}
+      }));
+      if (!cancelled && Object.keys(updates).length) {
+        setLogins(prev => ({ ...prev, ...updates }));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [items, logins]);
 
   const linkPara = (token: string | null) =>
     token ? `${window.location.origin}/cadastro/${token}` : '';
@@ -402,6 +426,12 @@ export default function SecaoAfiliados() {
                     }`}>
                       {isPendente ? 'Aguardando cadastro' : 'Ativo no sistema'}
                     </span>
+                    {!isPendente && (
+                      <p className="text-[10px] text-muted-foreground mt-1 truncate">
+                        <span className="font-semibold">Usuário:</span>{' '}
+                        <span className="font-mono">{logins[item.id] || '…'}</span>
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-1">
                     {!isPendente && (
