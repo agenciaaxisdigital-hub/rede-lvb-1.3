@@ -45,6 +45,8 @@ export default function CadastroPublicoAfiliado() {
 
   // Captação (público)
   const [capNome, setCapNome] = useState('');
+  const [capCpf, setCapCpf] = useState('');
+  const [capEmail, setCapEmail] = useState('');
   const [capTelefone, setCapTelefone] = useState('');
   const [capData, setCapData] = useState('');
   const [capCep, setCapCep] = useState('');
@@ -52,6 +54,20 @@ export default function CadastroPublicoAfiliado() {
   const [capUfCep, setCapUfCep] = useState('');
   const [capBuscandoCep, setCapBuscandoCep] = useState(false);
   const [capRede, setCapRede] = useState('');
+  const [capInstagram, setCapInstagram] = useState('');
+  // Eleitorais (lideranca/fiscal/eleitor)
+  const [capTitulo, setCapTitulo] = useState('');
+  const [capZona, setCapZona] = useState('');
+  const [capSecao, setCapSecao] = useState('');
+  const [capColegio, setCapColegio] = useState('');
+  const [capMunicipioEl, setCapMunicipioEl] = useState('');
+  const [capUfEl, setCapUfEl] = useState('GO');
+  // Específicos
+  const [capNivelComp, setCapNivelComp] = useState('');
+  const [capApoiadores, setCapApoiadores] = useState('');
+  const [capBairros, setCapBairros] = useState('');
+  const [capCompromisso, setCapCompromisso] = useState('');
+  const [capObs, setCapObs] = useState('');
   const [capSaving, setCapSaving] = useState(false);
 
   // Pessoais
