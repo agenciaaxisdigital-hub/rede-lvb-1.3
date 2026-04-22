@@ -8,6 +8,22 @@ export default function CadastroPublicoAfiliado() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
 
+  // Detecção de modo: 'captacao' (link de afiliado ativo, formulário simples)
+  // ou 'criar_acesso' (registro pendente do próprio afiliado, fluxo completo)
+  const [modo, setModo] = useState<'detectando' | 'captacao' | 'criar_acesso' | 'invalido'>('detectando');
+  const [afiliadoNome, setAfiliadoNome] = useState<string>('');
+
+  // Captação (público)
+  const [capNome, setCapNome] = useState('');
+  const [capTelefone, setCapTelefone] = useState('');
+  const [capData, setCapData] = useState('');
+  const [capCep, setCapCep] = useState('');
+  const [capCidadeCep, setCapCidadeCep] = useState('');
+  const [capUfCep, setCapUfCep] = useState('');
+  const [capBuscandoCep, setCapBuscandoCep] = useState(false);
+  const [capRede, setCapRede] = useState('');
+  const [capSaving, setCapSaving] = useState(false);
+
   // Pessoais
   const [nome, setNome] = useState('');
   const [cpf, setCpf] = useState('');
@@ -36,6 +52,30 @@ export default function CadastroPublicoAfiliado() {
 
   useEffect(() => { document.title = 'Cadastro de Afiliado'; }, []);
 
+  // Detectar tipo do link ao montar
+  useEffect(() => {
+    if (!token) { setModo('invalido'); return; }
+    (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('captacao-afiliado', {
+          method: 'GET' as any,
+          body: undefined as any,
+          headers: {} as any,
+          // workaround: usar URL com query — invoke não passa query, então usar fetch direto
+        } as any);
+        // Fallback: chamar via fetch direto (invoke não suporta query params facilmente)
+        const url = `https://yvdfdmyusdhgtzfguxbj.supabase.co/functions/v1/captacao-afiliado?token=${encodeURIComponent(token)}`;
+        const r = await fetch(url, { headers: { apikey: (supabase as any).supabaseKey || '' } });
+        const j = await r.json();
+        if (!r.ok || j?.error) { setModo('invalido'); return; }
+        setAfiliadoNome(j.afiliado_nome || '');
+        setModo(j.is_ativo ? 'captacao' : 'criar_acesso');
+      } catch {
+        setModo('invalido');
+      }
+    })();
+  }, [token]);
+
   const buscarCidadePorCep = async (raw: string) => {
     const cepLimpo = raw.replace(/\D/g, '');
     if (cepLimpo.length !== 8) { setCidadeCep(''); setUfCep(''); return; }
@@ -49,6 +89,59 @@ export default function CadastroPublicoAfiliado() {
       setCidadeCep(''); setUfCep('');
     } finally {
       setBuscandoCep(false);
+    }
+  };
+
+  const buscarCidadePorCepCap = async (raw: string) => {
+    const cepLimpo = raw.replace(/\D/g, '');
+    if (cepLimpo.length !== 8) { setCapCidadeCep(''); setCapUfCep(''); return; }
+    setCapBuscandoCep(true);
+    try {
+      const r = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+      const d = await r.json();
+      if (d?.erro) { setCapCidadeCep(''); setCapUfCep(''); }
+      else { setCapCidadeCep(d.localidade || ''); setCapUfCep(d.uf || ''); }
+    } catch { setCapCidadeCep(''); setCapUfCep(''); }
+    finally { setCapBuscandoCep(false); }
+  };
+
+  const handleSubmitCaptacao = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+    if (!capNome.trim() || capNome.trim().length < 2) {
+      toast({ title: 'Informe seu nome', variant: 'destructive' }); return;
+    }
+    if (!capTelefone.trim() || capTelefone.replace(/\D/g, '').length < 6) {
+      toast({ title: 'Informe um telefone válido', variant: 'destructive' }); return;
+    }
+    setCapSaving(true);
+    try {
+      const url = `https://yvdfdmyusdhgtzfguxbj.supabase.co/functions/v1/captacao-afiliado`;
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: (supabase as any).supabaseKey || '' },
+        body: JSON.stringify({
+          token,
+          nome: capNome.trim(),
+          telefone: capTelefone.trim(),
+          data_nascimento: capData || null,
+          cep: capCep.trim() || null,
+          rede_social: capRede.trim() || null,
+        }),
+      });
+      const j = await r.json();
+      if (!r.ok || j?.error) {
+        const msg = typeof j?.error === 'string' ? j.error : 'Erro ao enviar cadastro';
+        throw new Error(msg);
+      }
+      toast({ title: '✅ Cadastro enviado!', description: 'Você será redirecionada(o) ao Instagram.' });
+      // Pequeno delay para o usuário ver o toast
+      setTimeout(() => {
+        window.location.href = j.redirect_url || 'https://www.instagram.com/drafernandasarelli/';
+      }, 800);
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+      setCapSaving(false);
     }
   };
 
@@ -137,6 +230,103 @@ export default function CadastroPublicoAfiliado() {
   const inputCls = 'w-full h-11 px-3 bg-card border border-border rounded-xl text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30 transition-all';
   const labelCls = 'text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block';
 
+  if (modo === 'detectando') {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-background">
+        <div className="flex items-center gap-2 text-muted-foreground text-sm">
+          <Loader2 size={16} className="animate-spin text-primary" /> Carregando…
+        </div>
+      </div>
+    );
+  }
+
+  if (modo === 'invalido') {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center px-6 bg-gradient-to-br from-primary/5 via-background to-background">
+        <div className="text-center space-y-3 max-w-sm">
+          <h1 className="text-xl font-bold text-foreground">Link inválido ou expirado</h1>
+          <p className="text-sm text-muted-foreground">Solicite um novo link à pessoa que te enviou.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── MODO CAPTAÇÃO: formulário simples para o público preencher ───
+  if (modo === 'captacao') {
+    return (
+      <div className="fixed inset-0 overflow-y-auto bg-gradient-to-br from-primary/5 via-background to-background px-4 pt-8 pb-32">
+        <div className="w-full max-w-md space-y-5 mx-auto">
+          <div className="text-center space-y-2">
+            <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
+              <ClipboardList size={26} className="text-primary" />
+            </div>
+            <h1 className="text-xl font-bold text-foreground">Faça seu cadastro</h1>
+            {afiliadoNome && (
+              <p className="text-xs text-muted-foreground">Indicado por <b className="text-foreground">{afiliadoNome}</b></p>
+            )}
+          </div>
+
+          <form onSubmit={handleSubmitCaptacao} className="space-y-4">
+            <div className="section-card space-y-3">
+              <div>
+                <label className={labelCls}>Nome *</label>
+                <input type="text" value={capNome} onChange={e => setCapNome(e.target.value)} className={inputCls} required maxLength={120} />
+              </div>
+              <div>
+                <label className={labelCls}>Telefone *</label>
+                <input type="tel" value={capTelefone} onChange={e => setCapTelefone(e.target.value)} className={inputCls} required maxLength={40} placeholder="(00) 00000-0000" />
+              </div>
+              <div>
+                <label className={labelCls}>Data de nascimento</label>
+                <input type="date" value={capData} onChange={e => setCapData(e.target.value)} className={inputCls} />
+              </div>
+              <div>
+                <label className={labelCls}>CEP</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={capCep}
+                    onChange={e => setCapCep(e.target.value)}
+                    onBlur={e => buscarCidadePorCepCap(e.target.value)}
+                    className={inputCls}
+                    maxLength={20}
+                    placeholder="00000-000"
+                  />
+                  {capBuscandoCep && (
+                    <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-muted-foreground" />
+                  )}
+                </div>
+                {capCidadeCep && (
+                  <span className="inline-flex items-center gap-1 mt-2 px-2 py-1 rounded-full bg-primary/10 text-primary text-[11px] font-semibold">
+                    <MapPin size={11} /> {capCidadeCep}{capUfCep ? ` - ${capUfCep}` : ''}
+                  </span>
+                )}
+              </div>
+              <div>
+                <label className={labelCls}>Rede social</label>
+                <input type="text" value={capRede} onChange={e => setCapRede(e.target.value)} className={inputCls} maxLength={200} placeholder="@usuario / link" />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={capSaving}
+              className="w-full h-12 rounded-xl gradient-primary text-white text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.97] disabled:opacity-50"
+            >
+              {capSaving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+              {capSaving ? 'Enviando...' : 'Concluir cadastro'}
+            </button>
+          </form>
+
+          <p className="text-center text-[10px] text-muted-foreground pb-4">
+            Seus dados são tratados com sigilo.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── MODO CRIAR ACESSO: afiliado define seu próprio login ───
   return (
     <div className="fixed inset-0 overflow-y-auto bg-gradient-to-br from-primary/5 via-background to-background px-4 pt-8 pb-32">
       <div className="w-full max-w-md space-y-5 mx-auto">
