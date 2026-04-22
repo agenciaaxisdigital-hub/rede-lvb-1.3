@@ -11,11 +11,12 @@ const bodySchema = z.object({
   // Dados pessoais
   nome: z.string().trim().min(2).max(120),
   cpf: z.string().trim().max(20).optional().nullable(),
-  telefone: z.string().trim().min(6).max(40),
+  telefone: z.string().trim().max(40).optional().nullable(),
   whatsapp: z.string().trim().max(40).optional().nullable(),
   email: z.string().trim().max(200).optional().nullable(),
   data_nascimento: z.string().optional().nullable(),
   cep: z.string().trim().max(20).optional().nullable(),
+  cidade_cep: z.string().trim().max(120).optional().nullable(),
   instagram: z.string().trim().max(120).optional().nullable(),
   // Dados eleitorais
   titulo_eleitor: z.string().trim().min(1).max(40),
