@@ -115,7 +115,7 @@ export default function LinkCaptacaoCard({ initialVariant = 'lideranca' }: LinkC
     () => {
       if (!linkToken) return null;
       const base = `${window.location.origin}/c/${slugNome}/${linkToken}`;
-      return variante && variante !== 'geral' ? `${base}?tipo=${variante}` : base;
+      return `${base}?tipo=${variante}`;
     },
     [linkToken, slugNome, variante]
   );
