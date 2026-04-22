@@ -166,15 +166,10 @@ export default function CadastroPublicoAfiliado() {
                 <input type="date" value={dataNascimento} onChange={e => setDataNascimento(e.target.value)} className={inputCls} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className={labelCls}>Telefone *</label>
-                <input type="tel" value={telefone} onChange={e => setTelefone(e.target.value)} className={inputCls} required maxLength={40} placeholder="(00) 00000-0000" />
-              </div>
-              <div>
-                <label className={labelCls}>WhatsApp</label>
-                <input type="tel" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} className={inputCls} maxLength={40} placeholder="(00) 00000-0000" />
-              </div>
+            <div>
+              <label className={labelCls}>WhatsApp *</label>
+              <input type="tel" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} className={inputCls} required maxLength={40} placeholder="(00) 00000-0000" />
+              <p className="text-[10px] text-muted-foreground mt-1">Usado também como telefone de contato.</p>
             </div>
             <div>
               <label className={labelCls}>E-mail</label>
@@ -182,7 +177,25 @@ export default function CadastroPublicoAfiliado() {
             </div>
             <div>
               <label className={labelCls}>CEP</label>
-              <input type="text" value={cep} onChange={e => setCep(e.target.value)} className={inputCls} maxLength={20} placeholder="00000-000" />
+              <div className="relative">
+                <input
+                  type="text"
+                  value={cep}
+                  onChange={e => { setCep(e.target.value); }}
+                  onBlur={e => buscarCidadePorCep(e.target.value)}
+                  className={inputCls}
+                  maxLength={20}
+                  placeholder="00000-000"
+                />
+                {buscandoCep && (
+                  <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-muted-foreground" />
+                )}
+              </div>
+              {cidadeCep && (
+                <span className="inline-flex items-center gap-1 mt-2 px-2 py-1 rounded-full bg-primary/10 text-primary text-[11px] font-semibold">
+                  <MapPin size={11} /> {cidadeCep}{ufCep ? ` - ${ufCep}` : ''}
+                </span>
+              )}
             </div>
             <div>
               <label className={labelCls}>Instagram</label>
