@@ -90,8 +90,8 @@ export default function CadastroPublicoAfiliado() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-gradient-to-br from-primary/10 to-background">
-        <div className="w-full max-w-sm text-center space-y-5">
+      <div className="fixed inset-0 overflow-y-auto flex flex-col items-center justify-center px-4 py-8 bg-gradient-to-br from-primary/10 to-background">
+        <div className="w-full max-w-sm text-center space-y-5 my-auto">
           <div className="w-20 h-20 rounded-full bg-primary/15 flex items-center justify-center mx-auto">
             <CheckCircle2 size={48} className="text-primary" />
           </div>
@@ -119,8 +119,8 @@ export default function CadastroPublicoAfiliado() {
   const labelCls = 'text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-background flex items-start justify-center px-4 pt-8 pb-24">
-      <div className="w-full max-w-md space-y-5">
+    <div className="fixed inset-0 overflow-y-auto bg-gradient-to-br from-primary/5 via-background to-background px-4 pt-8 pb-32">
+      <div className="w-full max-w-md space-y-5 mx-auto">
         <div className="text-center space-y-2">
           <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
             <ClipboardList size={26} className="text-primary" />
