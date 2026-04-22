@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, Link2, Copy, Plus, UserCheck, Clock, Trash2, ExternalLink, UserPlus, X } from 'lucide-react';
+import { Loader2, Link2, Copy, Plus, UserCheck, Clock, Trash2, ExternalLink, UserPlus, X, MapPin } from 'lucide-react';
 
 interface AfiliadoItem {
   id: string;
@@ -26,11 +26,14 @@ export default function SecaoAfiliados() {
   const [showManual, setShowManual] = useState(false);
   const [savingManual, setSavingManual] = useState(false);
   const [mNome, setMNome] = useState('');
-  const [mTelefone, setMTelefone] = useState('');
   const [mWhats, setMWhats] = useState('');
   const [mEmail, setMEmail] = useState('');
   const [mCpf, setMCpf] = useState('');
   const [mNasc, setMNasc] = useState('');
+  const [mCep, setMCep] = useState('');
+  const [mCidadeCep, setMCidadeCep] = useState('');
+  const [mUfCep, setMUfCep] = useState('');
+  const [mBuscandoCep, setMBuscandoCep] = useState(false);
   const [mInsta, setMInsta] = useState('');
   const [mTitulo, setMTitulo] = useState('');
   const [mZona, setMZona] = useState('');
@@ -40,6 +43,19 @@ export default function SecaoAfiliados() {
   const [mColegio, setMColegio] = useState('');
   const [mLogin, setMLogin] = useState('');
   const [mSenha, setMSenha] = useState('');
+
+  const buscarCidadeCep = async (raw: string) => {
+    const cepLimpo = raw.replace(/\D/g, '');
+    if (cepLimpo.length !== 8) { setMCidadeCep(''); setMUfCep(''); return; }
+    setMBuscandoCep(true);
+    try {
+      const r = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+      const d = await r.json();
+      if (d?.erro) { setMCidadeCep(''); setMUfCep(''); }
+      else { setMCidadeCep(d.localidade || ''); setMUfCep(d.uf || ''); }
+    } catch { setMCidadeCep(''); setMUfCep(''); }
+    finally { setMBuscandoCep(false); }
+  };
 
   const fetchAfiliados = useCallback(async () => {
     setLoading(true);
@@ -128,8 +144,8 @@ export default function SecaoAfiliados() {
     if (!mNome.trim() || mNome.trim().length < 2) {
       toast({ title: 'Informe o nome', variant: 'destructive' }); return;
     }
-    if (!mTelefone.trim()) {
-      toast({ title: 'Informe o telefone', variant: 'destructive' }); return;
+    if (!mWhats.trim() || mWhats.replace(/\D/g,'').length < 6) {
+      toast({ title: 'Informe um WhatsApp válido', variant: 'destructive' }); return;
     }
     if (!mTitulo.trim() || !mZona.trim() || !mSecao.trim() || !mMunicipio.trim() || !mColegio.trim()) {
       toast({ title: 'Preencha os dados eleitorais (Título, Zona, Seção, Município e Colégio)', variant: 'destructive' }); return;
@@ -164,10 +180,12 @@ export default function SecaoAfiliados() {
           token: pend.link_token,
           nome: mNome.trim(),
           cpf: mCpf.trim() || null,
-          telefone: mTelefone.trim(),
-          whatsapp: mWhats.trim() || null,
+          telefone: mWhats.trim(),
+          whatsapp: mWhats.trim(),
           email: mEmail.trim() || null,
           data_nascimento: mNasc || null,
+          cep: mCep.trim() || null,
+          cidade_cep: mCidadeCep || null,
           instagram: mInsta.trim() || null,
           titulo_eleitor: mTitulo.trim(),
           zona_eleitoral: mZona.trim(),
@@ -185,8 +203,9 @@ export default function SecaoAfiliados() {
 
       toast({ title: '✅ Afiliado cadastrado!', description: `Usuário: ${d?.login || mLogin.trim()}` });
       setShowManual(false);
-      setMNome(''); setMTelefone(''); setMWhats(''); setMEmail('');
+      setMNome(''); setMWhats(''); setMEmail('');
       setMCpf(''); setMNasc(''); setMInsta('');
+      setMCep(''); setMCidadeCep(''); setMUfCep('');
       setMTitulo(''); setMZona(''); setMSecao(''); setMMunicipio(''); setMUf('GO'); setMColegio('');
       setMLogin(''); setMSenha('');
       fetchAfiliados();
