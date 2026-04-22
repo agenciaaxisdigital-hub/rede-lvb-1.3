@@ -49,6 +49,9 @@ export default function CadastroPublicoAfiliado() {
     if (!senha.trim() || senha.length < 6) {
       toast({ title: 'A senha precisa ter no mínimo 6 caracteres', variant: 'destructive' }); return;
     }
+    if (!tituloEleitor.trim() || !zonaEleitoral.trim() || !secaoEleitoral.trim() || !municipioEleitoral.trim() || !colegioEleitoral.trim()) {
+      toast({ title: 'Preencha os dados eleitorais (Título, Zona, Seção, Município e Colégio)', variant: 'destructive' }); return;
+    }
 
     setSaving(true);
     try {
@@ -63,13 +66,12 @@ export default function CadastroPublicoAfiliado() {
           data_nascimento: dataNascimento || null,
           cep: cep.trim() || null,
           instagram: instagram.trim() || null,
-          facebook: facebook.trim() || null,
-          titulo_eleitor: tituloEleitor.trim() || null,
-          zona_eleitoral: zonaEleitoral.trim() || null,
-          secao_eleitoral: secaoEleitoral.trim() || null,
-          municipio_eleitoral: municipioEleitoral.trim() || null,
+          titulo_eleitor: tituloEleitor.trim(),
+          zona_eleitoral: zonaEleitoral.trim(),
+          secao_eleitoral: secaoEleitoral.trim(),
+          municipio_eleitoral: municipioEleitoral.trim(),
           uf_eleitoral: ufEleitoral.trim() || null,
-          colegio_eleitoral: colegioEleitoral.trim() || null,
+          colegio_eleitoral: colegioEleitoral.trim(),
           usuario_login: usuarioLogin.trim(),
           senha: senha,
         },
