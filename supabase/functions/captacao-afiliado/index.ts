@@ -10,7 +10,7 @@ const corsHeaders = {
 // POST { token, nome, telefone, data_nascimento, cep, rede_social } → grava cadastro
 
 const postSchema = z.object({
-  token: z.string().min(8).max(128),
+  token: z.string().min(6).max(128),
   nome: z.string().trim().min(2).max(120),
   telefone: z.string().trim().min(6).max(40),
   data_nascimento: z.string().optional().nullable(),
@@ -41,16 +41,19 @@ Deno.serve(async (req) => {
     if (req.method === 'GET') {
       const url = new URL(req.url);
       const token = url.searchParams.get('token') || '';
-      if (!token || token.length < 8) {
+      if (!token || token.length < 6) {
         return new Response(JSON.stringify({ error: 'Token inválido' }), {
           status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      const { data, error } = await supabaseAdmin
+      // Aceita token completo (32 chars) OU prefixo (>=6 chars) usando like
+      let query = supabaseAdmin
         .from('hierarquia_usuarios')
-        .select('id, nome, tipo, auth_user_id, ativo')
-        .eq('link_token', token)
-        .maybeSingle();
+        .select('id, nome, tipo, auth_user_id, ativo');
+      if (token.length >= 32) query = query.eq('link_token', token);
+      else query = query.like('link_token', `${token}%`).limit(1);
+      const { data: rows, error } = await query;
+      const data = Array.isArray(rows) ? rows[0] : rows;
       if (error || !data) {
         return new Response(JSON.stringify({ error: 'Link inválido' }), {
           status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -79,11 +82,13 @@ Deno.serve(async (req) => {
       const p = parsed.data;
 
       // Localizar afiliado dono do link
-      const { data: afiliado, error: afErr } = await supabaseAdmin
+      let q2 = supabaseAdmin
         .from('hierarquia_usuarios')
-        .select('id, tipo, auth_user_id')
-        .eq('link_token', p.token)
-        .maybeSingle();
+        .select('id, tipo, auth_user_id');
+      if (p.token.length >= 32) q2 = q2.eq('link_token', p.token);
+      else q2 = q2.like('link_token', `${p.token}%`).limit(1);
+      const { data: afRows, error: afErr } = await q2;
+      const afiliado = Array.isArray(afRows) ? afRows[0] : afRows;
       if (afErr || !afiliado || !(afiliado as any).auth_user_id) {
         return new Response(JSON.stringify({ error: 'Link inválido ou ainda não ativado' }), {
           status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },

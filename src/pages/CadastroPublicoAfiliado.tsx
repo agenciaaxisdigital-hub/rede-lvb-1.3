@@ -5,11 +5,25 @@ import { toast } from '@/hooks/use-toast';
 import { Loader2, CheckCircle2, ClipboardList, Eye, EyeOff, KeyRound, LogIn, MapPin, Heart, Sparkles, UserCheck } from 'lucide-react';
 
 export default function CadastroPublicoAfiliado() {
-  const { token } = useParams<{ token: string }>();
+  const params = useParams<{ token?: string; slugComToken?: string }>();
+  // Suporta 3 formatos de URL:
+  //  - /cadastro/:token              (legado)
+  //  - /c/:slug/:token               (legado)
+  //  - /r/:slugComToken              (novo, formato curto: nome-xxxxxxxx)
+  const token = useMemo(() => {
+    if (params.token) return params.token;
+    if (params.slugComToken) {
+      const idx = params.slugComToken.lastIndexOf('-');
+      if (idx > 0) return params.slugComToken.slice(idx + 1);
+      return params.slugComToken;
+    }
+    return undefined;
+  }, [params.token, params.slugComToken]);
   const navigate = useNavigate();
   const tipoParam = useMemo(() => {
     if (typeof window === 'undefined') return null;
-    const t = new URLSearchParams(window.location.search).get('tipo');
+    const qs = new URLSearchParams(window.location.search);
+    const t = qs.get('t') || qs.get('tipo');
     return t === 'lideranca' || t === 'fiscal' || t === 'eleitor' ? t : null;
   }, []);
   const tipoLabel = tipoParam === 'lideranca'
