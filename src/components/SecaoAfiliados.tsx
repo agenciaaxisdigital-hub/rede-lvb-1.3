@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, Link2, Copy, Plus, UserCheck, Clock, Trash2, ExternalLink, UserPlus, X, MapPin } from 'lucide-react';
+import { Loader2, Link2, Copy, Plus, UserCheck, Clock, Trash2, ExternalLink, UserPlus, X, MapPin, KeyRound, Eye, EyeOff } from 'lucide-react';
 
 interface AfiliadoItem {
   id: string;
@@ -43,6 +43,37 @@ export default function SecaoAfiliados() {
   const [mColegio, setMColegio] = useState('');
   const [mLogin, setMLogin] = useState('');
   const [mSenha, setMSenha] = useState('');
+  // Reset de senha por afiliado
+  const [resetId, setResetId] = useState<string | null>(null);
+  const [resetSenha, setResetSenha] = useState('');
+  const [resetShow, setResetShow] = useState(false);
+  const [resetSaving, setResetSaving] = useState(false);
+
+  const resetarSenhaAfiliado = async (item: AfiliadoItem) => {
+    if (!resetSenha || resetSenha.length < 6) {
+      toast({ title: 'Senha precisa ter no mínimo 6 caracteres', variant: 'destructive' });
+      return;
+    }
+    setResetSaving(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('gerenciar-usuario', {
+        body: {
+          acao: 'atualizar',
+          hierarquia_id: item.id,
+          auth_user_id: item.auth_user_id,
+          nova_senha: resetSenha,
+        },
+      });
+      if (error) throw new Error(error.message);
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast({ title: '🔑 Senha redefinida', description: `Nova senha aplicada a ${item.nome}` });
+      setResetId(null); setResetSenha(''); setResetShow(false);
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+    } finally {
+      setResetSaving(false);
+    }
+  };
 
   const buscarCidadeCep = async (raw: string) => {
     const cepLimpo = raw.replace(/\D/g, '');
@@ -372,14 +403,66 @@ export default function SecaoAfiliados() {
                       {isPendente ? 'Aguardando cadastro' : 'Ativo no sistema'}
                     </span>
                   </div>
-                  <button
-                    onClick={() => removerAfiliado(item)}
-                    className="p-1.5 text-muted-foreground hover:text-destructive transition-colors active:scale-90"
-                    title="Remover"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    {!isPendente && (
+                      <button
+                        onClick={() => {
+                          setResetId(resetId === item.id ? null : item.id);
+                          setResetSenha(''); setResetShow(false);
+                        }}
+                        className="p-1.5 text-muted-foreground hover:text-primary transition-colors active:scale-90"
+                        title="Redefinir senha"
+                      >
+                        <KeyRound size={14} />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => removerAfiliado(item)}
+                      className="p-1.5 text-muted-foreground hover:text-destructive transition-colors active:scale-90"
+                      title="Remover"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
+
+                {!isPendente && resetId === item.id && (
+                  <div className="mt-2 p-2 rounded-lg border border-border bg-muted/30 space-y-2">
+                    <p className="text-[11px] font-semibold text-foreground">Definir nova senha para {item.nome}</p>
+                    <div className="relative">
+                      <input
+                        type={resetShow ? 'text' : 'password'}
+                        value={resetSenha}
+                        onChange={e => setResetSenha(e.target.value)}
+                        placeholder="Mínimo 6 caracteres"
+                        className="w-full h-9 pl-3 pr-9 bg-card border border-border rounded-lg text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setResetShow(s => !s)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground p-1"
+                      >
+                        {resetShow ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                    <div className="flex gap-1.5">
+                      <button
+                        onClick={() => { setResetId(null); setResetSenha(''); setResetShow(false); }}
+                        className="flex-1 h-9 rounded-lg bg-card border border-border text-xs font-semibold"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={() => resetarSenhaAfiliado(item)}
+                        disabled={resetSaving || resetSenha.length < 6}
+                        className="flex-1 h-9 rounded-lg bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center gap-1 disabled:opacity-50"
+                      >
+                        {resetSaving ? <Loader2 size={12} className="animate-spin" /> : <KeyRound size={12} />}
+                        Salvar
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {isPendente && url && (
                   <div className="mt-2 flex items-center gap-1.5">
