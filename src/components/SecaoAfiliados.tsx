@@ -134,17 +134,39 @@ export default function SecaoAfiliados() {
     if (!mTitulo.trim() || !mZona.trim() || !mSecao.trim() || !mMunicipio.trim() || !mColegio.trim()) {
       toast({ title: 'Preencha os dados eleitorais (Título, Zona, Seção, Município e Colégio)', variant: 'destructive' }); return;
     }
+    if (!mLogin.trim() || mLogin.trim().length < 3) {
+      toast({ title: 'Defina um nome de usuário (mín. 3 letras)', variant: 'destructive' }); return;
+    }
+    if (!mSenha || mSenha.length < 6) {
+      toast({ title: 'Senha precisa ter no mínimo 6 caracteres', variant: 'destructive' }); return;
+    }
     setSavingManual(true);
     try {
-      // 1) Cria pessoa
-      const { data: pessoa, error: pErr } = await (supabase as any)
-        .from('pessoas')
+      // 1) Cria registro pendente com token (igual fluxo do link)
+      const token = gerarToken();
+      const { data: pend, error: insErr } = await (supabase as any)
+        .from('hierarquia_usuarios')
         .insert({
           nome: mNome.trim(),
-          telefone: mTelefone.trim(),
-          whatsapp: mWhats.trim() || mTelefone.trim(),
-          email: mEmail.trim() || null,
+          tipo: 'afiliado',
+          ativo: false,
+          link_token: token,
+          superior_id: usuario?.id || null,
+          municipio_id: usuario?.municipio_id || null,
+        })
+        .select('link_token')
+        .single();
+      if (insErr) throw insErr;
+
+      // 2) Chama a edge function para criar auth user + pessoa
+      const { data, error } = await supabase.functions.invoke('cadastro-afiliado-publico', {
+        body: {
+          token: pend.link_token,
+          nome: mNome.trim(),
           cpf: mCpf.trim() || null,
+          telefone: mTelefone.trim(),
+          whatsapp: mWhats.trim() || null,
+          email: mEmail.trim() || null,
           data_nascimento: mNasc || null,
           instagram: mInsta.trim() || null,
           titulo_eleitor: mTitulo.trim(),
@@ -153,29 +175,20 @@ export default function SecaoAfiliados() {
           municipio_eleitoral: mMunicipio.trim(),
           uf_eleitoral: mUf.trim() || 'GO',
           colegio_eleitoral: mColegio.trim(),
-          origem: 'afiliado_manual',
-        })
-        .select('id')
-        .single();
-      if (pErr) throw pErr;
+          usuario_login: mLogin.trim(),
+          senha: mSenha,
+        },
+      });
+      if (error) throw new Error(error.message);
+      const d: any = data;
+      if (d?.error) throw new Error(typeof d.error === 'string' ? d.error : 'Erro ao cadastrar');
 
-      // 2) Cria hierarquia ativa (sem auth_user_id, sem link)
-      const { error: hErr } = await (supabase as any)
-        .from('hierarquia_usuarios')
-        .insert({
-          nome: mNome.trim(),
-          tipo: 'afiliado',
-          ativo: true,
-          superior_id: usuario?.id || null,
-          municipio_id: usuario?.municipio_id || null,
-        });
-      if (hErr) throw hErr;
-
-      toast({ title: '✅ Afiliado cadastrado manualmente!' });
+      toast({ title: '✅ Afiliado cadastrado!', description: `Usuário: ${d?.login || mLogin.trim()}` });
       setShowManual(false);
       setMNome(''); setMTelefone(''); setMWhats(''); setMEmail('');
       setMCpf(''); setMNasc(''); setMInsta('');
       setMTitulo(''); setMZona(''); setMSecao(''); setMMunicipio(''); setMUf('GO'); setMColegio('');
+      setMLogin(''); setMSenha('');
       fetchAfiliados();
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
