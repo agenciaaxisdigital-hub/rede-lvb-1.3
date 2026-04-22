@@ -90,8 +90,8 @@ export default function CadastroPublicoAfiliado() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-gradient-to-br from-primary/10 to-background">
-        <div className="w-full max-w-sm text-center space-y-5">
+      <div className="fixed inset-0 overflow-y-auto flex flex-col items-center justify-center px-4 py-8 bg-gradient-to-br from-primary/10 to-background">
+        <div className="w-full max-w-sm text-center space-y-5 my-auto">
           <div className="w-20 h-20 rounded-full bg-primary/15 flex items-center justify-center mx-auto">
             <CheckCircle2 size={48} className="text-primary" />
           </div>
