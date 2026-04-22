@@ -72,6 +72,7 @@ function AppRoutes() {
         <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
         <Route path="/cadastro/:token" element={<CadastroPublicoAfiliado />} />
         <Route path="/c/:slug/:token" element={<CadastroPublicoAfiliado />} />
+        <Route path="/r/:slugComToken" element={<CadastroPublicoAfiliado />} />
         <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
         <Route path="/admin" element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
         <Route path="/fernanda" element={<PrivateRoute allowFernanda><HomeFernanda /></PrivateRoute>} />
