@@ -24,7 +24,7 @@ export default function CadastroPublicoAfiliado() {
     if (typeof window === 'undefined') return null;
     const qs = new URLSearchParams(window.location.search);
     const t = qs.get('t') || qs.get('tipo');
-    return t === 'lideranca' || t === 'fiscal' || t === 'eleitor' ? t : null;
+    return t === 'lideranca' || t === 'fiscal' || t === 'eleitor' || t === 'fernanda' || t === 'afiliado' ? t : null;
   }, []);
   const tipoLabel = tipoParam === 'lideranca'
     ? 'Convite para Liderança'
@@ -32,6 +32,10 @@ export default function CadastroPublicoAfiliado() {
     ? 'Convite para Fiscal'
     : tipoParam === 'eleitor'
     ? 'Convite para Eleitor'
+    : tipoParam === 'fernanda'
+    ? 'Cadastro Dra. Fernanda'
+    : tipoParam === 'afiliado'
+    ? 'Cadastro de Afiliado'
     : null;
 
   // Detecção de modo: 'captacao' (link de afiliado ativo, formulário simples)
