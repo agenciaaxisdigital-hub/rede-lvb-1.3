@@ -165,15 +165,9 @@ export default function CadastroPublicoAfiliado() {
               <label className={labelCls}>CEP</label>
               <input type="text" value={cep} onChange={e => setCep(e.target.value)} className={inputCls} maxLength={20} placeholder="00000-000" />
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className={labelCls}>Instagram</label>
-                <input type="text" value={instagram} onChange={e => setInstagram(e.target.value)} className={inputCls} maxLength={120} placeholder="@usuario" />
-              </div>
-              <div>
-                <label className={labelCls}>Facebook</label>
-                <input type="text" value={facebook} onChange={e => setFacebook(e.target.value)} className={inputCls} maxLength={120} placeholder="usuario" />
-              </div>
+            <div>
+              <label className={labelCls}>Instagram</label>
+              <input type="text" value={instagram} onChange={e => setInstagram(e.target.value)} className={inputCls} maxLength={120} placeholder="@usuario" />
             </div>
           </div>
 
