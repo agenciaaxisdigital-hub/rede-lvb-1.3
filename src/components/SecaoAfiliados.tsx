@@ -129,6 +129,9 @@ export default function SecaoAfiliados() {
     if (!mTelefone.trim()) {
       toast({ title: 'Informe o telefone', variant: 'destructive' }); return;
     }
+    if (!mTitulo.trim() || !mZona.trim() || !mSecao.trim() || !mMunicipio.trim() || !mColegio.trim()) {
+      toast({ title: 'Preencha os dados eleitorais (Título, Zona, Seção, Município e Colégio)', variant: 'destructive' }); return;
+    }
     setSavingManual(true);
     try {
       // 1) Cria pessoa
@@ -142,7 +145,12 @@ export default function SecaoAfiliados() {
           cpf: mCpf.trim() || null,
           data_nascimento: mNasc || null,
           instagram: mInsta.trim() || null,
-          municipio_eleitoral: mCidade.trim() || null,
+          titulo_eleitor: mTitulo.trim(),
+          zona_eleitoral: mZona.trim(),
+          secao_eleitoral: mSecao.trim(),
+          municipio_eleitoral: mMunicipio.trim(),
+          uf_eleitoral: mUf.trim() || 'GO',
+          colegio_eleitoral: mColegio.trim(),
           origem: 'afiliado_manual',
         })
         .select('id')
@@ -164,7 +172,8 @@ export default function SecaoAfiliados() {
       toast({ title: '✅ Afiliado cadastrado manualmente!' });
       setShowManual(false);
       setMNome(''); setMTelefone(''); setMWhats(''); setMEmail('');
-      setMCpf(''); setMNasc(''); setMInsta(''); setMCidade('');
+      setMCpf(''); setMNasc(''); setMInsta('');
+      setMTitulo(''); setMZona(''); setMSecao(''); setMMunicipio(''); setMUf('GO'); setMColegio('');
       fetchAfiliados();
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
