@@ -8,6 +8,22 @@ export default function CadastroPublicoAfiliado() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
 
+  // Detecção de modo: 'captacao' (link de afiliado ativo, formulário simples)
+  // ou 'criar_acesso' (registro pendente do próprio afiliado, fluxo completo)
+  const [modo, setModo] = useState<'detectando' | 'captacao' | 'criar_acesso' | 'invalido'>('detectando');
+  const [afiliadoNome, setAfiliadoNome] = useState<string>('');
+
+  // Captação (público)
+  const [capNome, setCapNome] = useState('');
+  const [capTelefone, setCapTelefone] = useState('');
+  const [capData, setCapData] = useState('');
+  const [capCep, setCapCep] = useState('');
+  const [capCidadeCep, setCapCidadeCep] = useState('');
+  const [capUfCep, setCapUfCep] = useState('');
+  const [capBuscandoCep, setCapBuscandoCep] = useState(false);
+  const [capRede, setCapRede] = useState('');
+  const [capSaving, setCapSaving] = useState(false);
+
   // Pessoais
   const [nome, setNome] = useState('');
   const [cpf, setCpf] = useState('');
@@ -36,6 +52,30 @@ export default function CadastroPublicoAfiliado() {
 
   useEffect(() => { document.title = 'Cadastro de Afiliado'; }, []);
 
+  // Detectar tipo do link ao montar
+  useEffect(() => {
+    if (!token) { setModo('invalido'); return; }
+    (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('captacao-afiliado', {
+          method: 'GET' as any,
+          body: undefined as any,
+          headers: {} as any,
+          // workaround: usar URL com query — invoke não passa query, então usar fetch direto
+        } as any);
+        // Fallback: chamar via fetch direto (invoke não suporta query params facilmente)
+        const url = `https://yvdfdmyusdhgtzfguxbj.supabase.co/functions/v1/captacao-afiliado?token=${encodeURIComponent(token)}`;
+        const r = await fetch(url, { headers: { apikey: (supabase as any).supabaseKey || '' } });
+        const j = await r.json();
+        if (!r.ok || j?.error) { setModo('invalido'); return; }
+        setAfiliadoNome(j.afiliado_nome || '');
+        setModo(j.is_ativo ? 'captacao' : 'criar_acesso');
+      } catch {
+        setModo('invalido');
+      }
+    })();
+  }, [token]);
+
   const buscarCidadePorCep = async (raw: string) => {
     const cepLimpo = raw.replace(/\D/g, '');
     if (cepLimpo.length !== 8) { setCidadeCep(''); setUfCep(''); return; }
@@ -49,6 +89,59 @@ export default function CadastroPublicoAfiliado() {
       setCidadeCep(''); setUfCep('');
     } finally {
       setBuscandoCep(false);
+    }
+  };
+
+  const buscarCidadePorCepCap = async (raw: string) => {
+    const cepLimpo = raw.replace(/\D/g, '');
+    if (cepLimpo.length !== 8) { setCapCidadeCep(''); setCapUfCep(''); return; }
+    setCapBuscandoCep(true);
+    try {
+      const r = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+      const d = await r.json();
+      if (d?.erro) { setCapCidadeCep(''); setCapUfCep(''); }
+      else { setCapCidadeCep(d.localidade || ''); setCapUfCep(d.uf || ''); }
+    } catch { setCapCidadeCep(''); setCapUfCep(''); }
+    finally { setCapBuscandoCep(false); }
+  };
+
+  const handleSubmitCaptacao = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+    if (!capNome.trim() || capNome.trim().length < 2) {
+      toast({ title: 'Informe seu nome', variant: 'destructive' }); return;
+    }
+    if (!capTelefone.trim() || capTelefone.replace(/\D/g, '').length < 6) {
+      toast({ title: 'Informe um telefone válido', variant: 'destructive' }); return;
+    }
+    setCapSaving(true);
+    try {
+      const url = `https://yvdfdmyusdhgtzfguxbj.supabase.co/functions/v1/captacao-afiliado`;
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: (supabase as any).supabaseKey || '' },
+        body: JSON.stringify({
+          token,
+          nome: capNome.trim(),
+          telefone: capTelefone.trim(),
+          data_nascimento: capData || null,
+          cep: capCep.trim() || null,
+          rede_social: capRede.trim() || null,
+        }),
+      });
+      const j = await r.json();
+      if (!r.ok || j?.error) {
+        const msg = typeof j?.error === 'string' ? j.error : 'Erro ao enviar cadastro';
+        throw new Error(msg);
+      }
+      toast({ title: '✅ Cadastro enviado!', description: 'Você será redirecionada(o) ao Instagram.' });
+      // Pequeno delay para o usuário ver o toast
+      setTimeout(() => {
+        window.location.href = j.redirect_url || 'https://www.instagram.com/drafernandasarelli/';
+      }, 800);
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+      setCapSaving(false);
     }
   };
 
