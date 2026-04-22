@@ -38,6 +38,8 @@ export default function SecaoAfiliados() {
   const [mMunicipio, setMMunicipio] = useState('');
   const [mUf, setMUf] = useState('GO');
   const [mColegio, setMColegio] = useState('');
+  const [mLogin, setMLogin] = useState('');
+  const [mSenha, setMSenha] = useState('');
 
   const fetchAfiliados = useCallback(async () => {
     setLoading(true);
