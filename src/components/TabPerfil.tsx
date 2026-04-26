@@ -703,6 +703,20 @@ export default function TabPerfil() {
               </select>
             </div>
 
+            {/* Superior / Vinculação */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                <Users size={12} /> Indicado por (Superior)
+              </label>
+              <select value={createSuperiorId} onChange={e => setCreateSuperiorId(e.target.value)} className={inputCls}>
+                <option value="">Sem vínculo (Admin)</option>
+                {usuarios.map(u => (
+                  <option key={u.id} value={u.id}>{u.nome} ({tipoLabels[u.tipo as TipoUsuario] || u.tipo})</option>
+                ))}
+              </select>
+              <p className="text-[10px] text-muted-foreground">O usuário selecionado será o superior direto na rede.</p>
+            </div>
+
             {/* Módulos */}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Módulos / Permissões</label>
@@ -799,6 +813,19 @@ export default function TabPerfil() {
                 <option value="">Sem cidade</option>
                 {municipios.map(m => (
                   <option key={m.id} value={m.id}>{m.nome} – {m.uf}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Superior / Vinculação */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                <Users size={12} /> Indicado por (Superior)
+              </label>
+              <select value={editSuperiorId} onChange={e => setEditSuperiorId(e.target.value)} className={inputCls}>
+                <option value="">Sem vínculo (Admin)</option>
+                {usuarios.filter(u => u.id !== editUser.id).map(u => (
+                  <option key={u.id} value={u.id}>{u.nome} ({tipoLabels[u.tipo as TipoUsuario] || u.tipo})</option>
                 ))}
               </select>
             </div>
