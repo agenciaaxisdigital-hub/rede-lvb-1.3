@@ -116,7 +116,7 @@ export default function Login() {
           style={{ ...entrance(0.3), marginTop: '-1rem', color: '#c8aa64', fontSize: '12px', fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase' as const }}
           className="text-center flex-shrink-0"
         >
-          Painel de Pagamentos
+          Painel de Lideranças
         </p>
 
         {/* Form card (glassmorphism) */}
