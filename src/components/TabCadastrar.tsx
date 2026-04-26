@@ -39,7 +39,7 @@ export default function TabCadastrar({ onSaved }: Props) {
   const [saving, setSaving] = useState(false);
   const [liderancasExistentes, setLiderancasExistentes] = useState<{ id: string; nome: string }[]>([]);
   const [usuariosSistema, setUsuariosSistema] = useState<{ id: string; nome: string; tipo: string }[]>([]);
-  const [form, setForm] = useState({ ...emptyForm });
+  const [form, setForm] = useState({ ...emptyForm, responsavel_id: '' });
 
   // Persist form draft to IndexedDB (survives refresh/crash/close)
   const { clearDraft } = useFormDraft('cadastrar-lideranca', form, setForm, emptyForm);
@@ -145,7 +145,7 @@ export default function TabCadastrar({ onSaved }: Props) {
       meta_votos: form.meta_votos ? parseInt(form.meta_votos) : null,
       status: form.status, nivel_comprometimento: form.nivel_comprometimento || null,
       observacoes: form.observacoes || null, 
-      cadastrado_por: usuario?.id || null,
+      cadastrado_por: form.responsavel_id || usuario?.id || null,
       suplente_id: suplenteId,
       municipio_id: ligMunicipioId || cidadeAtiva?.id || null,
       evento_id: eventoAtivo?.id || null,
