@@ -29,9 +29,10 @@ interface FormState {
   telefone: string;
   cidade: string;
   instagram: string;
+  responsavel_id: string;
 }
 
-const EMPTY: FormState = { nome: '', telefone: '', cidade: '', instagram: '' };
+const EMPTY: FormState = { nome: '', telefone: '', cidade: '', instagram: '', responsavel_id: '' };
 
 const inputCls = 'w-full h-11 px-3 bg-card border border-border rounded-xl text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30 transition-all';
 const labelCls = 'text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block';
@@ -138,7 +139,7 @@ export default function TabCadastrosFernanda() {
       telefone: form.telefone.trim(),
       cidade: form.cidade.trim() || null,
       instagram: form.instagram.trim() || null,
-      cadastrado_por: usuario?.id ?? null,
+      cadastrado_por: form.responsavel_id || usuario?.id || null,
     };
     if (form.id) {
       const { data, error } = await supabase.from('cadastros_fernanda' as any).update(payload).eq('id', form.id).select().single();
