@@ -610,7 +610,12 @@ export default function AdminDashboard() {
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-bold text-foreground truncate">{u.nome}</p>
                             <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-primary/10 text-primary font-medium">{tipoLabel(u.tipo)}</span>
+                               <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-primary/10 text-primary font-medium">{tipoLabel(u.tipo)}</span>
+                               {u.superior_id && (
+                                 <span className="text-[8px] px-1.5 py-0.5 rounded-md bg-green-500/10 text-green-600 font-bold uppercase tracking-wider flex items-center gap-0.5">
+                                   <Network size={8} /> Vinculado
+                                 </span>
+                               )}
                               {getCargoTag(u.suplente_id) && (
                                 <span className="text-[8px] px-1.5 py-0.5 rounded-md bg-accent/50 text-accent-foreground font-medium">{getCargoTag(u.suplente_id)}</span>
                               )}
@@ -658,7 +663,12 @@ export default function AdminDashboard() {
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-foreground truncate">{u.nome}</p>
                             <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{tipoLabel(u.tipo)}</span>
+                               <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{tipoLabel(u.tipo)}</span>
+                               {u.superior_id && (
+                                 <span className="text-[8px] px-1.5 py-0.5 rounded-md bg-green-500/10 text-green-600 font-bold uppercase tracking-wider flex items-center gap-0.5">
+                                   <Network size={8} /> Vinculado
+                                 </span>
+                               )}
                               {getCargoTag(u.suplente_id) && (
                                 <span className="text-[8px] px-1.5 py-0.5 rounded-md bg-accent/50 text-accent-foreground font-medium">{getCargoTag(u.suplente_id)}</span>
                               )}
@@ -969,12 +979,19 @@ export default function AdminDashboard() {
           </Suspense>
         )}
 
-        {/* ══════════ AFILIADOS ══════════ */}
-        {vistaAtiva === 'afiliados' && (
-          <Suspense fallback={<div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-primary" /></div>}>
-            <AdminCadastrosAfiliados />
-          </Suspense>
-        )}
+         {/* ══════════ AFILIADOS ══════════ */}
+         {vistaAtiva === 'afiliados' && (
+           <Suspense fallback={<div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-primary" /></div>}>
+             <AdminCadastrosAfiliados />
+           </Suspense>
+         )}
+ 
+         {/* ══════════ VÍNCULOS ══════════ */}
+         {vistaAtiva === 'vinculos' && (
+           <Suspense fallback={<div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-primary" /></div>}>
+             <AdminVinculos />
+           </Suspense>
+         )}
 
       </div>
 
