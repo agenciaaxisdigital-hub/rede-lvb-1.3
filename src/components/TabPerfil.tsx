@@ -38,9 +38,10 @@ const tipoColors: Record<string, string> = {
 };
 
 const MODULOS_OPTIONS = [
-  { id: 'master', label: '🔑 Master' },
-  { id: 'cadastrar_liderancas', label: '👥 Lideranças (+ Fiscais + Eleitores)' },
-  { id: 'cadastrar_eleitores', label: '🎯 Somente Eleitores' },
+  { id: 'master', label: '🔑 Acesso Master' },
+  { id: 'cadastrar_liderancas', label: '👥 Lideranças' },
+  { id: 'cadastrar_fiscais', label: '🔍 Fiscais' },
+  { id: 'cadastrar_eleitores', label: '🎯 Eleitores' },
 ];
 
 interface SuplenteOption {
@@ -299,12 +300,25 @@ export default function TabPerfil() {
     setTipoNovo('suplente');
     setSenhaNova('');
     setShowSenha(false);
-    setSelectedModulos(new Set());
+    setSelectedModulos(new Set(['cadastrar_liderancas', 'cadastrar_fiscais', 'cadastrar_eleitores']));
     setExternalSearch('');
     setCreateCidade(municipios.length === 1 ? municipios[0].id : '');
     setCargoTagPerfil('');
     setCreateSuperiorId('');
   };
+  // Effect to update modules based on role (presets)
+  useEffect(() => {
+    if (view === 'create') {
+      if (tipoNovo === 'suplente') {
+        setSelectedModulos(new Set(['cadastrar_liderancas', 'cadastrar_fiscais', 'cadastrar_eleitores']));
+      } else if (tipoNovo === 'lideranca') {
+        setSelectedModulos(new Set(['cadastrar_liderancas', 'cadastrar_eleitores']));
+      } else if (tipoNovo === 'coordenador') {
+        setSelectedModulos(new Set(['master']));
+      }
+    }
+  }, [tipoNovo, view]);
+
 
   const handleCreate = async () => {
     let nomeUsuario = '';
