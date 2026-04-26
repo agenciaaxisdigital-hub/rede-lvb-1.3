@@ -347,6 +347,25 @@ export default function TabCadastrar({ onSaved }: Props) {
         </div>
       </div>
 
+      {/* Vínculo no Sistema */}
+      <div className="section-card">
+        <h2 className="section-title">🔗 Responsável no Sistema</h2>
+        <p className="text-[10px] text-muted-foreground mb-3 leading-tight">Vincule este cadastro a um usuário específico do sistema para visualização na árvore hierárquica.</p>
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-muted-foreground">Selecionar Usuário</label>
+          <select 
+            value={form.responsavel_id} 
+            onChange={e => update('responsavel_id', e.target.value)} 
+            className={selectCls}
+          >
+            <option value="">{usuario?.nome || 'Eu'} (Padrão)</option>
+            {usuariosSistema.filter(u => u.id !== usuario?.id).map(u => (
+              <option key={u.id} value={u.id}>{u.nome} ({u.tipo})</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       {/* Botão Salvar */}
       <button onClick={handleSave} disabled={saving}
         className="w-full h-14 gradient-primary text-white text-base font-semibold rounded-2xl shadow-lg shadow-pink-500/25 active:scale-[0.97] transition-all disabled:opacity-50 flex items-center justify-center gap-2">
