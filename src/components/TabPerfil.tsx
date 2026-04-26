@@ -1040,11 +1040,16 @@ export default function TabPerfil() {
                         <p className="text-sm font-semibold text-foreground truncate">{u.nome}</p>
                         {(u.tipo === 'super_admin' || u.tipo === 'coordenador') && <Crown size={12} className="text-primary shrink-0" />}
                       </div>
-                      <p className="text-[10px] text-muted-foreground">
-                        {tipoLabels[u.tipo as TipoUsuario] || u.tipo}
-                        {getSuplenteNome(u.suplente_id) ? ` · ${getSuplenteNome(u.suplente_id)}` : ''}
-                        {u.municipio_id && (() => { const m = municipios.find(m => m.id === u.municipio_id); return m ? ` · ${m.nome}` : ''; })()}
-                      </p>
+                       <p className="text-[10px] text-muted-foreground flex flex-wrap items-center gap-x-1">
+                         {tipoLabels[u.tipo as TipoUsuario] || u.tipo}
+                         {getSuplenteNome(u.suplente_id) && <span>· {getSuplenteNome(u.suplente_id)}</span>}
+                         {u.superior_id && usuarios.find(usr => usr.id === u.superior_id) && (
+                           <span className="flex items-center gap-0.5">
+                             · <Network size={8} /> {usuarios.find(usr => usr.id === u.superior_id)?.nome}
+                           </span>
+                         )}
+                         {u.municipio_id && (() => { const m = municipios.find(m => m.id === u.municipio_id); return m ? <span>· {m.nome}</span> : null; })()}
+                       </p>
                       {getSuplenteTag(u.suplente_id) && (
                         <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-accent/50 text-[9px] font-medium text-accent-foreground mt-0.5">
                           {getSuplenteTag(u.suplente_id)}
