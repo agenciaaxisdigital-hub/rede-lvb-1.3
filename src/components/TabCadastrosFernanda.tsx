@@ -246,6 +246,22 @@ export default function TabCadastrosFernanda() {
               className={inputCls}
             />
           </div>
+          <div>
+            <label className={labelCls}>Responsável no Sistema</label>
+            <select 
+              value={form.responsavel_id} 
+              onChange={(e) => setForm({ ...form, responsavel_id: e.target.value })}
+              className={inputCls}
+            >
+              <option value="">{usuario?.nome || 'Eu'} (Padrão)</option>
+              {usuariosSistema.filter(u => u.id !== usuario?.id).map(u => (
+                <option key={u.id} value={u.id}>{u.nome} ({u.tipo})</option>
+              ))}
+            </select>
+            <p className="text-[10px] text-muted-foreground mt-1 px-1 leading-tight">
+              Vincule este cadastro a um usuário para aparecer na árvore hierárquica dele.
+            </p>
+          </div>
         </div>
 
         <button
