@@ -27,7 +27,8 @@ Deno.serve(async (req) => {
       nova_senha, 
       novo_municipio_id,
       novo_superior_id,
-      novo_suplente_id
+      novo_suplente_id,
+      novo_tipo
     } = body;
 
     const supabaseAdmin = createClient(
@@ -108,6 +109,9 @@ Deno.serve(async (req) => {
       }
       if (novo_suplente_id !== undefined) {
         updates.suplente_id = novo_suplente_id;
+      }
+      if (novo_tipo && ['super_admin','coordenador','suplente','lideranca','fernanda'].includes(novo_tipo)) {
+        updates.tipo = novo_tipo;
       }
 
       let resolvedAuthUserId = hasValidAuth ? auth_user_id : null;
