@@ -159,7 +159,7 @@ export default function TabArvore({ usuarios, liderancas, eleitores, fiscais }: 
         </div>
  
         {hasChildren && isExpanded && (
-          <div className="space-y-2">
+          <div className="space-y-2 relative ml-3 before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[2px] before:bg-border/30">
             {node.children.map((child: any) => (
               <TreeNode key={child.id} node={child} level={level + 1} />
             ))}
