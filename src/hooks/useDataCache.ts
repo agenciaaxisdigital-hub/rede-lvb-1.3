@@ -242,7 +242,7 @@ export function useUsuarios() {
       const { data, error } = await supabase
          .from('hierarquia_usuarios')
          .select('id, nome, tipo, suplente_id, municipio_id, ativo, superior_id, link_token')
-         .eq('ativo', true)
+          // Não filtrar por ativo por enquanto para garantir que todos apareçam
         .order('nome');
       if (error) throw error;
       return data || [];
