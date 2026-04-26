@@ -456,6 +456,16 @@ export default function TabCriarUsuarios() {
             {/* Superior */}
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">Superior hierárquico</label>
+              <div className="relative mb-1">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input 
+                  type="text" 
+                  value={superiorSearch} 
+                  onChange={e => setSuperiorSearch(e.target.value)} 
+                  placeholder="Filtrar superiores..." 
+                  className="w-full h-9 pl-9 pr-3 bg-muted/50 border border-border rounded-lg text-xs outline-none focus:ring-1 focus:ring-primary/30"
+                />
+              </div>
               <select value={superiorId} onChange={e => setSuperiorId(e.target.value)} className={inputCls}>
                 <option value="">Nenhum (raiz)</option>
                 {possiveisSuperior.map(u => (
