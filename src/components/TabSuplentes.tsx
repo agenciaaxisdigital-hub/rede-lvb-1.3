@@ -21,8 +21,9 @@ interface HierarchyUser {
   id: string;
   nome: string;
   tipo: string;
-  suplente_id: string | null;
-  auth_user_id: string | null;
+   suplente_id: string | null;
+   superior_id: string | null;
+   auth_user_id: string | null;
 }
 
 interface TreeNode {
@@ -82,7 +83,7 @@ export default function TabSuplentes({ refreshKey }: Props) {
     setLoading(true);
     const [supRes, usrRes] = await Promise.all([
       supabase.functions.invoke('buscar-suplentes'),
-      supabase.from('hierarquia_usuarios').select('id, nome, tipo, suplente_id, auth_user_id').eq('ativo', true).order('nome'),
+       supabase.from('hierarquia_usuarios').select('id, nome, tipo, suplente_id, superior_id, auth_user_id').eq('ativo', true).order('nome'),
     ]);
     if (!supRes.error && supRes.data) setSuplentes(supRes.data);
     setUsuarios((usrRes.data || []) as HierarchyUser[]);
