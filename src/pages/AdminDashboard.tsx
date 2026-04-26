@@ -234,13 +234,13 @@ export default function AdminDashboard() {
 
   /* ── Registros list ── */
   const allRegistros = useMemo(() => {
-    let result: { tipo: string; pessoa: Pessoa | null; criado_em: string; cadastrado_por: string | null; suplente_id: string | null; extra: string }[] = [];
+   let result: { tipo: string; pessoa: Pessoa | null; criado_em: string; cadastrado_por: string | null; suplente_id: string | null; suplente_nome?: string | null; lideranca_nome?: string | null; extra: string }[] = [];
     if (tipoFiltro === 'todos' || tipoFiltro === 'lideranca')
-      filteredL.forEach(r => result.push({ tipo: 'lideranca', pessoa: r.pessoas, criado_em: r.criado_em, cadastrado_por: r.cadastrado_por, suplente_id: r.suplente_id, extra: r.status || '' }));
+     filteredL.forEach(r => result.push({ tipo: 'lideranca', pessoa: r.pessoas, criado_em: r.criado_em, cadastrado_por: r.cadastrado_por, suplente_id: r.suplente_id, suplente_nome: (r as any).suplentes?.nome, extra: r.status || '' }));
     if (tipoFiltro === 'todos' || tipoFiltro === 'eleitor')
-      filteredE.forEach(r => result.push({ tipo: 'eleitor', pessoa: r.pessoas, criado_em: r.criado_em, cadastrado_por: r.cadastrado_por, suplente_id: r.suplente_id, extra: r.compromisso_voto || '' }));
+     filteredE.forEach(r => result.push({ tipo: 'eleitor', pessoa: r.pessoas, criado_em: r.criado_em, cadastrado_por: r.cadastrado_por, suplente_id: r.suplente_id, suplente_nome: (r as any).suplentes?.nome, lideranca_nome: (r as any).liderancas?.pessoas?.nome, extra: r.compromisso_voto || '' }));
     if (tipoFiltro === 'todos' || tipoFiltro === 'fiscal')
-      filteredF.forEach(r => result.push({ tipo: 'fiscal', pessoa: r.pessoas, criado_em: r.criado_em || '', cadastrado_por: r.cadastrado_por, suplente_id: r.suplente_id, extra: r.status || '' }));
+     filteredF.forEach(r => result.push({ tipo: 'fiscal', pessoa: r.pessoas, criado_em: r.criado_em || '', cadastrado_por: r.cadastrado_por, suplente_id: r.suplente_id, suplente_nome: (r as any).suplentes?.nome, lideranca_nome: (r as any).liderancas?.pessoas?.nome, extra: r.status || '' }));
     if (searchTerm) {
       const s = searchTerm.toLowerCase();
       result = result.filter(r =>
