@@ -72,24 +72,20 @@ export default function Home() {
          if (!data) return;
          const modulos = new Set(data.map((d: any) => d.modulo));
          const hasMaster = modulos.has('master');
-         const hasLiderancasMod = modulos.has('cadastrar_liderancas');
-         const hasEleitoresMod = modulos.has('cadastrar_eleitores');
-         
-         const hasLiderancas = hasMaster || hasLiderancasMod;
-         const hasEleitores = hasMaster || hasLiderancasMod || hasEleitoresMod;
-         const hasFiscais = hasMaster || (isSuplente && hasLiderancasMod);
-         
-         if (activeTab === 'fiscais' && !hasFiscais) {
+
+         if (activeTab === 'fiscais' && !hasMaster && !modulos.has('cadastrar_fiscais')) {
            handleTabChange('cadastros');
            return;
          }
 
-         if (activeTab === 'liderancas' && !hasLiderancas) {
-           if (hasEleitores) {
-             handleTabChange('eleitores');
-           } else {
-             handleTabChange('cadastros');
-           }
+         if (activeTab === 'liderancas' && !hasMaster && !modulos.has('cadastrar_liderancas')) {
+           handleTabChange('cadastros');
+           return;
+         }
+
+         if (activeTab === 'eleitores' && !hasMaster && !modulos.has('cadastrar_eleitores')) {
+           handleTabChange('cadastros');
+           return;
          }
        });
   }, [usuario?.id, isAdminOrCoord, activeTab, handleTabChange]);
