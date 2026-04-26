@@ -836,10 +836,23 @@ export default function TabPerfil() {
           </div>
 
           <div className="space-y-3">
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Nome de acesso</label>
-              <input type="text" value={editNome} onChange={e => setEditNome(e.target.value)} className={inputCls} />
-            </div>
+             <div className="space-y-1">
+               <label className="text-xs font-medium text-muted-foreground">Nome de acesso</label>
+               <input type="text" value={editNome} onChange={e => setEditNome(e.target.value)} className={inputCls} />
+             </div>
+ 
+             {editUser.suplente_id && (
+               <div className="space-y-1">
+                 <label className="text-xs font-medium text-muted-foreground">Cargo / Profissão</label>
+                 <input
+                   type="text"
+                   value={editCargoTag}
+                   onChange={e => setEditCargoTag(e.target.value)}
+                   className={inputCls}
+                   placeholder="Ex: Vereador, Assistente Social..."
+                 />
+               </div>
+             )}
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
                 <KeyRound size={12} /> Nova senha (vazio = manter atual)
