@@ -217,12 +217,7 @@ export default function MinhaRede() {
           <div className="p-3 rounded-xl bg-background/50 border border-border">
             <p className="text-2xl font-black text-foreground leading-none">
               {usuariosList.filter(u => {
-                // Simple check for indirects (at least Level 2)
-                const isDirect = u.superior_id === usuario?.id;
-                if (isDirect) return false;
-                
-                // Check if any of my direct reports is this user's ancestor
-                // This is a simplified check for the summary card
+                if (u.id === usuario?.id) return false;
                 let curr = u;
                 while (curr?.superior_id) {
                   if (curr.superior_id === usuario?.id) return true;
