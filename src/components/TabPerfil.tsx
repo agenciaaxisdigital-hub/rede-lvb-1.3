@@ -1052,7 +1052,7 @@ export default function TabPerfil() {
                           </span>
                         )}
                         {u.superior_id && usuarios.find(usr => usr.id === u.superior_id) && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-100 text-[9px] font-medium text-emerald-700 uppercase">
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-link text-[9px] font-medium text-link-foreground uppercase">
                             <Network size={8} /> {usuarios.find(usr => usr.id === u.superior_id)?.nome}
                           </span>
                         )}
