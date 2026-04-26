@@ -344,15 +344,6 @@ export default function TabArvore({ usuarios, liderancas, eleitores, fiscais }: 
                 <EditForm 
                   id={selectedForEdit.id} 
                   tipo={selectedForEdit.tipo} 
-                  onClose={() => { setIsEditDialogOpen(false); toast({ title: '✅ Alterações salvas' }); }} 
-                />
-              )}
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
 
 function EditForm({ id, tipo, onClose }: { id: string, tipo: string, onClose: () => void }) {
   const [tag, setTag] = useState('');
