@@ -113,6 +113,12 @@ export default function TabArvore({ usuarios, liderancas, eleitores, fiscais }: 
     const hasRegistrations = registrations.length > 0;
     const parentNode = node.superior_id ? usuarios.find(u => u.id === node.superior_id) : null;
 
+    // Direct counts (only this user, not descendants)
+    const directLids = registrations.filter((r: any) => r.tipo === 'lideranca');
+    const directFiscs = registrations.filter((r: any) => r.tipo === 'fiscal');
+    const directEleits = registrations.filter((r: any) => r.tipo === 'eleitor');
+    const directTotal = registrations.length;
+
     return (
       <div className="select-none space-y-3">
         <div className={`section-card !p-3 flex flex-col gap-3 transition-all relative ${level > 0 ? 'ml-8 before:absolute before:-left-6 before:top-1/2 before:w-6 before:h-[2px] before:bg-border/60' : ''}`}>
@@ -150,7 +156,7 @@ export default function TabArvore({ usuarios, liderancas, eleitores, fiscais }: 
             <div className="flex items-center gap-2 shrink-0">
               <div className="text-right">
                 <p className="text-lg font-black text-primary leading-none">{counts.total}</p>
-                <p className="text-[8px] text-muted-foreground uppercase font-black">Membros</p>
+                <p className="text-[8px] text-muted-foreground uppercase font-black">Total Rede</p>
               </div>
               {(hasChildren || hasRegistrations) && (
                 <button 
@@ -162,6 +168,49 @@ export default function TabArvore({ usuarios, liderancas, eleitores, fiscais }: 
               )}
             </div>
           </div>
+
+          {/* Resumo por tipo: cadastros diretos + total na rede */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-xl bg-purple-500/10 border border-purple-500/20 p-2 text-center">
+              <div className="flex items-center justify-center gap-1 text-purple-700">
+                <Users size={12} />
+                <span className="text-[8px] font-black uppercase tracking-wider">Lideranças</span>
+              </div>
+              <p className="text-base font-black text-purple-700 leading-tight mt-0.5">{directLids.length}</p>
+              {counts.lids !== directLids.length && (
+                <p className="text-[8px] text-purple-600/70 font-bold">+{counts.lids - directLids.length} rede</p>
+              )}
+            </div>
+            <div className="rounded-xl bg-orange-500/10 border border-orange-500/20 p-2 text-center">
+              <div className="flex items-center justify-center gap-1 text-orange-700">
+                <Shield size={12} />
+                <span className="text-[8px] font-black uppercase tracking-wider">Fiscais</span>
+              </div>
+              <p className="text-base font-black text-orange-700 leading-tight mt-0.5">{directFiscs.length}</p>
+              {counts.fiscs !== directFiscs.length && (
+                <p className="text-[8px] text-orange-600/70 font-bold">+{counts.fiscs - directFiscs.length} rede</p>
+              )}
+            </div>
+            <div className="rounded-xl bg-blue-500/10 border border-blue-500/20 p-2 text-center">
+              <div className="flex items-center justify-center gap-1 text-blue-700">
+                <Target size={12} />
+                <span className="text-[8px] font-black uppercase tracking-wider">Eleitores</span>
+              </div>
+              <p className="text-base font-black text-blue-700 leading-tight mt-0.5">{directEleits.length}</p>
+              {counts.eleits !== directEleits.length && (
+                <p className="text-[8px] text-blue-600/70 font-bold">+{counts.eleits - directEleits.length} rede</p>
+              )}
+            </div>
+          </div>
+
+          {hasChildren && (
+            <div className="flex items-center gap-2 px-1 -mt-1">
+              <Network size={11} className="text-muted-foreground" />
+              <span className="text-[9px] font-black uppercase tracking-wider text-muted-foreground">
+                {children.length} {children.length === 1 ? 'pessoa vinculada' : 'pessoas vinculadas'}
+              </span>
+            </div>
+          )}
 
           <div className="flex items-center gap-2 border-t border-border/40 pt-2.5">
             <Button 
@@ -176,20 +225,76 @@ export default function TabArvore({ usuarios, liderancas, eleitores, fiscais }: 
         </div>
 
         {isExpanded && (hasChildren || hasRegistrations) && (
-          <div className="space-y-3 relative ml-4 before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[2px] before:bg-border/40">
-            {children.map((child: any) => (
-              <TreeNode key={child.id} node={child} level={level + 1} />
-            ))}
-            
-            {registrations.map((reg: any) => {
+          <div className="space-y-4 relative ml-4 before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[2px] before:bg-border/40">
+            {/* SEÇÃO 1: Cadastros próprios agrupados por tipo */}
+            {hasRegistrations && (
+              <div className="ml-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground bg-muted/60 px-2 py-1 rounded-md">
+                    📋 Cadastros de {node.nome.split(' ')[0]} ({directTotal})
+                  </span>
+                </div>
+                {directLids.length > 0 && (
+                  <RegGroup title="Lideranças" count={directLids.length} icon={Users} color="purple" regs={directLids} expandedRegs={expandedRegs} toggleReg={toggleReg} setSelectedForEdit={setSelectedForEdit} setIsEditDialogOpen={setIsEditDialogOpen} />
+                )}
+                {directFiscs.length > 0 && (
+                  <RegGroup title="Fiscais" count={directFiscs.length} icon={Shield} color="orange" regs={directFiscs} expandedRegs={expandedRegs} toggleReg={toggleReg} setSelectedForEdit={setSelectedForEdit} setIsEditDialogOpen={setIsEditDialogOpen} />
+                )}
+                {directEleits.length > 0 && (
+                  <RegGroup title="Eleitores" count={directEleits.length} icon={Target} color="blue" regs={directEleits} expandedRegs={expandedRegs} toggleReg={toggleReg} setSelectedForEdit={setSelectedForEdit} setIsEditDialogOpen={setIsEditDialogOpen} />
+                )}
+              </div>
+            )}
+
+            {/* SEÇÃO 2: Pessoas vinculadas (subordinados) */}
+            {hasChildren && (
+              <div className="space-y-3">
+                <div className="ml-4 flex items-center gap-2">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground bg-muted/60 px-2 py-1 rounded-md">
+                    🔗 Vinculados a {node.nome.split(' ')[0]} ({children.length})
+                  </span>
+                </div>
+                {children.map((child: any) => (
+                  <TreeNode key={child.id} node={child} level={level + 1} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Grupo colapsável de registros por tipo
+  const RegGroup = ({ title, count, icon: Icon, color, regs, expandedRegs, toggleReg, setSelectedForEdit, setIsEditDialogOpen }: any) => {
+    const [open, setOpen] = useState(false);
+    const colorMap: Record<string, { bg: string, text: string, border: string }> = {
+      purple: { bg: 'bg-purple-500/10', text: 'text-purple-700', border: 'border-purple-500/30' },
+      orange: { bg: 'bg-orange-500/10', text: 'text-orange-700', border: 'border-orange-500/30' },
+      blue: { bg: 'bg-blue-500/10', text: 'text-blue-700', border: 'border-blue-500/30' },
+    };
+    const c = colorMap[color];
+    return (
+      <div className={`rounded-xl border ${c.border} ${c.bg} overflow-hidden`}>
+        <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between p-2.5 hover:bg-black/5 transition-colors">
+          <div className="flex items-center gap-2">
+            <Icon size={14} className={c.text} />
+            <span className={`text-xs font-black uppercase tracking-widest ${c.text}`}>{title}</span>
+            <span className={`text-[10px] font-black ${c.text} bg-white/60 px-1.5 py-0.5 rounded-md`}>{count}</span>
+          </div>
+          <ChevronDown size={16} className={`${c.text} transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+        {open && (
+          <div className="space-y-2 p-2 pt-0 animate-in fade-in slide-in-from-top-1">
+            {regs.map((reg: any) => {
               const isRegExpanded = expandedRegs[reg.id];
               const regTypeColor = reg.tipo === 'lideranca' ? 'text-purple-600' : reg.tipo === 'fiscal' ? 'text-orange-600' : 'text-blue-600';
               const regTypeBg = reg.tipo === 'lideranca' ? 'bg-purple-500/10' : reg.tipo === 'fiscal' ? 'bg-orange-500/10' : 'bg-blue-500/10';
               const p = reg.pessoas;
 
               return (
-                <div key={reg.id} className="ml-8 relative before:absolute before:-left-8 before:top-1/2 before:w-8 before:h-[2px] before:bg-border/40">
-                  <div className={`bg-background/80 backdrop-blur-sm border border-border/50 rounded-xl p-3 transition-all group hover:border-primary/30 shadow-sm ${isRegExpanded ? 'ring-1 ring-primary/20' : ''}`}>
+                <div key={reg.id}>
+                  <div className={`bg-background border border-border/50 rounded-xl p-3 transition-all group hover:border-primary/30 ${isRegExpanded ? 'ring-1 ring-primary/20' : ''}`}>
                     <div className="flex items-center gap-3">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${regTypeBg} ${regTypeColor}`}>
                         {reg.tipo === 'lideranca' ? <Users size={20} /> : reg.tipo === 'fiscal' ? <Shield size={20} /> : <Target size={20} />}
