@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, Link2, Copy, Plus, UserCheck, Clock, Trash2, ExternalLink, UserPlus, X, MapPin, KeyRound, Eye, EyeOff } from 'lucide-react';
+ import { Loader2, Link2, Copy, Plus, UserCheck, Clock, Trash2, ExternalLink, UserPlus, X, MapPin, KeyRound, Eye, EyeOff, ChevronDown } from 'lucide-react';
 
 interface AfiliadoItem {
   id: string;
@@ -18,7 +18,8 @@ function gerarToken() {
   return (crypto as any).randomUUID().replace(/-/g, '').slice(0, 24);
 }
 
-export default function SecaoAfiliados() {
+ export default function SecaoAfiliados() {
+   const [isCollapsed, setIsCollapsed] = useState(true);
   const { usuario, isAdmin } = useAuth();
   const [items, setItems] = useState<AfiliadoItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -276,12 +277,143 @@ export default function SecaoAfiliados() {
   const pendentes = items.filter(i => !i.auth_user_id);
   const ativos = items.filter(i => !!i.auth_user_id);
 
-  return (
-    <div className="section-card">
-      <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
-        <h2 className="section-title flex items-center gap-1.5">
-          <Link2 size={16} className="text-primary" /> Afiliados
-        </h2>
+   return (
+     <div className="section-card overflow-hidden">
+       <div 
+         className="flex items-center justify-between mb-3 gap-2 flex-wrap cursor-pointer"
+         onClick={() => setIsCollapsed(!isCollapsed)}
+       >
+         <div className="flex items-center gap-2">
+           <div className={`transition-transform duration-200 ${isCollapsed ? '' : 'rotate-180'}`}>
+             <ChevronDown size={18} className="text-muted-foreground" />
+           </div>
+           <h2 className="section-title flex items-center gap-1.5">
+             <Link2 size={16} className="text-primary" /> Afiliados
+           </h2>
+           {items.length > 0 && (
+             <span className="bg-primary/10 text-primary text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+               {items.length}
+             </span>
+           )}
+         </div>
+         {!isCollapsed && (
+           <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+             <button
+               onClick={() => setShowManual(v => !v)}
+               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border border-border bg-card text-foreground hover:bg-muted active:scale-95 transition-all"
+             >
+               {showManual ? <X size={14} /> : <UserPlus size={14} />}
+               {showManual ? 'Cancelar' : 'Cadastrar manual'}
+             </button>
+             <button
+               onClick={criarAfiliado}
+               disabled={creating}
+               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-primary text-primary-foreground hover:opacity-90 active:scale-95 transition-all disabled:opacity-50"
+             >
+               {creating ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+               Gerar link
+             </button>
+           </div>
+         )}
+       </div>
+ 
+       {!isCollapsed && (
+         <>
+           <p className="text-[11px] text-muted-foreground mb-3">
+             <b>Gerar link</b>: a pessoa preenche os dados e cria seu próprio usuário/senha. <b>Cadastrar manual</b>: você mesmo registra o afiliado (sem login no sistema).
+           </p>
+ 
+           {showManual && (
+             <div className="mb-3 p-3 rounded-xl border border-border bg-muted/30 space-y-2">
+               <p className="text-[11px] font-semibold text-foreground">Cadastro manual de afiliado</p>
+               <input value={mNome} onChange={e => setMNome(e.target.value)} placeholder="Nome completo *" className="w-full h-10 px-3 bg-card border border-border rounded-lg text-sm" />
+               <input value={mWhats} onChange={e => setMWhats(e.target.value)} placeholder="WhatsApp * (também usado como telefone)" className="w-full h-10 px-3 bg-card border border-border rounded-lg text-sm" />
+               <input value={mEmail} onChange={e => setMEmail(e.target.value)} placeholder="E-mail" className="w-full h-10 px-3 bg-card border border-border rounded-lg text-sm" />
+               <div className="grid grid-cols-2 gap-2">
+                 <input value={mCpf} onChange={e => setMCpf(e.target.value)} placeholder="CPF" className="w-full h-10 px-3 bg-card border border-border rounded-lg text-sm" />
+                 <input type="date" value={mNasc} onChange={e => setMNasc(e.target.value)} className="w-full h-10 px-3 bg-card border border-border rounded-lg text-sm" />
+               </div>
+               <div>
+                 <div className="relative">
+                   <input
+                     value={mCep}
+                     onChange={e => setMCep(e.target.value)}
+                     onBlur={e => buscarCidadeCep(e.target.value)}
+                     placeholder="CEP"
+                     className="w-full h-10 px-3 bg-card border border-border rounded-lg text-sm"
+                   />
+                   {mBuscandoCep && (
+                     <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-muted-foreground" />
+                   )}
+                 </div>
+                 {mCidadeCep && (
+                   <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-semibold">
+                     <MapPin size={10} /> {mCidadeCep}{mUfCep ? ` - ${mUfCep}` : ''}
+                   </span>
+                 )}
+               </div>
+               <input value={mInsta} onChange={e => setMInsta(e.target.value)} placeholder="Instagram" className="w-full h-10 px-3 bg-card border border-border rounded-lg text-sm" />
+ 
+               <div className="pt-1 mt-1 border-t border-border">
+                 <p className="text-[11px] font-semibold text-foreground mb-2">🗳️ Dados eleitorais (obrigatórios)</p>
+                 <input value={mTitulo} onChange={e => setMTitulo(e.target.value)} placeholder="Título de eleitor *" className="w-full h-10 px-3 bg-card border border-border rounded-lg text-sm mb-2" />
+                 <div className="grid grid-cols-2 gap-2 mb-2">
+                   <input value={mZona} onChange={e => setMZona(e.target.value)} placeholder="Zona *" className="w-full h-10 px-3 bg-card border border-border rounded-lg text-sm" />
+                   <input value={mSecao} onChange={e => setMSecao(e.target.value)} placeholder="Seção *" className="w-full h-10 px-3 bg-card border border-border rounded-lg text-sm" />
+                 </div>
+                 <div className="grid grid-cols-3 gap-2 mb-2">
+                   <input value={mMunicipio} onChange={e => setMMunicipio(e.target.value)} placeholder="Município *" className="col-span-2 w-full h-10 px-3 bg-card border border-border rounded-lg text-sm" />
+                   <input value={mUf} onChange={e => setMUf(e.target.value.toUpperCase())} placeholder="UF" maxLength={2} className="w-full h-10 px-3 bg-card border border-border rounded-lg text-sm" />
+                 </div>
+                 <input value={mColegio} onChange={e => setMColegio(e.target.value)} placeholder="Colégio eleitoral *" className="w-full h-10 px-3 bg-card border border-border rounded-lg text-sm" />
+               </div>
+ 
+               <div className="pt-1 mt-1 border-t border-border">
+                 <p className="text-[11px] font-semibold text-foreground mb-2">🔑 Acesso ao sistema</p>
+                 <input
+                   value={mLogin}
+                   onChange={e => setMLogin(e.target.value.toLowerCase().replace(/[^a-z0-9.]/g, ''))}
+                   placeholder="Nome de usuário * (ex: maria.silva)"
+                   className="w-full h-10 px-3 bg-card border border-border rounded-lg text-sm mb-2"
+                 />
+                 <input
+                   type="password"
+                   value={mSenha}
+                   onChange={e => setMSenha(e.target.value)}
+                   placeholder="Senha * (mín. 6 caracteres)"
+                   className="w-full h-10 px-3 bg-card border border-border rounded-lg text-sm"
+                 />
+               </div>
+               <button
+                 onClick={criarManual}
+                 disabled={savingManual}
+                 className="w-full h-10 rounded-lg bg-primary text-primary-foreground text-sm font-semibold flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+               >
+                 {savingManual ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
+                 Salvar afiliado
+               </button>
+             </div>
+           )}
+ 
+           {/* Stats */}
+           <div className="grid grid-cols-3 gap-2 mb-3">
+             <div className="bg-muted/50 rounded-lg px-3 py-2 text-center">
+               <p className="text-lg font-bold text-foreground">{items.length}</p>
+               <p className="text-[10px] text-muted-foreground">Total</p>
+             </div>
+             <div className="bg-amber-500/5 rounded-lg px-3 py-2 text-center">
+               <p className="text-lg font-bold text-amber-600">{pendentes.length}</p>
+               <p className="text-[10px] text-muted-foreground">Pendentes</p>
+             </div>
+             <div className="bg-emerald-500/5 rounded-lg px-3 py-2 text-center">
+               <p className="text-lg font-bold text-emerald-600">{ativos.length}</p>
+               <p className="text-[10px] text-muted-foreground">Ativos</p>
+             </div>
+           </div>
+         </>
+       )}
+ 
+       {loading && !isCollapsed ? (
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => setShowManual(v => !v)}
