@@ -188,6 +188,7 @@ export default function TabPerfil() {
   const [externalSearch, setExternalSearch] = useState('');
   const [createCidade, setCreateCidade] = useState('');
   const [cargoTagPerfil, setCargoTagPerfil] = useState('');
+  const [createSuperiorId, setCreateSuperiorId] = useState('');
 
   // Edit
   const [editUser, setEditUser] = useState<UsuarioItem | null>(null);
@@ -197,6 +198,7 @@ export default function TabPerfil() {
   const [editSaving, setEditSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editCidade, setEditCidade] = useState('');
+  const [editSuperiorId, setEditSuperiorId] = useState('');
 
   // Credentials modal after creation
   const [credenciais, setCredenciais] = useState<{ nome: string; senha: string; id: string; auth_user_id: string; tipo: string } | null>(null);
@@ -298,6 +300,7 @@ export default function TabPerfil() {
     setExternalSearch('');
     setCreateCidade(municipios.length === 1 ? municipios[0].id : '');
     setCargoTagPerfil('');
+    setCreateSuperiorId('');
   };
 
   const handleCreate = async () => {
@@ -342,7 +345,7 @@ export default function TabPerfil() {
         nome: nomeUsuario,
         senha: senhaNova.trim(),
         tipo: tipoNovo,
-        superior_id: usuario?.id || null,
+        superior_id: createSuperiorId || usuario?.id || null,
         municipio_id: createCidade,
       };
       if (createMode === 'suplente' && selectedExternalId) {
@@ -390,6 +393,10 @@ export default function TabPerfil() {
     setShowEditSenha(false);
     setConfirmDelete(false);
     setEditCidade(u.municipio_id || '');
+    // We need the superior_id from the user. We need to fetch it or include it in the select.
+    // Looking at line 212, superior_id is NOT included in the select.
+    setView('edit');
+  };
     setView('edit');
   };
 
