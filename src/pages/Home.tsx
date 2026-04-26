@@ -1,4 +1,5 @@
- import { useState, useRef, useCallback, lazy, Suspense, useEffect, useLayoutEffect } from 'react';
+ import { useState, useRef, useCallback, lazy, Suspense, useEffect } from 'react';
+ import { useScrollRestore } from '@/hooks/useScrollRestore';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCidade } from '@/contexts/CidadeContext';
 import { useEvento } from '@/contexts/EventoContext';
@@ -41,33 +42,18 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<TabId>(() => getInitialTab());
   const [visitedTabs, setVisitedTabs] = useState<Set<TabId>>(() => new Set([getInitialTab()]));
   const [refreshKey, setRefreshKey] = useState(0);
-   const scrollRef = useRef<HTMLDivElement>(null);
-   const scrollPositions = useRef<Record<string, number>>({});
+   const { scrollRef, onScroll } = useScrollRestore(activeTab);
 
   const isAdminOrCoord = tipoUsuario === 'super_admin' || tipoUsuario === 'coordenador';
   const showCitySelector = isAdminOrCoord && municipios.length > 0;
 
    const handleTabChange = useCallback((tab: TabId) => {
-     // Save current scroll position before switching
-     if (scrollRef.current) {
-       scrollPositions.current[activeTab] = scrollRef.current.scrollTop;
-     }
-     
      setActiveTab(tab);
      setVisitedTabs(prev => {
        if (prev.has(tab)) return prev;
        return new Set([...prev, tab]);
      });
- 
-     // Restore scroll position for the new tab (if it exists)
-     // We use a small timeout to let the new tab content render
-     setTimeout(() => {
-       if (scrollRef.current) {
-         const savedPos = scrollPositions.current[tab] || 0;
-         scrollRef.current.scrollTo({ top: savedPos, behavior: 'auto' });
-       }
-     }, 50);
-   }, [activeTab]);
+   }, []);
 
   // Auto-correct tab if user doesn't have access to current tab
   useEffect(() => {
@@ -149,16 +135,7 @@ export default function Home() {
         </div>
       </header>
 
-       <div 
-         ref={scrollRef} 
-         className="flex-1 overflow-y-auto overscroll-contain"
-         onScroll={() => {
-           // Periodically save to handle unexpected unmounts or view changes
-           if (scrollRef.current) {
-             scrollPositions.current[activeTab] = scrollRef.current.scrollTop;
-           }
-         }}
-       >
+       <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto overscroll-contain">
         <div className="max-w-[672px] mx-auto px-4 py-4">
           <Suspense fallback={<div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-primary" /></div>}>
             {visitedTabs.has('liderancas') && activeTab === 'liderancas' && <TabLiderancas refreshKey={refreshKey} onSaved={handleSaved} />}
