@@ -212,6 +212,7 @@ export default function TabPerfil() {
    const [editSuperiorId, setEditSuperiorId] = useState('');
    const [editCargoTag, setEditCargoTag] = useState('');
    const [superiorNome, setSuperiorNome] = useState<string | null>(null);
+  const [editTipo, setEditTipo] = useState<string>('');
  
    useEffect(() => {
      if (usuario?.superior_id) {
