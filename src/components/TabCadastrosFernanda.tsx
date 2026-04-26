@@ -44,6 +44,7 @@ export default function TabCadastrosFernanda() {
   const [busca, setBusca] = useState('');
   const [form, setForm] = useState<FormState>(EMPTY);
   const [saving, setSaving] = useState(false);
+  const [usuariosSistema, setUsuariosSistema] = useState<{ id: string; nome: string; tipo: string }[]>([]);
   const [selected, setSelected] = useState<CadastroFernanda | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [periodo, setPeriodo] = useState<'todos' | 'hoje' | 'ontem' | 'semana' | 'mes' | 'data'>('hoje');
@@ -52,15 +53,21 @@ export default function TabCadastrosFernanda() {
 
   const carregar = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('cadastros_fernanda' as any)
-      .select('*')
-      .order('criado_em', { ascending: false });
-    if (error) {
-      toast({ title: 'Erro ao carregar', description: error.message, variant: 'destructive' });
+    const [cRes, uRes] = await Promise.all([
+      supabase.from('cadastros_fernanda' as any).select('*').order('criado_em', { ascending: false }),
+      supabase.from('hierarquia_usuarios').select('id, nome, tipo').eq('ativo', true).order('nome')
+    ]);
+    
+    if (cRes.error) {
+      toast({ title: 'Erro ao carregar', description: cRes.error.message, variant: 'destructive' });
     } else {
-      setCadastros((data || []) as unknown as CadastroFernanda[]);
+      setCadastros((cRes.data || []) as unknown as CadastroFernanda[]);
     }
+    
+    if (uRes.data) {
+      setUsuariosSistema(uRes.data);
+    }
+    
     setLoading(false);
   }, []);
 
