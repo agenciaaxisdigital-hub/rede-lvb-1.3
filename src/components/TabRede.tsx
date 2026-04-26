@@ -102,7 +102,7 @@ export default function TabRede() {
 
     const { data: usuarios } = await supabase
       .from('hierarquia_usuarios').select('id')
-      .eq('suplente_id', suplente.id).eq('ativo', true);
+      .eq('suplente_id', suplente.id);
     const userIds = (usuarios || []).map(u => u.id);
 
     if (userIds.length === 0) {
