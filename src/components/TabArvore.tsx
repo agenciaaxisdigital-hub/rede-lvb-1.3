@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Users, User, ChevronRight, ChevronDown, Network, Shield, Target, Search, Plus, X, ArrowLeft, Phone, MessageCircle, Pencil, Info, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
