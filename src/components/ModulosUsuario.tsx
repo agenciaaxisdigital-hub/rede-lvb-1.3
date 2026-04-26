@@ -9,14 +9,19 @@ export const MODULOS = [
   { id: 'cadastrar_fiscais', label: '🔍 Fiscais', desc: 'Visualizar e cadastrar fiscais' },
   { id: 'cadastrar_eleitores', label: '🎯 Eleitores', desc: 'Visualizar e cadastrar eleitores' },
   { id: 'ver_cadastros', label: '📋 Tela de Cadastros', desc: 'Visualizar a tela de cadastros' },
-  { id: 'coordenador_vinculos', label: '🔗 Vínculos (Eventos)', desc: 'Vincular pessoas a outros usuários em dia de evento' },
+  { id: 'coordenador_vinculos', label: '🔗 Vincular Pessoas', desc: 'Vincular cadastros a outros usuários em dia de evento' },
 ];
 
 export const PRESETS_TIPO: Record<string, string[]> = {
+  // Administrador Master: faz tudo, vê todas as telas
   super_admin:  ['master'],
-  coordenador:  ['master', 'cadastrar_liderancas', 'cadastrar_fiscais', 'cadastrar_eleitores', 'ver_cadastros', 'coordenador_vinculos'],
+  // Coordenador: vincula pessoas a outros usuários
+  coordenador:  ['coordenador_vinculos'],
+  // Suplente: cadastra Lideranças, Fiscais, Eleitores e vê a tela de Cadastros
   suplente:     ['cadastrar_liderancas', 'cadastrar_fiscais', 'cadastrar_eleitores', 'ver_cadastros'],
+  // Liderança: cadastra Lideranças e Eleitores e vê a tela de Cadastros (somente os seus)
   lideranca:    ['cadastrar_liderancas', 'cadastrar_eleitores', 'ver_cadastros'],
+  // Fernanda: segue como está
   fernanda:     ['ver_cadastros'],
 };
 
