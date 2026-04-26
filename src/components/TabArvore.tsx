@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Users, User, ChevronRight, ChevronDown, Network, Shield, Target, Search, Plus, X, ArrowLeft, Phone, MessageCircle, Pencil, Info, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -41,12 +41,36 @@ export default function TabArvore({ usuarios, liderancas, eleitores, fiscais }: 
     ).slice(0, 10);
   }, [usuarios, searchTerm]);
 
-  const getCounts = (userId: string) => {
-    const lids = liderancas.filter(l => l.cadastrado_por === userId).length;
-    const eleits = eleitores.filter(e => e.cadastrado_por === userId).length;
-    const fiscs = fiscais.filter(f => f.cadastrado_por === userId).length;
-    return { lids, eleits, fiscs, total: lids + eleits + fiscs };
-  };
+  const recursiveCounts = useMemo(() => {
+    const counts: Record<string, { lids: number, eleits: number, fiscs: number, total: number }> = {};
+    
+    const calculate = (userId: string) => {
+      if (counts[userId]) return counts[userId];
+      
+      // Direct registrations
+      let lids = liderancas.filter(l => l.cadastrado_por === userId).length;
+      let eleits = eleitores.filter(e => e.cadastrado_por === userId).length;
+      let fiscs = fiscais.filter(f => f.cadastrado_por === userId).length;
+      
+      // Add children's registrations
+      const children = usuarios.filter(u => u.superior_id === userId);
+      children.forEach(child => {
+        const childCounts = calculate(child.id);
+        lids += childCounts.lids;
+        eleits += childCounts.eleits;
+        fiscs += childCounts.fiscs;
+      });
+      
+      const res = { lids, eleits, fiscs, total: lids + eleits + fiscs };
+      counts[userId] = res;
+      return res;
+    };
+
+    usuarios.forEach(u => calculate(u.id));
+    return counts;
+  }, [usuarios, liderancas, eleitores, fiscais]);
+
+  const getCounts = (userId: string) => recursiveCounts[userId] || { lids: 0, eleits: 0, fiscs: 0, total: 0 };
 
   const getUserRegistrations = (userId: string) => {
     const lids = liderancas.filter(l => l.cadastrado_por === userId).map(l => ({ ...l, tipo: 'lideranca' }));
@@ -360,16 +384,19 @@ function EditForm({ id, tipo, onClose }: { id: string, tipo: string, onClose: ()
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  useMemo(async () => {
-    if (!id || !tipo) return;
-    setLoading(true);
-    const table = tipo === 'lideranca' ? 'liderancas' : tipo === 'fiscal' ? 'fiscais' : 'possiveis_eleitores';
-    const { data } = await (supabase as any).from(table).select('tipo_lideranca, compromisso_voto, status, observacoes').eq('id', id).single();
-    if (data) {
-      setTag(data.tipo_lideranca || data.compromisso_voto || data.status || '');
-      setObs(data.observacoes || '');
-    }
-    setLoading(false);
+  useEffect(() => {
+    const load = async () => {
+      if (!id || !tipo) return;
+      setLoading(true);
+      const table = tipo === 'lideranca' ? 'liderancas' : tipo === 'fiscal' ? 'fiscais' : 'possiveis_eleitores';
+      const { data } = await (supabase as any).from(table).select('tipo_lideranca, compromisso_voto, status, observacoes').eq('id', id).single();
+      if (data) {
+        setTag(data.tipo_lideranca || data.compromisso_voto || data.status || '');
+        setObs(data.observacoes || '');
+      }
+      setLoading(false);
+    };
+    load();
   }, [id, tipo]);
 
   const handleSave = async () => {
