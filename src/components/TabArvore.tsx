@@ -245,11 +245,12 @@ export default function TabArvore({ usuarios, liderancas, eleitores, fiscais }: 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Novo Cadastro</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="text-primary" size={18} />
+              Novo Cadastro para {usuarios.find(u => u.id === selectedForCadastro)?.nome}
+            </DialogTitle>
           </DialogHeader>
-          <div className="py-4">
-             {/* Note: In a real app we might want to pre-set the responsible user in TabCadastrar */}
-             <p className="text-xs text-muted-foreground mb-4">Cadastrando em nome de: <span className="font-bold text-foreground">{usuarios.find(u => u.id === selectedForCadastro)?.nome}</span></p>
+          <div className="py-2">
              <TabCadastrar 
                 onSaved={() => setIsDialogOpen(false)} 
                 responsavelId={selectedForCadastro || undefined} 
