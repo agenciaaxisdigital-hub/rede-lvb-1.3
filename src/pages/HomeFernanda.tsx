@@ -1,4 +1,7 @@
-import { useNavigate } from 'react-router-dom';
+ import { useNavigate } from 'react-router-dom';
+ import { useScrollRestore } from '@/hooks/useScrollRestore';
+   const { scrollRef, onScroll } = useScrollRestore('main');
+ 
 import { useAuth } from '@/contexts/AuthContext';
 import { LogOut, ClipboardList } from 'lucide-react';
 import TabCadastrosFernanda from '@/components/TabCadastrosFernanda';
@@ -37,7 +40,7 @@ export default function HomeFernanda() {
           </button>
         </div>
       </header>
-      <main className="flex-1 overflow-y-auto">
+       <main ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto">
         <div className="max-w-[672px] mx-auto px-4 py-4">
           <div className="mb-4">
             <LinkCaptacaoCard />
