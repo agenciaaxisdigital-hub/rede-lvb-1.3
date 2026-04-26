@@ -160,7 +160,14 @@ export default function TabCadastrosFernanda() {
 
   const abrirNovo = () => { setForm(EMPTY); setMode('form'); };
   const abrirEditar = (c: CadastroFernanda) => {
-    setForm({ id: c.id, nome: c.nome, telefone: c.telefone, cidade: c.cidade ?? '', instagram: c.instagram ?? '' });
+    setForm({ 
+      id: c.id, 
+      nome: c.nome, 
+      telefone: c.telefone, 
+      cidade: c.cidade ?? '', 
+      instagram: c.instagram ?? '',
+      responsavel_id: c.cadastrado_por ?? ''
+    });
     setMode('form');
   };
   const abrirDetalhe = (c: CadastroFernanda) => { setSelected(c); setConfirmDelete(false); setMode('detail'); };
