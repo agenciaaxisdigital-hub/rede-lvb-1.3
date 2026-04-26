@@ -3,12 +3,14 @@ import { useAuth } from '@/contexts/AuthContext';
  import { LogOut, ClipboardList, Network } from 'lucide-react';
  import TabCadastrosAfiliado from '@/components/TabCadastrosAfiliado';
  import MinhaRede from '@/components/MinhaRede';
- import { useState } from 'react';
+  import { useState, useRef } from 'react';
+ import { useScrollRestore } from '@/hooks/useScrollRestore';
 import FloatingSupportButton from '@/components/FloatingSupportButton';
 
  export default function HomeAfiliado() {
    const { usuario, signOut } = useAuth();
-   const [activeTab, setActiveTab] = useState<'cadastros' | 'rede'>('cadastros');
+    const [activeTab, setActiveTab] = useState<'cadastros' | 'rede'>('cadastros');
+    const { scrollRef, onScroll } = useScrollRestore(activeTab);
   const navigate = useNavigate();
 
   const handleSair = async () => {
@@ -39,7 +41,7 @@ import FloatingSupportButton from '@/components/FloatingSupportButton';
           </button>
         </div>
       </header>
-       <main className="flex-1 overflow-y-auto pb-24">
+        <main ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto pb-24">
          <div className="max-w-[672px] mx-auto px-4 py-4">
            <div className="flex gap-2 mb-4 bg-muted/50 p-1 rounded-xl">
              <button 
