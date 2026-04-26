@@ -844,6 +844,40 @@ export default function TabPerfil() {
                <input type="text" value={editNome} onChange={e => setEditNome(e.target.value)} className={inputCls} />
              </div>
  
+             {/* Tipo de acesso */}
+             <div className="space-y-1">
+               <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                 <Shield size={12} /> Tipo de acesso
+               </label>
+               <div className="grid grid-cols-2 gap-1.5">
+                 {[
+                   { value: 'super_admin', label: '👑 Super Admin' },
+                   { value: 'coordenador', label: '🛡️ Coordenador' },
+                   { value: 'suplente', label: '🏛️ Suplente' },
+                   { value: 'lideranca', label: '👥 Liderança' },
+                   { value: 'fernanda', label: '🩷 Fernanda' },
+                 ].map(opt => (
+                   <button
+                     key={opt.value}
+                     type="button"
+                     onClick={() => setEditTipo(opt.value)}
+                     className={`py-2 rounded-xl text-xs font-semibold transition-all ${
+                       editTipo === opt.value
+                         ? 'bg-primary text-primary-foreground shadow-md'
+                         : 'bg-muted border border-border text-muted-foreground'
+                     }`}
+                   >
+                     {opt.label}
+                   </button>
+                 ))}
+               </div>
+               {editTipo !== editUser.tipo && (
+                 <p className="text-[10px] text-primary font-medium">
+                   ⚡ Tipo será alterado. Após salvar, clique em "Aplicar padrão" nos Módulos para atualizar permissões.
+                 </p>
+               )}
+             </div>
+
              {editUser.suplente_id && (
                <div className="space-y-1">
                  <label className="text-xs font-medium text-muted-foreground">Cargo / Profissão</label>
@@ -913,7 +947,7 @@ export default function TabPerfil() {
 
         {/* Módulos */}
         <div className="section-card">
-          <ModulosUsuario usuarioId={editUser.id} />
+          <ModulosUsuario usuarioId={editUser.id} tipoUsuario={editTipo || editUser.tipo} />
         </div>
 
         {/* Danger zone */}
