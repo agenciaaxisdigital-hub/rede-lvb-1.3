@@ -429,6 +429,7 @@ export default function TabPerfil() {
      setEditCidade(u.municipio_id || '');
      setEditSuperiorId(u.superior_id || '');
      setEditCargoTag(getSuplenteTag(u.suplente_id) || '');
+     setEditTipo(u.tipo);
      setView('edit');
    };
 
@@ -456,8 +457,9 @@ export default function TabPerfil() {
        if (editSenha.trim()) body.nova_senha = editSenha.trim();
        if (editCidade && editCidade !== (editUser.municipio_id || '')) body.novo_municipio_id = editCidade;
        if (editSuperiorId !== (editUser.superior_id || '')) body.novo_superior_id = editSuperiorId || null;
+       if (editTipo && editTipo !== editUser.tipo) body.novo_tipo = editTipo;
        
-       const noChanges = !body.novo_nome && !body.nova_senha && !body.novo_municipio_id && !body.novo_superior_id;
+       const noChanges = !body.novo_nome && !body.nova_senha && !body.novo_municipio_id && !body.novo_superior_id && !body.novo_tipo;
        
        if (noChanges && !cargoChanged) {
          toast({ title: 'Nenhuma alteração' });
