@@ -17,9 +17,10 @@ import SeletorEvento from '@/components/SeletorEvento';
 import GerenciarEventos from '@/components/GerenciarEventos';
 import { lazy, Suspense } from 'react';
 
-const TabLocalizacoes = lazy(() => import('@/components/TabLocalizacoes'));
-const AdminCadastrosFernanda = lazy(() => import('@/components/AdminCadastrosFernanda'));
-const AdminCadastrosAfiliados = lazy(() => import('@/components/AdminCadastrosAfiliados'));
+ const TabLocalizacoes = lazy(() => import('@/components/TabLocalizacoes'));
+ const AdminCadastrosFernanda = lazy(() => import('@/components/AdminCadastrosFernanda'));
+ const AdminCadastrosAfiliados = lazy(() => import('@/components/AdminCadastrosAfiliados'));
+ const AdminVinculos = lazy(() => import('@/components/AdminVinculos'));
 
 
 /* ── types ── */
@@ -75,7 +76,7 @@ interface FiscalReg {
 /* ── constants ── */
 type Periodo = 'hoje' | 'semana' | 'mes' | 'total';
 type TipoFiltro = 'todos' | 'lideranca' | 'eleitor' | 'fiscal';
-type VistaAtiva = 'usuarios' | 'ranking' | 'registros' | 'cidades' | 'localizacao' | 'eventos' | 'fernanda' | 'afiliados';
+ type VistaAtiva = 'usuarios' | 'ranking' | 'registros' | 'cidades' | 'localizacao' | 'eventos' | 'fernanda' | 'afiliados' | 'vinculos';
 type TipoUsuarioFiltro = 'todos' | 'suplente' | 'lideranca' | 'coordenador' | 'fernanda';
 
 const periodoLabels: Record<Periodo, string> = { hoje: 'Hoje', semana: 'Semana', mes: 'Mês', total: 'Total' };
@@ -302,16 +303,17 @@ export default function AdminDashboard() {
     } finally { setDeletingId(null); }
   };
 
-  const vistaLabels: { id: VistaAtiva; icon: typeof BarChart3; label: string }[] = [
-    { id: 'ranking', icon: Trophy, label: 'Ranking' },
-    { id: 'usuarios', icon: UserCog, label: 'Usuários' },
-    { id: 'localizacao', icon: MapPin, label: 'Localização' },
-    { id: 'registros', icon: Eye, label: 'Registros' },
-    { id: 'eventos', icon: Calendar, label: 'Eventos' },
-    { id: 'fernanda', icon: ClipboardList, label: 'Fernanda' },
-    { id: 'afiliados', icon: Users, label: 'Afiliados' },
-    ...(municipios.length > 1 ? [{ id: 'cidades' as VistaAtiva, icon: Building2, label: 'Cidades' }] : []),
-  ];
+   const vistaLabels: { id: VistaAtiva; icon: any; label: string }[] = [
+     { id: 'ranking', icon: Trophy, label: 'Ranking' },
+     { id: 'usuarios', icon: UserCog, label: 'Usuários' },
+     { id: 'vinculos', icon: Users, label: 'Vínculos' },
+     { id: 'localizacao', icon: MapPin, label: 'Localização' },
+     { id: 'registros', icon: Eye, label: 'Registros' },
+     { id: 'eventos', icon: Calendar, label: 'Eventos' },
+     { id: 'fernanda', icon: ClipboardList, label: 'Fernanda' },
+     { id: 'afiliados', icon: Users, label: 'Afiliados' },
+     ...(municipios.length > 1 ? [{ id: 'cidades' as VistaAtiva, icon: Building2, label: 'Cidades' }] : []),
+   ];
 
   if (loading) {
     return (
