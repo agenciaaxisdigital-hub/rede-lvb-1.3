@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Search, ChevronRight, Phone, MessageCircle, Trash2, ArrowLeft, XCircle, Download, Loader2, ExternalLink, PlusCircle, CloudOff } from 'lucide-react';
+ import { Search, ChevronRight, Phone, MessageCircle, Trash2, ArrowLeft, XCircle, Download, Loader2, ExternalLink, PlusCircle, CloudOff, Network } from 'lucide-react';
 import { exportAllCadastros } from '@/lib/exportXlsx';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -524,9 +524,18 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
                     <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/15 text-blue-600 dark:text-blue-400">Visita</span>
                   )}
                 </div>
-                {l.suplentes?.nome && (
-                  <p className="text-[10px] text-primary/70 truncate">🔗 {l.suplentes.nome}{l.suplentes.cargo_disputado ? ` · ${l.suplentes.cargo_disputado}` : ''}</p>
-                )}
+                 {l.suplentes?.nome && (
+                   <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                     <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium bg-primary/10 text-primary flex items-center gap-0.5 whitespace-nowrap">
+                       <Network size={8} /> {l.suplentes.nome}
+                     </span>
+                     {l.suplentes.cargo_disputado && (
+                       <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium bg-muted text-muted-foreground whitespace-nowrap">
+                         {l.suplentes.cargo_disputado}
+                       </span>
+                     )}
+                   </div>
+                 )}
                 {l.regiao_atuacao && (
                   <p className="text-[10px] text-muted-foreground truncate">{l.regiao_atuacao}</p>
                 )}
