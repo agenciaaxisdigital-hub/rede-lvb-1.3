@@ -7,7 +7,7 @@ import ModulosUsuario from '@/components/ModulosUsuario';
 import {
   Loader2, UserPlus, Users, User, CheckCircle2, Search, Eye, EyeOff,
   ChevronRight, ArrowLeft, Shield, Pencil, Trash2, KeyRound, Save, Link2, MapPin,
-  Navigation, Clock
+   Navigation, Clock, Network
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -918,6 +918,11 @@ export default function TabUsuarios() {
                         {cargoMap[u.suplente_id]}
                       </span>
                     )}
+                     {u.superior_id && (
+                       <span className="text-[9px] px-2 py-0.5 rounded-full font-medium bg-green-500/10 text-green-600 flex items-center gap-0.5">
+                         <Network size={8} /> {usuarios.find(sup => sup.id === u.superior_id)?.nome || 'Vinculado'}
+                       </span>
+                     )}
                     {u.municipio_id && (
                       <span className="text-[9px] text-muted-foreground flex items-center gap-0.5">
                         <MapPin size={8} />{municipios.find(m => m.id === u.municipio_id)?.nome || ''}

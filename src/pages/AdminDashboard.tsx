@@ -17,6 +17,7 @@ import SeletorCidade from '@/components/SeletorCidade';
 import SeletorEvento from '@/components/SeletorEvento';
 import GerenciarEventos from '@/components/GerenciarEventos';
 import { lazy, Suspense } from 'react';
+import TabArvore from '@/components/TabArvore';
 
  const TabLocalizacoes = lazy(() => import('@/components/TabLocalizacoes'));
  const AdminCadastrosFernanda = lazy(() => import('@/components/AdminCadastrosFernanda'));
@@ -76,7 +77,7 @@ interface FiscalReg {
 /* ── constants ── */
 type Periodo = 'hoje' | 'semana' | 'mes' | 'total';
 type TipoFiltro = 'todos' | 'lideranca' | 'eleitor' | 'fiscal';
- type VistaAtiva = 'usuarios' | 'ranking' | 'registros' | 'cidades' | 'localizacao' | 'eventos' | 'fernanda' | 'afiliados';
+  type VistaAtiva = 'usuarios' | 'ranking' | 'registros' | 'cidades' | 'localizacao' | 'eventos' | 'fernanda' | 'afiliados' | 'arvore';
 type TipoUsuarioFiltro = 'todos' | 'suplente' | 'lideranca' | 'coordenador' | 'fernanda';
 
 const periodoLabels: Record<Periodo, string> = { hoje: 'Hoje', semana: 'Semana', mes: 'Mês', total: 'Total' };
@@ -304,8 +305,9 @@ export default function AdminDashboard() {
   };
 
    const vistaLabels: { id: VistaAtiva; icon: any; label: string }[] = [
-     { id: 'ranking', icon: Trophy, label: 'Ranking' },
-     { id: 'usuarios', icon: UserCog, label: 'Usuários' },
+      { id: 'ranking', icon: Trophy, label: 'Ranking' },
+      { id: 'arvore', icon: Network, label: 'Árvore' },
+      { id: 'usuarios', icon: UserCog, label: 'Usuários' },
      { id: 'localizacao', icon: MapPin, label: 'Localização' },
      { id: 'registros', icon: Eye, label: 'Registros' },
      { id: 'eventos', icon: Calendar, label: 'Eventos' },
@@ -533,6 +535,10 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {vistaAtiva === 'arvore' && (
+          <TabArvore usuarios={usuarios} />
+        )}
+
         {/* ══════════ RANKING ══════════ */}
         {vistaAtiva === 'ranking' && (() => {
           let filtered = rankingUsuarios;
@@ -611,8 +617,8 @@ export default function AdminDashboard() {
                             <div className="flex items-center gap-1.5 mt-0.5">
                                <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-primary/10 text-primary font-medium">{tipoLabel(u.tipo)}</span>
                                {u.superior_id && (
-                                 <span className="text-[8px] px-1.5 py-0.5 rounded-md bg-green-500/10 text-green-600 font-bold uppercase tracking-wider flex items-center gap-0.5">
-                                   <Network size={8} /> Vinculado
+                                 <span className="text-[8px] px-1.5 py-0.5 rounded-md bg-green-500/10 text-green-600 font-bold uppercase tracking-wider flex items-center gap-0.5" title={`Vinculado a ${getUserName(u.superior_id)}`}>
+                                   <Network size={8} /> {getUserName(u.superior_id)}
                                  </span>
                                )}
                               {getCargoTag(u.suplente_id) && (
@@ -664,8 +670,8 @@ export default function AdminDashboard() {
                             <div className="flex items-center gap-1.5 mt-0.5">
                                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{tipoLabel(u.tipo)}</span>
                                {u.superior_id && (
-                                 <span className="text-[8px] px-1.5 py-0.5 rounded-md bg-green-500/10 text-green-600 font-bold uppercase tracking-wider flex items-center gap-0.5">
-                                   <Network size={8} /> Vinculado
+                                 <span className="text-[8px] px-1.5 py-0.5 rounded-md bg-green-500/10 text-green-600 font-bold uppercase tracking-wider flex items-center gap-0.5" title={`Vinculado a ${getUserName(u.superior_id)}`}>
+                                   <Network size={8} /> {getUserName(u.superior_id)}
                                  </span>
                                )}
                               {getCargoTag(u.suplente_id) && (
