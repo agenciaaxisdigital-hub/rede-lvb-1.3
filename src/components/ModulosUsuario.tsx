@@ -3,16 +3,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 
-const MODULOS = [
-  { id: 'master', label: '🔑 Acesso Master', desc: 'Acesso total — vê e faz tudo no sistema' },
-   { id: 'cadastrar_liderancas', label: '👥 Lideranças', desc: 'Permite cadastrar lideranças e eleitores. Suplentes com este módulo também cadastram fiscais.' },
-  { id: 'cadastrar_eleitores', label: '🎯 Eleitores', desc: 'Pode cadastrar somente eleitores' },
-];
-// Modules that are mutually exclusive — only one active at a time
-const MUTUALLY_EXCLUSIVE: Record<string, string[]> = {
-  cadastrar_liderancas: ['cadastrar_eleitores'],
-  cadastrar_eleitores: ['cadastrar_liderancas'],
-};
+ const MODULOS = [
+   { id: 'master', label: '🔑 Acesso Master', desc: 'Acesso total — vê e faz tudo no sistema' },
+   { id: 'cadastrar_liderancas', label: '👥 Lideranças', desc: 'Permite visualizar e cadastrar lideranças' },
+   { id: 'cadastrar_fiscais', label: '🔍 Fiscais', desc: 'Permite visualizar e cadastrar fiscais' },
+   { id: 'cadastrar_eleitores', label: '🎯 Eleitores', desc: 'Permite visualizar e cadastrar eleitores' },
+ ];
 
 interface Props {
   usuarioId: string;
@@ -57,29 +53,19 @@ export default function ModulosUsuario({ usuarioId, onClose }: Props) {
           return next;
         });
         toast({ title: `Módulo removido` });
-      } else {
-        // Activate — remove mutually exclusive modules first
-        const toRemove = (MUTUALLY_EXCLUSIVE[modulo] || []).filter(m => modulosAtivos.has(m));
-        for (const rem of toRemove) {
-          await (supabase as any)
-            .from('usuario_modulos')
-            .delete()
-            .eq('usuario_id', usuarioId)
-            .eq('modulo', rem);
-        }
-
-        await (supabase as any)
-          .from('usuario_modulos')
-          .insert({ usuario_id: usuarioId, modulo });
-
-        setModulosAtivos(prev => {
-          const next = new Set(prev);
-          toRemove.forEach(r => next.delete(r));
-          next.add(modulo);
-          return next;
-        });
-        toast({ title: `Módulo ativado` });
-      }
+       } else {
+         // Activate
+         await (supabase as any)
+           .from('usuario_modulos')
+           .insert({ usuario_id: usuarioId, modulo });
+ 
+         setModulosAtivos(prev => {
+           const next = new Set(prev);
+           next.add(modulo);
+           return next;
+         });
+         toast({ title: `Módulo ativado` });
+       }
     } catch (err: any) {
       toast({ title: 'Erro ao alterar módulo', description: err.message, variant: 'destructive' });
     } finally {

@@ -65,40 +65,29 @@ export default function BottomNav({ active, onChange }: Props) {
       });
   }, [usuario?.id, tipoUsuario]);
 
-   const isSuperAdmin = tipoUsuario === 'super_admin';
-   const isAdminOrCoord = tipoUsuario === 'super_admin' || tipoUsuario === 'coordenador';
-   const isSuplente = tipoUsuario === 'suplente';
-   const isLideranca = tipoUsuario === 'lideranca';
+  const isSuperAdmin = tipoUsuario === 'super_admin';
+  const isAdminOrCoord = tipoUsuario === 'super_admin' || tipoUsuario === 'coordenador';
 
   const tabs = ALL_TABS.filter(tab => {
     // Perfil always visible
     if (tab.id === 'perfil') return true;
-    // Fernanda only visible to admin/coord
-    if (tab.id === 'fernanda') return isAdminOrCoord;
-    // Afiliados only visible to admin/coord
-    if (tab.id === 'afiliados') return isAdminOrCoord;
+
+    // Super admin and Coordenador see everything
+    if (isAdminOrCoord) return true;
+
+    // Fernanda and Afiliados only for Super Admin / Coordenador (already handled by line above)
+    if (tab.id === 'fernanda' || tab.id === 'afiliados') return false;
+
     // Cadastros (meus cadastros) - visible to everyone
     if (tab.id === 'cadastros') return true;
-     // Module-based tabs
-     if (tab.module) {
-       if (isAdminOrCoord) return true;
-       if (modulos.has('master')) return true;
 
-       // Suplente with cadastrar_liderancas can see everything (Lideranças, Fiscais, Eleitores)
-       if (isSuplente && modulos.has('cadastrar_liderancas')) return true;
+    // Module-based tabs (strict check against usuario_modulos)
+    if (tab.module) {
+      if (modulos.has('master')) return true;
+      if (modulos.has(tab.module)) return true;
+      return false;
+    }
 
-       // Liderança with cadastrar_liderancas can see Lideranças and Eleitores, but NOT Fiscais
-       if (isLideranca && modulos.has('cadastrar_liderancas')) {
-         return tab.id !== 'fiscais';
-       }
-
-       // Legacy fallback or other roles
-       if (modulos.has('cadastrar_liderancas')) return true;
-
-       // cadastrar_eleitores grants access ONLY to eleitores
-       if (tab.module === 'cadastrar_eleitores' && modulos.has('cadastrar_eleitores')) return true;
-       return false;
-     }
     return false;
   });
 
