@@ -985,12 +985,6 @@ export default function AdminDashboard() {
            </Suspense>
          )}
  
-         {/* ══════════ VÍNCULOS ══════════ */}
-         {vistaAtiva === 'vinculos' && (
-           <Suspense fallback={<div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-primary" /></div>}>
-             <AdminVinculos />
-           </Suspense>
-         )}
 
       </div>
 
