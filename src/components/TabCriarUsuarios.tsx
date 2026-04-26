@@ -100,9 +100,12 @@ export default function TabCriarUsuarios() {
     return liderancas.filter(l => !q || (l.pessoas?.nome || '').toLowerCase().includes(q));
   }, [liderancas, search]);
 
+  const [superiorSearch, setSuperiorSearch] = useState('');
   const possiveisSuperior = useMemo(() => {
-    return usuarios.filter(u => ['super_admin', 'coordenador', 'suplente'].includes(u.tipo));
-  }, [usuarios]);
+    if (!superiorSearch) return usuarios;
+    const q = superiorSearch.toLowerCase();
+    return usuarios.filter(u => u.nome.toLowerCase().includes(q));
+  }, [usuarios, superiorSearch]);
 
   const handleSelect = (tipo: VinculoTab, id: string, nome: string) => {
     setSelecionado({ tipo, id, nome });
