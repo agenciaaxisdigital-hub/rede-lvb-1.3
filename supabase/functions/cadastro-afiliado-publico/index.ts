@@ -74,25 +74,22 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // 1) Validar token → registro pendente do afiliado
-    const { data: pendente, error: pendErr } = await supabaseAdmin
-      .from('hierarquia_usuarios')
-      .select('id, nome, tipo, ativo, auth_user_id, superior_id, municipio_id')
-      .eq('link_token', token)
-      .maybeSingle();
-
-    if (pendErr || !pendente || (pendente as any).tipo !== 'afiliado') {
-      return new Response(JSON.stringify({ error: 'Link inválido ou expirado' }), {
-        status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Se já tem auth_user_id, link já foi usado
-    if ((pendente as any).auth_user_id) {
-      return new Response(JSON.stringify({ error: 'Este link já foi utilizado. Faça login no sistema.' }), {
-        status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+     // 1) Validar token → Localizar quem indicou (Referrer)
+     let query = supabaseAdmin
+       .from('hierarquia_usuarios')
+       .select('id, nome, tipo, ativo, auth_user_id, municipio_id');
+     
+     if (token.length >= 32) query = query.eq('link_token', token);
+     else query = query.like('link_token', `${token}%`).limit(1);
+ 
+     const { data: refRows, error: refErr } = await query;
+     const referrer: any = Array.isArray(refRows) ? refRows[0] : refRows;
+ 
+     if (refErr || !referrer) {
+       return new Response(JSON.stringify({ error: 'Link de indicação inválido' }), {
+         status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+       });
+     }
 
     // 2) Criar auth user
     const loginSlug = p.usuario_login.toLowerCase().trim().replace(/\s+/g, '.').replace(/[^a-z0-9.]/g, '');
@@ -154,29 +151,33 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 4) Atualizar hierarquia: vincula auth_user_id, atualiza nome e zera token
-    const { error: updErr } = await supabaseAdmin
-      .from('hierarquia_usuarios')
-      .update({
-        auth_user_id: authUserId,
-        nome: p.nome.trim(),
-        ativo: true,
-        link_token: null,
-      })
-      .eq('id', (pendente as any).id);
-
-    if (updErr) {
-      console.error('Hierarquia update error:', updErr);
-      await supabaseAdmin.auth.admin.deleteUser(authUserId);
-      return new Response(JSON.stringify({ error: 'Erro ao ativar acesso' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    return new Response(
-      JSON.stringify({ ok: true, login: loginSlug, hierarquia_id: (pendente as any).id, pessoa_id: pessoaIns?.id }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+     // 4) Criar registro na hierarquia vinculado ao referrer
+     const { data: novoUsuario, error: insErr } = await supabaseAdmin
+       .from('hierarquia_usuarios')
+       .insert({
+         auth_user_id: authUserId,
+         nome: p.nome.trim(),
+         tipo: 'afiliado',
+         superior_id: referrer.id,
+         municipio_id: referrer.municipio_id || null,
+         ativo: true,
+         link_token: Math.random().toString(36).slice(2, 10), // Gera um token para o novo afiliado
+       })
+       .select('id')
+       .maybeSingle();
+ 
+     if (insErr) {
+       console.error('Hierarquia insert error:', insErr);
+       await supabaseAdmin.auth.admin.deleteUser(authUserId);
+       return new Response(JSON.stringify({ error: 'Erro ao criar perfil de usuário' }), {
+         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+       });
+     }
+ 
+     return new Response(
+       JSON.stringify({ ok: true, login: loginSlug, hierarquia_id: novoUsuario?.id, pessoa_id: pessoaIns?.id }),
+       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+     );
   } catch (err) {
     console.error('Error:', err);
     return new Response(JSON.stringify({ error: 'Erro interno' }), {
