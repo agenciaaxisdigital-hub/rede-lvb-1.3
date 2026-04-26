@@ -31,7 +31,7 @@ export default function Login() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username || !password) {
-      toast({ title: 'Preencha nome e senha', variant: 'destructive' });
+      toast({ title: 'Preencha usuário e senha', variant: 'destructive' });
       return;
     }
     if (isLocked) {
@@ -51,7 +51,7 @@ export default function Login() {
         setLockedUntil(Date.now() + lockMs);
         toast({ title: 'Conta temporariamente bloqueada', description: `Muitas tentativas. Aguarde ${Math.round(lockMs / 1000)}s.`, variant: 'destructive' });
       } else {
-        toast({ title: 'Erro ao entrar', description: 'Nome ou senha incorretos', variant: 'destructive' });
+        toast({ title: 'Erro ao entrar', description: 'Usuário ou senha incorretos', variant: 'destructive' });
       }
     } else {
       setFailedAttempts(0);
@@ -116,7 +116,7 @@ export default function Login() {
           style={{ ...entrance(0.3), marginTop: '-1rem', color: '#c8aa64', fontSize: '12px', fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase' as const }}
           className="text-center flex-shrink-0"
         >
-          Painel de Pagamentos
+          Painel de Lideranças
         </p>
 
         {/* Form card (glassmorphism) */}
