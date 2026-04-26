@@ -1,9 +1,12 @@
  import { useState, useMemo } from 'react';
- import { Users, User, ChevronRight, ChevronDown, Network, Shield, Target, Search, Plus, X, ArrowLeft } from 'lucide-react';
+ import { Users, User, ChevronRight, ChevronDown, Network, Shield, Target, Search, Plus, X, ArrowLeft, Phone, MessageCircle, Pencil, Info } from 'lucide-react';
  import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
  import { Button } from "@/components/ui/button";
  import { Input } from "@/components/ui/input";
  import TabCadastrar from './TabCadastrar';
+ import { maskCPF } from '@/lib/cpf';
+ import { supabase } from '@/integrations/supabase/client';
+ import { toast } from '@/hooks/use-toast';
  
  interface HierarquiaUsuario {
    id: string;
@@ -27,7 +30,9 @@ export default function TabArvore({ usuarios, liderancas, eleitores, fiscais }: 
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [expandedRegistrations, setExpandedRegistrations] = useState<Record<string, boolean>>({});
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedForCadastro, setSelectedForCadastro] = useState<string | null>(null);
+   const [selectedForEdit, setSelectedForEdit] = useState<{ id: string, tipo: string } | null>(null);
 
   const filteredSearch = useMemo(() => {
     if (!searchTerm || searchTerm.length < 2) return [];
@@ -47,7 +52,7 @@ export default function TabArvore({ usuarios, liderancas, eleitores, fiscais }: 
     const lids = liderancas.filter(l => l.cadastrado_por === userId).map(l => ({ ...l, tipo: 'lideranca' }));
     const eleits = eleitores.filter(e => e.cadastrado_por === userId).map(e => ({ ...e, tipo: 'eleitor' }));
     const fiscs = fiscais.filter(f => f.cadastrado_por === userId).map(f => ({ ...f, tipo: 'fiscal' }));
-    return [...lids, ...eleits, ...fiscs].sort((a, b) => new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime());
+     return [...lids, ...eleits, ...fiscs].sort((a, b) => new Date(b.criado_em || 0).getTime() - new Date(a.criado_em || 0).getTime());
   };
  
    const toggle = (id: string) => {
@@ -78,7 +83,151 @@ export default function TabArvore({ usuarios, liderancas, eleitores, fiscais }: 
     }];
   };
 
+   const [expandedRegs, setExpandedRegs] = useState<Record<string, boolean>>({});
+   const toggleReg = (id: string) => setExpandedRegs(prev => ({ ...prev, [id]: !prev[id] }));
+ 
   const tree = useMemo(() => buildTree(selectedRootId), [usuarios, selectedRootId]);
+               {/* Registrations (Leaf Nodes) */}
+               {registrations.map((reg: any) => {
+                 const isRegExpanded = expandedRegs[reg.id];
+                 const regTypeColor = reg.tipo === 'lideranca' ? 'text-purple-600' : reg.tipo === 'fiscal' ? 'text-orange-600' : 'text-blue-600';
+                 const regTypeBg = reg.tipo === 'lideranca' ? 'bg-purple-500/10' : reg.tipo === 'fiscal' ? 'bg-orange-500/10' : 'bg-blue-500/10';
+                 const p = reg.pessoas;
+ 
+                 return (
+                   <div key={reg.id} className="ml-8 relative before:absolute before:-left-8 before:top-1/2 before:w-8 before:h-[2px] before:bg-border/40">
+                     <div 
+                       className={`bg-background/80 backdrop-blur-sm border border-border/50 rounded-xl p-3 transition-all group hover:border-primary/30 shadow-sm ${isRegExpanded ? 'ring-1 ring-primary/20' : ''}`}
+                     >
+                       <div className="flex items-center gap-3">
+                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${regTypeBg} ${regTypeColor}`}>
+                           {reg.tipo === 'lideranca' ? <Users size={20} /> : reg.tipo === 'fiscal' ? <Shield size={20} /> : <Target size={20} />}
+                         </div>
+                         <div className="flex-1 min-w-0 cursor-pointer" onClick={() => toggleReg(reg.id)}>
+                           <p className="text-sm font-bold text-foreground truncate">{p?.nome || '—'}</p>
+                           <div className="flex items-center gap-1.5">
+                             <span className={`text-[9px] font-black uppercase tracking-widest ${regTypeColor}`}>{reg.tipo}</span>
+                             <span className="text-[9px] text-muted-foreground">•</span>
+                             <span className="text-[9px] text-muted-foreground uppercase font-bold">
+                               {reg.tipo_lideranca || reg.compromisso_voto || reg.status || 'Ativo'}
+                             </span>
+                           </div>
+                         </div>
+                         <div className="flex items-center gap-1">
+                           {p?.whatsapp && (
+                             <a 
+                               href={`https://wa.me/55${p.whatsapp.replace(/\D/g, '')}`} 
+                               target="_blank" 
+                               rel="noopener" 
+                               className="p-2 text-emerald-500 hover:bg-emerald-500/10 rounded-lg transition-colors"
+                             >
+                               <MessageCircle size={18} />
+                             </a>
+                           )}
+                           <button 
+                             onClick={() => toggleReg(reg.id)}
+                             className={`p-2 rounded-lg transition-colors ${isRegExpanded ? 'bg-primary text-white' : 'hover:bg-muted'}`}
+                           >
+                             <ChevronDown size={18} className={`transition-transform ${isRegExpanded ? 'rotate-180' : ''}`} />
+                           </button>
+                         </div>
+                       </div>
+ 
+                       {isRegExpanded && (
+                         <div className="mt-3 pt-3 border-t border-border/40 animate-in fade-in slide-in-from-top-2">
+                           <div className="grid grid-cols-2 gap-3 mb-4">
+                             <div className="space-y-0.5">
+                               <p className="text-[10px] text-muted-foreground uppercase font-bold">WhatsApp</p>
+                               <p className="text-xs font-medium">{p?.whatsapp || '—'}</p>
+                             </div>
+                             <div className="space-y-0.5">
+                               <p className="text-[10px] text-muted-foreground uppercase font-bold">CPF</p>
+                               <p className="text-xs font-medium">{p?.cpf ? maskCPF(p.cpf) : '—'}</p>
+                             </div>
+                             <div className="space-y-0.5">
+                               <p className="text-[10px] text-muted-foreground uppercase font-bold">Título / Zona / Seção</p>
+                               <p className="text-xs font-medium">{p?.titulo_eleitor || '—'} / {p?.zona_eleitoral || '—'} / {p?.secao_eleitoral || '—'}</p>
+                             </div>
+                             <div className="space-y-0.5">
+                               <p className="text-[10px] text-muted-foreground uppercase font-bold">Cidade</p>
+                               <p className="text-xs font-medium">{p?.municipio_eleitoral || '—'} - {p?.uf_eleitoral || '—'}</p>
+                             </div>
+                             {reg.tipo === 'lideranca' && (
+                               <>
+                                 <div className="space-y-0.5">
+                                   <p className="text-[10px] text-muted-foreground uppercase font-bold">Meta Votos</p>
+                                   <p className="text-xs font-medium">{reg.meta_votos || 0}</p>
+                                 </div>
+                                 <div className="space-y-0.5">
+                                   <p className="text-[10px] text-muted-foreground uppercase font-bold">Comprometimento</p>
+                                   <p className="text-xs font-medium">{reg.nivel_comprometimento || '—'}</p>
+                                 </div>
+                               </>
+                             )}
+                           </div>
+ 
+                           <div className="flex gap-2">
+                             <Button 
+                               variant="outline" 
+                               size="sm" 
+                               className="h-8 text-[10px] font-black uppercase tracking-widest gap-2 flex-1 rounded-xl"
+                               onClick={() => { setSelectedForEdit({ id: reg.id, tipo: reg.tipo }); setIsEditDialogOpen(true); }}
+                             >
+                               <Pencil size={14} /> Editar
+                             </Button>
+                             {p?.telefone && (
+                               <Button 
+                                 variant="outline" 
+                                 size="sm" 
+                                 className="h-8 text-[10px] font-black uppercase tracking-widest gap-2 flex-1 rounded-xl"
+                                 asChild
+                               >
+                                 <a href={`tel:${p.telefone}`}><Phone size={14} /> Ligar</a>
+                               </Button>
+                             )}
+                           </div>
+                         </div>
+                       )}
+                     </div>
+                   </div>
+                 );
+               })}
+             </div>
+           )}
+         </div>
+       );
+     };
+@@
+         </DialogContent>
+       </Dialog>
+ 
+       {/* Dialog para Cadastro */}
+       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+@@
+           </div>
+         </DialogContent>
+       </Dialog>
+ 
+       {/* Dialog para Edição */}
+       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+         <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+           <DialogHeader>
+             <DialogTitle className="flex items-center gap-2">
+               <Pencil className="text-primary" size={18} />
+               Editar {selectedForEdit?.tipo === 'lideranca' ? 'Liderança' : selectedForEdit?.tipo === 'fiscal' ? 'Fiscal' : 'Eleitor'}
+             </DialogTitle>
+           </DialogHeader>
+           <div className="py-2">
+              <p className="text-sm text-muted-foreground text-center py-8">
+                Funcionalidade de edição em desenvolvimento.
+              </p>
+              {/* TODO: Inserir componente de edição aqui */}
+           </div>
+         </DialogContent>
+       </Dialog>
+     </div>
+   );
+ }
  
    const TreeNode = ({ node, level = 0, isRoot = false }: { node: any, level?: number, isRoot?: boolean }) => {
      const isExpanded = expanded[node.id];
