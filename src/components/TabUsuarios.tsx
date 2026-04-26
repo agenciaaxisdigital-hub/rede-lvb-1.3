@@ -140,6 +140,13 @@ export default function TabUsuarios() {
 
   const [filtroTipo, setFiltroTipo] = useState<string>('todos');
 
+  // Search results for linking in edit mode
+  const editSupFiltered = useMemo(() => {
+    if (!editSupSearch) return [];
+    const q = editSupSearch.toLowerCase();
+    return suplentes.filter(s => s.nome.toLowerCase().includes(q)).slice(0, 5);
+  }, [suplentes, editSupSearch]);
+
   const filteredUsuarios = useMemo(() => {
     let list = usuarios;
     if (filtroTipo !== 'todos') list = list.filter(u => u.tipo === filtroTipo);
