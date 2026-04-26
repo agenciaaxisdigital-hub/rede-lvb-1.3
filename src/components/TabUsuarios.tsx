@@ -83,6 +83,9 @@ export default function TabUsuarios() {
   const [editSaving, setEditSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editCidade, setEditCidade] = useState<string>('');
+  const [editSuperiorId, setEditSuperiorId] = useState<string>('');
+  const [editSuplenteId, setEditSuplenteId] = useState<string | null>(null);
+  const [editSupSearch, setEditSupSearch] = useState('');
 
   // Modules view
   const [viewingModules, setViewingModules] = useState<HierarchyUser | null>(null);
@@ -256,6 +259,9 @@ export default function TabUsuarios() {
     setShowEditSenha(false);
     setConfirmDelete(false);
     setEditCidade(user.municipio_id || '');
+    setEditSuperiorId(user.superior_id || '');
+    setEditSuplenteId(user.suplente_id || null);
+    setEditSupSearch('');
     // Fetch location history
     setLocHistory([]);
     setLocLoading(true);
@@ -280,8 +286,18 @@ export default function TabUsuarios() {
       const payload: any = { acao: 'atualizar', hierarquia_id: editing.id, auth_user_id: editing.auth_user_id };
       if (editNome.trim() !== editing.nome) payload.novo_nome = editNome.trim();
       if (editSenha.trim()) payload.nova_senha = editSenha.trim();
-      if (editCidade && editCidade !== (editing.municipio_id || '')) payload.novo_municipio_id = editCidade;
-      if (!payload.novo_nome && !payload.nova_senha && !payload.novo_municipio_id) { toast({ title: 'Nenhuma alteração' }); setEditSaving(false); return; }
+      if (editCidade !== (editing.municipio_id || '')) payload.novo_municipio_id = editCidade;
+      if (editSuperiorId !== (editing.superior_id || '')) payload.novo_superior_id = editSuperiorId || null;
+      if (editSuplenteId !== (editing.suplente_id || null)) payload.novo_suplente_id = editSuplenteId;
+
+      const hasChanges = payload.novo_nome || payload.nova_senha || payload.novo_municipio_id || 
+                         payload.novo_superior_id !== undefined || payload.novo_suplente_id !== undefined;
+
+      if (!hasChanges) { 
+        toast({ title: 'Nenhuma alteração' }); 
+        setEditSaving(false); 
+        return; 
+      }
 
       const { data, error } = await supabase.functions.invoke('gerenciar-usuario', { body: payload });
       if (error) {
