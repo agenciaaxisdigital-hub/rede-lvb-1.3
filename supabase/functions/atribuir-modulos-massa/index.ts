@@ -19,6 +19,47 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const acao = body.acao || 'atribuir_modulos';
 
+    // PRESETS unificados (espelham src/components/ModulosUsuario.tsx)
+    const PRESETS: Record<string, string[]> = {
+      super_admin:  ['master'],
+      coordenador:  ['coordenador_vinculos'],
+      suplente:     ['cadastrar_liderancas', 'cadastrar_fiscais', 'cadastrar_eleitores', 'ver_cadastros'],
+      lideranca:    ['cadastrar_liderancas', 'cadastrar_eleitores', 'ver_cadastros'],
+      fernanda:     ['ver_cadastros'],
+    };
+
+    if (acao === 'rebaseline_presets') {
+      // Apaga TODOS os módulos e reaplica preset por tipo, para todos usuários ativos
+      const { data: usuarios, error: errU } = await supabaseAdmin
+        .from('hierarquia_usuarios')
+        .select('id, nome, tipo')
+        .eq('ativo', true);
+      if (errU) throw errU;
+
+      let atualizados = 0;
+      const detalhes: any[] = [];
+      for (const u of (usuarios || [])) {
+        const preset = PRESETS[u.tipo as string] || [];
+        // Wipe
+        await supabaseAdmin.from('usuario_modulos').delete().eq('usuario_id', u.id);
+        // Insert preset
+        if (preset.length) {
+          const rows = preset.map(m => ({ usuario_id: u.id, modulo: m }));
+          const { error } = await supabaseAdmin.from('usuario_modulos').insert(rows);
+          if (error) {
+            detalhes.push({ id: u.id, nome: u.nome, erro: error.message });
+            continue;
+          }
+        }
+        atualizados++;
+        detalhes.push({ id: u.id, nome: u.nome, tipo: u.tipo, modulos: preset });
+      }
+      return new Response(
+        JSON.stringify({ sucesso: true, total: (usuarios || []).length, atualizados, detalhes }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     if (acao === 'listar_usuarios') {
       // List all active users with their auth emails
       const { data: usuarios } = await supabaseAdmin
