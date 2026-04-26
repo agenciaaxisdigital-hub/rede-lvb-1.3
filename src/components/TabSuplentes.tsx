@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Search, ChevronRight, ArrowLeft, Phone, MessageCircle, Loader2, Users, ChevronDown, UserPlus, Eye, EyeOff, CheckCircle2, Pencil, Trash2, KeyRound, Save, Plus } from 'lucide-react';
+ import { Search, ChevronRight, ArrowLeft, Phone, MessageCircle, Loader2, Users, ChevronDown, UserPlus, Eye, EyeOff, CheckCircle2, Pencil, Trash2, KeyRound, Save, Plus, Network } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
