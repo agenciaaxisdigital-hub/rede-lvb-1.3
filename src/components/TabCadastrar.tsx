@@ -31,16 +31,23 @@ const emptyForm = {
 
 interface Props {
   onSaved: () => void;
+  responsavelId?: string;
 }
 
-export default function TabCadastrar({ onSaved }: Props) {
+export default function TabCadastrar({ onSaved, responsavelId }: Props) {
   const { usuario, tipoUsuario } = useAuth();
   const { cidadeAtiva } = useCidade();
   const { eventoAtivo } = useEvento();
   const [saving, setSaving] = useState(false);
   const [liderancasExistentes, setLiderancasExistentes] = useState<{ id: string; nome: string }[]>([]);
   const [usuariosSistema, setUsuariosSistema] = useState<{ id: string; nome: string; tipo: string }[]>([]);
-  const [form, setForm] = useState({ ...emptyForm, responsavel_id: '' });
+  const [form, setForm] = useState({ ...emptyForm, responsavel_id: responsavelId || '' });
+
+  useEffect(() => {
+    if (responsavelId) {
+      setForm(f => ({ ...f, responsavel_id: responsavelId }));
+    }
+  }, [responsavelId]);
 
   // Persist form draft to IndexedDB (survives refresh/crash/close)
   const { clearDraft } = useFormDraft('cadastrar-lideranca', form, setForm, emptyForm);
