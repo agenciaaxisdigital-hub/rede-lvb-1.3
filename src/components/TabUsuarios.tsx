@@ -35,6 +35,7 @@ interface HierarchyUser {
   nome: string;
   tipo: string;
   suplente_id: string | null;
+  superior_id?: string | null;
   auth_user_id: string | null;
   ativo: boolean;
   municipio_id: string | null;
@@ -83,6 +84,9 @@ export default function TabUsuarios() {
   const [editSaving, setEditSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editCidade, setEditCidade] = useState<string>('');
+  const [editSuperiorId, setEditSuperiorId] = useState<string>('');
+  const [editSuplenteId, setEditSuplenteId] = useState<string | null>(null);
+  const [editSupSearch, setEditSupSearch] = useState('');
 
   // Modules view
   const [viewingModules, setViewingModules] = useState<HierarchyUser | null>(null);
@@ -135,6 +139,13 @@ export default function TabUsuarios() {
   }, [suplentes, search]);
 
   const [filtroTipo, setFiltroTipo] = useState<string>('todos');
+
+  // Search results for linking in edit mode
+  const editSupFiltered = useMemo(() => {
+    if (!editSupSearch) return [];
+    const q = editSupSearch.toLowerCase();
+    return suplentes.filter(s => s.nome.toLowerCase().includes(q)).slice(0, 5);
+  }, [suplentes, editSupSearch]);
 
   const filteredUsuarios = useMemo(() => {
     let list = usuarios;
@@ -256,6 +267,9 @@ export default function TabUsuarios() {
     setShowEditSenha(false);
     setConfirmDelete(false);
     setEditCidade(user.municipio_id || '');
+    setEditSuperiorId(user.superior_id || '');
+    setEditSuplenteId(user.suplente_id || null);
+    setEditSupSearch('');
     // Fetch location history
     setLocHistory([]);
     setLocLoading(true);
@@ -280,10 +294,21 @@ export default function TabUsuarios() {
       const payload: any = { acao: 'atualizar', hierarquia_id: editing.id, auth_user_id: editing.auth_user_id };
       if (editNome.trim() !== editing.nome) payload.novo_nome = editNome.trim();
       if (editSenha.trim()) payload.nova_senha = editSenha.trim();
-      if (editCidade && editCidade !== (editing.municipio_id || '')) payload.novo_municipio_id = editCidade;
-      if (!payload.novo_nome && !payload.nova_senha && !payload.novo_municipio_id) { toast({ title: 'Nenhuma alteração' }); setEditSaving(false); return; }
+      if (editCidade !== (editing.municipio_id || '')) payload.novo_municipio_id = editCidade;
+      if (editSuperiorId !== (editing.superior_id || '')) payload.novo_superior_id = editSuperiorId || null;
+      if (editSuplenteId !== (editing.suplente_id || null)) payload.novo_suplente_id = editSuplenteId;
+
+      const hasChanges = payload.novo_nome || payload.nova_senha || payload.novo_municipio_id || 
+                         payload.novo_superior_id !== undefined || payload.novo_suplente_id !== undefined;
+
+      if (!hasChanges) { 
+        toast({ title: 'Nenhuma alteração' }); 
+        setEditSaving(false); 
+        return; 
+      }
 
       const { data, error } = await supabase.functions.invoke('gerenciar-usuario', { body: payload });
+
       if (error) {
         let errorMessage = error.message;
         const context = (error as any).context;
@@ -436,6 +461,56 @@ export default function TabUsuarios() {
                 ))}
               </select>
             </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Superior hierárquico</label>
+              <select value={editSuperiorId} onChange={e => setEditSuperiorId(e.target.value)} className={inputCls}>
+                <option value="">Nenhum (raiz)</option>
+                {possiveisSuperior.filter(u => u.id !== editing.id).map(u => (
+                  <option key={u.id} value={u.id}>{u.nome} ({tipoLabel(u.tipo)})</option>
+                ))}
+              </select>
+            </div>
+
+            {(editing.tipo === 'suplente' || editing.tipo === 'lideranca') && (
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  <Link2 size={12} /> Vínculo Político (Suplente)
+                </label>
+                {editSuplenteId ? (
+                  <div className="flex items-center gap-2 p-2.5 rounded-xl border border-primary/30 bg-primary/5">
+                    <CheckCircle2 size={16} className="text-primary shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground truncate">
+                        {suplentes.find(s => s.id === editSuplenteId)?.nome || 'Suplente Vinculado'}
+                      </p>
+                    </div>
+                    <button onClick={() => setEditSuplenteId(null)} className="text-[10px] text-destructive font-medium shrink-0">Remover</button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="relative">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                      <input value={editSupSearch} onChange={e => setEditSupSearch(e.target.value)}
+                        placeholder="Buscar suplente para vincular..."
+                        className="w-full h-10 pl-8 pr-3 bg-card border border-border rounded-xl text-xs text-foreground outline-none focus:ring-2 focus:ring-primary/30" />
+                    </div>
+                    {editSupFiltered.length > 0 && (
+                      <div className="space-y-1 mt-1 max-h-[120px] overflow-y-auto">
+                        {editSupFiltered.map(s => (
+                          <button key={s.id} onClick={() => { setEditSuplenteId(s.id); setEditSupSearch(''); }}
+                            className="w-full flex items-center gap-2 p-2 rounded-lg bg-card border border-border text-left">
+                            <User size={12} className="text-blue-500 shrink-0" />
+                            <p className="text-xs font-medium text-foreground truncate">{s.nome}</p>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
             <button onClick={handleEdit} disabled={editSaving}
               className="w-full h-12 gradient-primary text-white text-sm font-semibold rounded-xl shadow-lg active:scale-[0.97] transition-all disabled:opacity-50 flex items-center justify-center gap-2 mt-2">
               {editSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}

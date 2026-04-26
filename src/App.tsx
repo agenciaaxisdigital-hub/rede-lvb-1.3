@@ -23,7 +23,6 @@ const Home = lazy(() => import("./pages/Home"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const HomeFernanda = lazy(() => import("./pages/HomeFernanda"));
 const HomeAfiliado = lazy(() => import("./pages/HomeAfiliado"));
-const Vinculos = lazy(() => import("./pages/Vinculos"));
 const CadastroPublicoAfiliado = lazy(() => import("./pages/CadastroPublicoAfiliado"));
 
 const queryClient = new QueryClient({
@@ -76,7 +75,6 @@ function AppRoutes() {
         <Route path="/r/:slugComToken" element={<CadastroPublicoAfiliado />} />
         <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
         <Route path="/admin" element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
-        <Route path="/vinculos" element={<PrivateRoute><Vinculos /></PrivateRoute>} />
         <Route path="/fernanda" element={<PrivateRoute allowFernanda><HomeFernanda /></PrivateRoute>} />
         <Route path="/afiliado" element={<PrivateRoute allowAfiliado><HomeAfiliado /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />

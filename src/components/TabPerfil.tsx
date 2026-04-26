@@ -906,12 +906,6 @@ export default function TabPerfil() {
           </div>
           <div className="flex items-center gap-2 mb-4">
             <button
-              onClick={() => navigate('/vinculos')}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 active:scale-95 transition-all"
-            >
-              <Network size={14} /> Vincular Rede
-            </button>
-            <button
               onClick={openCreate}
               className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-primary text-primary-foreground hover:opacity-90 active:scale-95 transition-all shadow-sm"
             >
