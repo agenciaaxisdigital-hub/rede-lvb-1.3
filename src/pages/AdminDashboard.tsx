@@ -17,6 +17,7 @@ import SeletorCidade from '@/components/SeletorCidade';
 import SeletorEvento from '@/components/SeletorEvento';
 import GerenciarEventos from '@/components/GerenciarEventos';
 import { lazy, Suspense } from 'react';
+import TabArvore from '@/components/TabArvore';
 
  const TabLocalizacoes = lazy(() => import('@/components/TabLocalizacoes'));
  const AdminCadastrosFernanda = lazy(() => import('@/components/AdminCadastrosFernanda'));
