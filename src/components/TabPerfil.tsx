@@ -938,10 +938,15 @@ export default function TabPerfil() {
         <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
           <IconComponent size={28} className="text-primary" />
         </div>
-        <h2 className="text-lg font-bold text-foreground mt-3">{usuario?.nome || '—'}</h2>
-        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider mt-1 ${tipoColors[tipoUsuario || ''] || 'bg-secondary text-secondary-foreground'}`}>
-          {tipoUsuario ? tipoLabels[tipoUsuario] : '—'}
-        </span>
+         <h2 className="text-lg font-bold text-foreground mt-3">{usuario?.nome || '—'}</h2>
+         {superiorNome && (
+           <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1 justify-center">
+             <Network size={10} /> Vinculado a {superiorNome}
+           </p>
+         )}
+         <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider mt-2 ${tipoColors[tipoUsuario || ''] || 'bg-secondary text-secondary-foreground'}`}>
+           {tipoUsuario ? tipoLabels[tipoUsuario] : '—'}
+         </span>
       </div>
 
       {/* Self password change */}
