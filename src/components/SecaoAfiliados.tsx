@@ -294,8 +294,10 @@ function gerarToken() {
              <span className="bg-primary/10 text-primary text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                {items.length}
              </span>
-           )}
-         </div>
+         )}
+       </>
+     )}
+   </div>
          {!isCollapsed && (
            <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
              <button
