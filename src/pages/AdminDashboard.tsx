@@ -66,10 +66,11 @@ interface FiscalReg {
   pessoas: Pessoa | null;
 }
 
-interface HierarquiaUsuario {
-  id: string; nome: string; tipo: string;
-  suplente_id: string | null; municipio_id: string | null; ativo: boolean | null;
-}
+ interface HierarquiaUsuario {
+   id: string; nome: string; tipo: string;
+   suplente_id: string | null; municipio_id: string | null; ativo: boolean | null;
+   superior_id: string | null; link_token: string | null;
+ }
 
 /* ── constants ── */
 type Periodo = 'hoje' | 'semana' | 'mes' | 'total';
