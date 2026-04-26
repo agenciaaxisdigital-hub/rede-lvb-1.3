@@ -19,7 +19,16 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { acao, hierarquia_id, auth_user_id, novo_nome, nova_senha, novo_municipio_id } = body;
+    const { 
+      acao, 
+      hierarquia_id, 
+      auth_user_id, 
+      novo_nome, 
+      nova_senha, 
+      novo_municipio_id,
+      novo_superior_id,
+      novo_suplente_id
+    } = body;
 
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -93,6 +102,12 @@ Deno.serve(async (req) => {
       }
       if (novo_municipio_id) {
         updates.municipio_id = novo_municipio_id;
+      }
+      if (novo_superior_id !== undefined) {
+        updates.superior_id = novo_superior_id;
+      }
+      if (novo_suplente_id !== undefined) {
+        updates.suplente_id = novo_suplente_id;
       }
 
       let resolvedAuthUserId = hasValidAuth ? auth_user_id : null;
