@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Loader2, Search, ChevronRight, ArrowLeft, Phone, MessageCircle, Trash2, ExternalLink, Download, WifiOff } from 'lucide-react';
+ import { Loader2, Search, ChevronRight, ArrowLeft, Phone, MessageCircle, Trash2, ExternalLink, Download, WifiOff, Network, Users } from 'lucide-react';
 import { exportAllCadastros } from '@/lib/exportXlsx';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -478,16 +478,33 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
                   <span className="font-semibold text-foreground text-sm truncate">{e.pessoas?.nome || '—'}</span>
                   {compromissoBadge(e.compromisso_voto)}
                 </div>
-                {(e as any).suplentes?.nome && (
-                  <p className="text-[10px] text-primary/70 truncate">🔗 {(e as any).suplentes.nome}{(e as any).suplentes.cargo_disputado ? ` · ${(e as any).suplentes.cargo_disputado}` : ''}</p>
-                )}
+                 {(e as any).suplentes?.nome && (
+                   <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                     <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium bg-primary/10 text-primary flex items-center gap-0.5 whitespace-nowrap">
+                       <Network size={8} /> {(e as any).suplentes.nome}
+                     </span>
+                     {(e as any).suplentes.cargo_disputado && (
+                       <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium bg-muted text-muted-foreground whitespace-nowrap">
+                         {(e as any).suplentes.cargo_disputado}
+                       </span>
+                     )}
+                   </div>
+                 )}
                 {e.origem_captacao && (
                   <p className="text-[10px] text-muted-foreground truncate">{e.origem_captacao}</p>
                 )}
-                <p className="text-xs text-muted-foreground truncate">
-                  {e.liderancas?.pessoas?.nome ? `Líder: ${e.liderancas.pessoas.nome}` : ''}
-                  {!e.liderancas && (e.pessoas?.zona_eleitoral ? `Z${e.pessoas.zona_eleitoral}` : '')}{!e.liderancas && (e.pessoas?.secao_eleitoral ? ` S${e.pessoas.secao_eleitoral}` : '')}
-                </p>
+                 <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                   {e.liderancas?.pessoas?.nome && (
+                     <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium bg-blue-500/10 text-blue-600 flex items-center gap-0.5 whitespace-nowrap">
+                       <Users size={8} /> {e.liderancas.pessoas.nome}
+                     </span>
+                   )}
+                   {!e.liderancas && (e.pessoas?.zona_eleitoral || e.pessoas?.secao_eleitoral) && (
+                     <span className="text-[9px] text-muted-foreground">
+                       {e.pessoas?.zona_eleitoral ? `Z${e.pessoas.zona_eleitoral}` : ''}{e.pessoas?.secao_eleitoral ? ` S${e.pessoas.secao_eleitoral}` : ''}
+                     </span>
+                   )}
+                 </div>
               </div>
               <ChevronRight size={16} className="text-muted-foreground shrink-0" />
             </button>
