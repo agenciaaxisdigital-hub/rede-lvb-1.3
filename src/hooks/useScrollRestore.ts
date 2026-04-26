@@ -27,17 +27,18 @@
  
    // Use useLayoutEffect for immediate restoration during render cycle
    useLayoutEffect(() => {
-     // Try multiple times to account for dynamic content loading
-     restoreScroll();
-     const timer1 = setTimeout(restoreScroll, 50);
-     const timer2 = setTimeout(restoreScroll, 200);
-     const timer3 = setTimeout(restoreScroll, 500);
-     
-     return () => {
-       clearTimeout(timer1);
-       clearTimeout(timer2);
-       clearTimeout(timer3);
+     const doRestore = () => {
+       restoreScroll();
+       // Also try a bit later as content might be loading
+       setTimeout(restoreScroll, 50);
+       setTimeout(restoreScroll, 150);
      };
+ 
+     doRestore();
+     
+     // Listen for manual trigger
+     window.addEventListener('restore-scroll', doRestore);
+     return () => window.removeEventListener('restore-scroll', doRestore);
    }, [storageKey]);
  
    const onScroll = useCallback(() => {
