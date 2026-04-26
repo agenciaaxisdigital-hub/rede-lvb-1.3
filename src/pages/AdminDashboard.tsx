@@ -76,7 +76,8 @@ interface FiscalReg {
 /* ── constants ── */
 type Periodo = 'hoje' | 'semana' | 'mes' | 'total';
 type TipoFiltro = 'todos' | 'lideranca' | 'eleitor' | 'fiscal';
- type VistaAtiva = 'usuarios' | 'ranking' | 'registros' | 'cidades' | 'localizacao' | 'eventos' | 'fernanda' | 'afiliados';
+  type VistaAtiva = 'usuarios' | 'ranking' | 'registros' | 'cidades' | 'localizacao' | 'eventos' | 'fernanda' | 'afiliados' | 'arvore';
+ import TabArvore from '@/components/TabArvore';
 type TipoUsuarioFiltro = 'todos' | 'suplente' | 'lideranca' | 'coordenador' | 'fernanda';
 
 const periodoLabels: Record<Periodo, string> = { hoje: 'Hoje', semana: 'Semana', mes: 'Mês', total: 'Total' };
@@ -304,8 +305,9 @@ export default function AdminDashboard() {
   };
 
    const vistaLabels: { id: VistaAtiva; icon: any; label: string }[] = [
-     { id: 'ranking', icon: Trophy, label: 'Ranking' },
-     { id: 'usuarios', icon: UserCog, label: 'Usuários' },
+      { id: 'ranking', icon: Trophy, label: 'Ranking' },
+      { id: 'arvore', icon: Network, label: 'Árvore' },
+      { id: 'usuarios', icon: UserCog, label: 'Usuários' },
      { id: 'localizacao', icon: MapPin, label: 'Localização' },
      { id: 'registros', icon: Eye, label: 'Registros' },
      { id: 'eventos', icon: Calendar, label: 'Eventos' },
