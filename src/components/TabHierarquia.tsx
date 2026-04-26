@@ -58,7 +58,7 @@ export default function TabHierarquia() {
   const fetchAll = async () => {
     setLoading(true);
     const [usrRes, supRes] = await Promise.all([
-      supabase.from('hierarquia_usuarios').select('id, nome, tipo, superior_id, suplente_id').eq('ativo', true).order('nome'),
+      supabase.from('hierarquia_usuarios').select('id, nome, tipo, superior_id, suplente_id').order('nome'),
       supabase.functions.invoke('buscar-suplentes'),
     ]);
     setUsuarios((usrRes.data || []) as HierarchyUser[]);
