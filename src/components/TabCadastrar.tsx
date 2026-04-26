@@ -26,6 +26,7 @@ const emptyForm = {
   lider_principal_id: '', origem_captacao: '',
   apoiadores_estimados: '', meta_votos: '',
   status: 'Ativa', nivel_comprometimento: '', observacoes: '',
+  responsavel_id: '',
 };
 
 interface Props {
