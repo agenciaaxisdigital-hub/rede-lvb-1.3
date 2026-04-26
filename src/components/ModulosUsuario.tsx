@@ -1,21 +1,32 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Sparkles } from 'lucide-react';
 
- const MODULOS = [
-   { id: 'master', label: '🔑 Acesso Master', desc: 'Acesso total — vê e faz tudo no sistema' },
-   { id: 'cadastrar_liderancas', label: '👥 Lideranças', desc: 'Permite visualizar e cadastrar lideranças' },
-   { id: 'cadastrar_fiscais', label: '🔍 Fiscais', desc: 'Permite visualizar e cadastrar fiscais' },
-   { id: 'cadastrar_eleitores', label: '🎯 Eleitores', desc: 'Permite visualizar e cadastrar eleitores' },
- ];
+export const MODULOS = [
+  { id: 'master', label: '🔑 Acesso Master', desc: 'Acesso total — vê e faz tudo no sistema' },
+  { id: 'cadastrar_liderancas', label: '👥 Lideranças', desc: 'Visualizar e cadastrar lideranças' },
+  { id: 'cadastrar_fiscais', label: '🔍 Fiscais', desc: 'Visualizar e cadastrar fiscais' },
+  { id: 'cadastrar_eleitores', label: '🎯 Eleitores', desc: 'Visualizar e cadastrar eleitores' },
+  { id: 'ver_cadastros', label: '📋 Tela de Cadastros', desc: 'Visualizar a tela de cadastros' },
+  { id: 'coordenador_vinculos', label: '🔗 Vínculos (Eventos)', desc: 'Vincular pessoas a outros usuários em dia de evento' },
+];
+
+export const PRESETS_TIPO: Record<string, string[]> = {
+  super_admin:  ['master'],
+  coordenador:  ['master', 'cadastrar_liderancas', 'cadastrar_fiscais', 'cadastrar_eleitores', 'ver_cadastros', 'coordenador_vinculos'],
+  suplente:     ['cadastrar_liderancas', 'cadastrar_fiscais', 'cadastrar_eleitores', 'ver_cadastros'],
+  lideranca:    ['cadastrar_liderancas', 'cadastrar_eleitores', 'ver_cadastros'],
+  fernanda:     ['ver_cadastros'],
+};
 
 interface Props {
   usuarioId: string;
+  tipoUsuario?: string;
   onClose?: () => void;
 }
 
-export default function ModulosUsuario({ usuarioId, onClose }: Props) {
+export default function ModulosUsuario({ usuarioId, tipoUsuario, onClose }: Props) {
   const [modulosAtivos, setModulosAtivos] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -33,6 +44,30 @@ export default function ModulosUsuario({ usuarioId, onClose }: Props) {
       setModulosAtivos(new Set(data.map((d: any) => d.modulo)));
     }
     setLoading(false);
+  };
+
+  const aplicarPreset = async () => {
+    if (!tipoUsuario || !PRESETS_TIPO[tipoUsuario]) {
+      toast({ title: 'Tipo de usuário não definido', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    try {
+      const preset = new Set(PRESETS_TIPO[tipoUsuario]);
+      // Wipe current
+      await (supabase as any).from('usuario_modulos').delete().eq('usuario_id', usuarioId);
+      // Insert preset
+      const rows = Array.from(preset).map(m => ({ usuario_id: usuarioId, modulo: m }));
+      if (rows.length) {
+        await (supabase as any).from('usuario_modulos').insert(rows);
+      }
+      setModulosAtivos(preset);
+      toast({ title: '✨ Permissões padrão aplicadas' });
+    } catch (err: any) {
+      toast({ title: 'Erro ao aplicar preset', description: err.message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const toggleModulo = async (modulo: string) => {
@@ -83,7 +118,18 @@ export default function ModulosUsuario({ usuarioId, onClose }: Props) {
 
   return (
     <div className="space-y-2">
-      <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Módulos / Permissões</p>
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Módulos / Permissões</p>
+        {tipoUsuario && PRESETS_TIPO[tipoUsuario] && (
+          <button
+            onClick={aplicarPreset}
+            disabled={saving}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-primary/10 text-primary hover:bg-primary/20 active:scale-95 disabled:opacity-50"
+          >
+            <Sparkles size={10} /> Aplicar padrão
+          </button>
+        )}
+      </div>
       {MODULOS.map(mod => {
         const active = modulosAtivos.has(mod.id);
         return (

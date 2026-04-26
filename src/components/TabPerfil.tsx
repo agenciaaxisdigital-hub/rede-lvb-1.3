@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import ModulosUsuario from '@/components/ModulosUsuario';
+import { PRESETS_TIPO, MODULOS as MODULOS_FULL } from '@/components/ModulosUsuario';
 import SecaoAfiliados from '@/components/SecaoAfiliados';
 import LinkCaptacaoCard from '@/components/LinkCaptacaoCard';
 
@@ -37,12 +38,7 @@ const tipoColors: Record<string, string> = {
   fernanda: 'bg-primary/10 text-primary',
 };
 
-const MODULOS_OPTIONS = [
-  { id: 'master', label: '🔑 Acesso Master' },
-  { id: 'cadastrar_liderancas', label: '👥 Lideranças' },
-  { id: 'cadastrar_fiscais', label: '🔍 Fiscais' },
-  { id: 'cadastrar_eleitores', label: '🎯 Eleitores' },
-];
+const MODULOS_OPTIONS = MODULOS_FULL.map(m => ({ id: m.id, label: m.label }));
 
 interface SuplenteOption {
   id: string;
@@ -212,6 +208,7 @@ export default function TabPerfil() {
    const [editSuperiorId, setEditSuperiorId] = useState('');
    const [editCargoTag, setEditCargoTag] = useState('');
    const [superiorNome, setSuperiorNome] = useState<string | null>(null);
+  const [editTipo, setEditTipo] = useState<string>('');
  
    useEffect(() => {
      if (usuario?.superior_id) {
@@ -325,13 +322,8 @@ export default function TabPerfil() {
   // Effect to update modules based on role (presets)
   useEffect(() => {
     if (view === 'create') {
-      if (tipoNovo === 'suplente') {
-        setSelectedModulos(new Set(['cadastrar_liderancas', 'cadastrar_fiscais', 'cadastrar_eleitores']));
-      } else if (tipoNovo === 'lideranca') {
-        setSelectedModulos(new Set(['cadastrar_liderancas', 'cadastrar_eleitores']));
-      } else if (tipoNovo === 'coordenador') {
-        setSelectedModulos(new Set(['master']));
-      }
+      const preset = PRESETS_TIPO[tipoNovo];
+      if (preset) setSelectedModulos(new Set(preset));
     }
   }, [tipoNovo, view]);
 
@@ -428,6 +420,7 @@ export default function TabPerfil() {
      setEditCidade(u.municipio_id || '');
      setEditSuperiorId(u.superior_id || '');
      setEditCargoTag(getSuplenteTag(u.suplente_id) || '');
+     setEditTipo(u.tipo);
      setView('edit');
    };
 
@@ -455,8 +448,9 @@ export default function TabPerfil() {
        if (editSenha.trim()) body.nova_senha = editSenha.trim();
        if (editCidade && editCidade !== (editUser.municipio_id || '')) body.novo_municipio_id = editCidade;
        if (editSuperiorId !== (editUser.superior_id || '')) body.novo_superior_id = editSuperiorId || null;
+       if (editTipo && editTipo !== editUser.tipo) body.novo_tipo = editTipo;
        
-       const noChanges = !body.novo_nome && !body.nova_senha && !body.novo_municipio_id && !body.novo_superior_id;
+       const noChanges = !body.novo_nome && !body.nova_senha && !body.novo_municipio_id && !body.novo_superior_id && !body.novo_tipo;
        
        if (noChanges && !cargoChanged) {
          toast({ title: 'Nenhuma alteração' });
@@ -841,6 +835,40 @@ export default function TabPerfil() {
                <input type="text" value={editNome} onChange={e => setEditNome(e.target.value)} className={inputCls} />
              </div>
  
+             {/* Tipo de acesso */}
+             <div className="space-y-1">
+               <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                 <Shield size={12} /> Tipo de acesso
+               </label>
+               <div className="grid grid-cols-2 gap-1.5">
+                 {[
+                   { value: 'super_admin', label: '👑 Super Admin' },
+                   { value: 'coordenador', label: '🛡️ Coordenador' },
+                   { value: 'suplente', label: '🏛️ Suplente' },
+                   { value: 'lideranca', label: '👥 Liderança' },
+                   { value: 'fernanda', label: '🩷 Fernanda' },
+                 ].map(opt => (
+                   <button
+                     key={opt.value}
+                     type="button"
+                     onClick={() => setEditTipo(opt.value)}
+                     className={`py-2 rounded-xl text-xs font-semibold transition-all ${
+                       editTipo === opt.value
+                         ? 'bg-primary text-primary-foreground shadow-md'
+                         : 'bg-muted border border-border text-muted-foreground'
+                     }`}
+                   >
+                     {opt.label}
+                   </button>
+                 ))}
+               </div>
+               {editTipo !== editUser.tipo && (
+                 <p className="text-[10px] text-primary font-medium">
+                   ⚡ Tipo será alterado. Após salvar, clique em "Aplicar padrão" nos Módulos para atualizar permissões.
+                 </p>
+               )}
+             </div>
+
              {editUser.suplente_id && (
                <div className="space-y-1">
                  <label className="text-xs font-medium text-muted-foreground">Cargo / Profissão</label>
@@ -910,7 +938,7 @@ export default function TabPerfil() {
 
         {/* Módulos */}
         <div className="section-card">
-          <ModulosUsuario usuarioId={editUser.id} />
+          <ModulosUsuario usuarioId={editUser.id} tipoUsuario={editTipo || editUser.tipo} />
         </div>
 
         {/* Danger zone */}
