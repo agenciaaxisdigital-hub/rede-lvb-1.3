@@ -367,11 +367,21 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {c.regiao && (
-                        <span className="text-[10px] text-muted-foreground truncate">{c.regiao}</span>
-                      )}
-                      {!c.regiao && c.telefone && (
+                     <div className="flex items-center gap-1.5 flex-wrap">
+                       {c.suplente_nome && (
+                         <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded bg-primary/5 text-primary/70 font-semibold border border-primary/10">
+                           {c.suplente_nome}
+                         </span>
+                       )}
+                       {c.lideranca_nome && (
+                         <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
+                           {c.lideranca_nome}
+                         </span>
+                       )}
+                       {c.regiao && (
+                         <span className="text-[10px] text-muted-foreground truncate">{c.regiao}</span>
+                       )}
+                       {!c.regiao && !c.suplente_nome && c.telefone && (
                         <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
                           <Phone size={9} /> {c.telefone}
                         </span>
