@@ -115,7 +115,12 @@ export default function CadastroPublicoAfiliado() {
         const j = await r.json();
         if (!r.ok || j?.error) { setModo('invalido'); return; }
         setAfiliadoNome(j.afiliado_nome || '');
-        setModo(j.is_ativo ? 'captacao' : 'criar_acesso');
+         // Se o tipo for afiliado, força o modo 'criar_acesso' para criar conta
+         if (tipoParam === 'afiliado') {
+           setModo('criar_acesso');
+         } else {
+           setModo(j.is_ativo ? 'captacao' : 'criar_acesso');
+         }
       } catch {
         setModo('invalido');
       }
