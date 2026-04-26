@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+ import { useScrollRestore } from '@/hooks/useScrollRestore';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCidade } from '@/contexts/CidadeContext';
@@ -99,7 +100,8 @@ export default function AdminDashboard() {
   const [_loading, setLoading] = useState(true);
   const [periodo, setPeriodo] = useState<Periodo>('total');
   const [tipoFiltro, setTipoFiltro] = useState<TipoFiltro>('todos');
-  const [vistaAtiva, setVistaAtiva] = useState<VistaAtiva>('ranking');
+   const [vistaAtiva, setVistaAtiva] = useState<VistaAtiva>('ranking');
+   const { scrollRef, onScroll } = useScrollRestore(vistaAtiva);
   const [searchTerm, setSearchTerm] = useState('');
   const [exporting, setExporting] = useState(false);
   const [tipoUsuarioFiltro, setTipoUsuarioFiltro] = useState<TipoUsuarioFiltro>('todos');
@@ -324,8 +326,12 @@ export default function AdminDashboard() {
     );
   }
 
-  return (
-    <div className="h-full bg-background overflow-y-auto overscroll-contain pb-8">
+   return (
+     <div 
+       ref={scrollRef} 
+       onScroll={onScroll}
+       className="h-full bg-background overflow-y-auto overscroll-contain pb-8"
+     >
       <div className="h-[1.5px] gradient-header" />
 
       {/* ── Header ── */}
