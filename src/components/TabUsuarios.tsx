@@ -7,7 +7,7 @@ import ModulosUsuario from '@/components/ModulosUsuario';
 import {
   Loader2, UserPlus, Users, User, CheckCircle2, Search, Eye, EyeOff,
   ChevronRight, ArrowLeft, Shield, Pencil, Trash2, KeyRound, Save, Link2, MapPin,
-  Navigation, Clock
+   Navigation, Clock, Network
 } from 'lucide-react';
 import { format } from 'date-fns';
 
