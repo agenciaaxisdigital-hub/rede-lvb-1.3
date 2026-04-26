@@ -397,7 +397,6 @@ export default function TabPerfil() {
     setEditSuperiorId(u.superior_id || '');
     setView('edit');
   };
-  };
 
   const handleEdit = async () => {
     if (!editUser) return;
