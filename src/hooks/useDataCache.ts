@@ -240,9 +240,9 @@ export function useUsuarios() {
     queryKey: keys.usuarios(),
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('hierarquia_usuarios')
-        .select('id, nome, tipo, suplente_id, municipio_id, ativo')
-        .eq('ativo', true)
+         .from('hierarquia_usuarios')
+         .select('id, nome, tipo, suplente_id, municipio_id, ativo, superior_id, link_token')
+         .eq('ativo', true)
         .order('nome');
       if (error) throw error;
       return data || [];

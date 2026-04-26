@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
         ok: true,
         afiliado_nome: (data as any).nome,
         afiliado_tipo: (data as any).tipo,
-        is_ativo: !!(data as any).auth_user_id,
+         is_ativo: true, // Sempre ativo para captação
       });
     }
 

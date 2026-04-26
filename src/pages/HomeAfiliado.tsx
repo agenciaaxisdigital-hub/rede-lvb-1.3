@@ -1,11 +1,14 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { LogOut, ClipboardList } from 'lucide-react';
-import TabCadastrosAfiliado from '@/components/TabCadastrosAfiliado';
+ import { LogOut, ClipboardList, Network } from 'lucide-react';
+ import TabCadastrosAfiliado from '@/components/TabCadastrosAfiliado';
+ import MinhaRede from '@/components/MinhaRede';
+ import { useState } from 'react';
 import FloatingSupportButton from '@/components/FloatingSupportButton';
 
-export default function HomeAfiliado() {
-  const { usuario, signOut } = useAuth();
+ export default function HomeAfiliado() {
+   const { usuario, signOut } = useAuth();
+   const [activeTab, setActiveTab] = useState<'cadastros' | 'rede'>('cadastros');
   const navigate = useNavigate();
 
   const handleSair = async () => {
@@ -36,11 +39,30 @@ export default function HomeAfiliado() {
           </button>
         </div>
       </header>
-      <main className="flex-1 overflow-y-auto">
-        <div className="max-w-[672px] mx-auto px-4 py-4">
-          <TabCadastrosAfiliado />
-        </div>
-      </main>
+       <main className="flex-1 overflow-y-auto pb-24">
+         <div className="max-w-[672px] mx-auto px-4 py-4">
+           <div className="flex gap-2 mb-4 bg-muted/50 p-1 rounded-xl">
+             <button 
+               onClick={() => setActiveTab('cadastros')}
+               className={`flex-1 h-9 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                 activeTab === 'cadastros' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground'
+               }`}
+             >
+               <ClipboardList size={14} /> Cadastros
+             </button>
+             <button 
+               onClick={() => setActiveTab('rede')}
+               className={`flex-1 h-9 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                 activeTab === 'rede' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground'
+               }`}
+             >
+               <Network size={14} /> Minha Rede
+             </button>
+           </div>
+ 
+           {activeTab === 'cadastros' ? <TabCadastrosAfiliado /> : <MinhaRede />}
+         </div>
+       </main>
     </div>
   );
 }

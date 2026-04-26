@@ -6,10 +6,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useLiderancas, useEleitores, useUsuarios, useFiscaisAdmin, useRealtimeSync } from '@/hooks/useDataCache';
 import {
-  ArrowLeft, Users, Target, Search, X, Shield,
-  ChevronDown, ChevronUp, Loader2, Download, Trophy,
-  BarChart3, UserCog, Eye, Building2, Plus, MapPin, Calendar, Trash2, ClipboardList
-} from 'lucide-react';
+   ArrowLeft, Users, Target, Search, X, Shield,
+   ChevronDown, ChevronUp, Loader2, Download, Trophy,
+   BarChart3, UserCog, Eye, Building2, Plus, MapPin, Calendar, Trash2, ClipboardList,
+   Network
+ } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { exportAllCadastros, exportCadastrosFiltered } from '@/lib/exportXlsx';
 import SeletorCidade from '@/components/SeletorCidade';
@@ -17,9 +18,10 @@ import SeletorEvento from '@/components/SeletorEvento';
 import GerenciarEventos from '@/components/GerenciarEventos';
 import { lazy, Suspense } from 'react';
 
-const TabLocalizacoes = lazy(() => import('@/components/TabLocalizacoes'));
-const AdminCadastrosFernanda = lazy(() => import('@/components/AdminCadastrosFernanda'));
-const AdminCadastrosAfiliados = lazy(() => import('@/components/AdminCadastrosAfiliados'));
+ const TabLocalizacoes = lazy(() => import('@/components/TabLocalizacoes'));
+ const AdminCadastrosFernanda = lazy(() => import('@/components/AdminCadastrosFernanda'));
+ const AdminCadastrosAfiliados = lazy(() => import('@/components/AdminCadastrosAfiliados'));
+ const AdminVinculos = lazy(() => import('@/components/AdminVinculos'));
 
 
 /* ── types ── */
@@ -66,15 +68,16 @@ interface FiscalReg {
   pessoas: Pessoa | null;
 }
 
-interface HierarquiaUsuario {
-  id: string; nome: string; tipo: string;
-  suplente_id: string | null; municipio_id: string | null; ativo: boolean | null;
-}
+ interface HierarquiaUsuario {
+   id: string; nome: string; tipo: string;
+   suplente_id: string | null; municipio_id: string | null; ativo: boolean | null;
+   superior_id: string | null; link_token: string | null;
+ }
 
 /* ── constants ── */
 type Periodo = 'hoje' | 'semana' | 'mes' | 'total';
 type TipoFiltro = 'todos' | 'lideranca' | 'eleitor' | 'fiscal';
-type VistaAtiva = 'usuarios' | 'ranking' | 'registros' | 'cidades' | 'localizacao' | 'eventos' | 'fernanda' | 'afiliados';
+ type VistaAtiva = 'usuarios' | 'ranking' | 'registros' | 'cidades' | 'localizacao' | 'eventos' | 'fernanda' | 'afiliados' | 'vinculos';
 type TipoUsuarioFiltro = 'todos' | 'suplente' | 'lideranca' | 'coordenador' | 'fernanda';
 
 const periodoLabels: Record<Periodo, string> = { hoje: 'Hoje', semana: 'Semana', mes: 'Mês', total: 'Total' };
@@ -204,7 +207,7 @@ export default function AdminDashboard() {
     return Object.entries(map)
       .map(([id, stats]) => {
         const u = usuarios.find(u => u.id === id);
-        return { id, nome: u?.nome || 'Desconhecido', tipo: u?.tipo || '—', municipio_id: u?.municipio_id || null, suplente_id: u?.suplente_id || null, total: stats.l + stats.e + stats.f + stats.fern, ...stats };
+         return { id, nome: u?.nome || 'Desconhecido', tipo: u?.tipo || '—', municipio_id: u?.municipio_id || null, suplente_id: u?.suplente_id || null, superior_id: u?.superior_id || null, total: stats.l + stats.e + stats.f + stats.fern, ...stats };
       })
       .sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome));
   }, [filteredL, filteredE, filteredF, filteredFern, usuarios]);
@@ -301,16 +304,17 @@ export default function AdminDashboard() {
     } finally { setDeletingId(null); }
   };
 
-  const vistaLabels: { id: VistaAtiva; icon: typeof BarChart3; label: string }[] = [
-    { id: 'ranking', icon: Trophy, label: 'Ranking' },
-    { id: 'usuarios', icon: UserCog, label: 'Usuários' },
-    { id: 'localizacao', icon: MapPin, label: 'Localização' },
-    { id: 'registros', icon: Eye, label: 'Registros' },
-    { id: 'eventos', icon: Calendar, label: 'Eventos' },
-    { id: 'fernanda', icon: ClipboardList, label: 'Fernanda' },
-    { id: 'afiliados', icon: Users, label: 'Afiliados' },
-    ...(municipios.length > 1 ? [{ id: 'cidades' as VistaAtiva, icon: Building2, label: 'Cidades' }] : []),
-  ];
+   const vistaLabels: { id: VistaAtiva; icon: any; label: string }[] = [
+     { id: 'ranking', icon: Trophy, label: 'Ranking' },
+     { id: 'usuarios', icon: UserCog, label: 'Usuários' },
+     { id: 'vinculos', icon: Users, label: 'Vínculos' },
+     { id: 'localizacao', icon: MapPin, label: 'Localização' },
+     { id: 'registros', icon: Eye, label: 'Registros' },
+     { id: 'eventos', icon: Calendar, label: 'Eventos' },
+     { id: 'fernanda', icon: ClipboardList, label: 'Fernanda' },
+     { id: 'afiliados', icon: Users, label: 'Afiliados' },
+     ...(municipios.length > 1 ? [{ id: 'cidades' as VistaAtiva, icon: Building2, label: 'Cidades' }] : []),
+   ];
 
   if (loading) {
     return (
@@ -607,7 +611,12 @@ export default function AdminDashboard() {
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-bold text-foreground truncate">{u.nome}</p>
                             <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-primary/10 text-primary font-medium">{tipoLabel(u.tipo)}</span>
+                               <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-primary/10 text-primary font-medium">{tipoLabel(u.tipo)}</span>
+                               {u.superior_id && (
+                                 <span className="text-[8px] px-1.5 py-0.5 rounded-md bg-green-500/10 text-green-600 font-bold uppercase tracking-wider flex items-center gap-0.5">
+                                   <Network size={8} /> Vinculado
+                                 </span>
+                               )}
                               {getCargoTag(u.suplente_id) && (
                                 <span className="text-[8px] px-1.5 py-0.5 rounded-md bg-accent/50 text-accent-foreground font-medium">{getCargoTag(u.suplente_id)}</span>
                               )}
@@ -655,7 +664,12 @@ export default function AdminDashboard() {
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-foreground truncate">{u.nome}</p>
                             <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{tipoLabel(u.tipo)}</span>
+                               <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{tipoLabel(u.tipo)}</span>
+                               {u.superior_id && (
+                                 <span className="text-[8px] px-1.5 py-0.5 rounded-md bg-green-500/10 text-green-600 font-bold uppercase tracking-wider flex items-center gap-0.5">
+                                   <Network size={8} /> Vinculado
+                                 </span>
+                               )}
                               {getCargoTag(u.suplente_id) && (
                                 <span className="text-[8px] px-1.5 py-0.5 rounded-md bg-accent/50 text-accent-foreground font-medium">{getCargoTag(u.suplente_id)}</span>
                               )}
@@ -966,12 +980,19 @@ export default function AdminDashboard() {
           </Suspense>
         )}
 
-        {/* ══════════ AFILIADOS ══════════ */}
-        {vistaAtiva === 'afiliados' && (
-          <Suspense fallback={<div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-primary" /></div>}>
-            <AdminCadastrosAfiliados />
-          </Suspense>
-        )}
+         {/* ══════════ AFILIADOS ══════════ */}
+         {vistaAtiva === 'afiliados' && (
+           <Suspense fallback={<div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-primary" /></div>}>
+             <AdminCadastrosAfiliados />
+           </Suspense>
+         )}
+ 
+         {/* ══════════ VÍNCULOS ══════════ */}
+         {vistaAtiva === 'vinculos' && (
+           <Suspense fallback={<div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-primary" /></div>}>
+             <AdminVinculos />
+           </Suspense>
+         )}
 
       </div>
 
