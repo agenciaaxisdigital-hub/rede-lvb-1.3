@@ -6,10 +6,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useLiderancas, useEleitores, useUsuarios, useFiscaisAdmin, useRealtimeSync } from '@/hooks/useDataCache';
 import {
-  ArrowLeft, Users, Target, Search, X, Shield,
-  ChevronDown, ChevronUp, Loader2, Download, Trophy,
-  BarChart3, UserCog, Eye, Building2, Plus, MapPin, Calendar, Trash2, ClipboardList
-} from 'lucide-react';
+   ArrowLeft, Users, Target, Search, X, Shield,
+   ChevronDown, ChevronUp, Loader2, Download, Trophy,
+   BarChart3, UserCog, Eye, Building2, Plus, MapPin, Calendar, Trash2, ClipboardList,
+   Network
+ } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { exportAllCadastros, exportCadastrosFiltered } from '@/lib/exportXlsx';
 import SeletorCidade from '@/components/SeletorCidade';
@@ -206,7 +207,7 @@ export default function AdminDashboard() {
     return Object.entries(map)
       .map(([id, stats]) => {
         const u = usuarios.find(u => u.id === id);
-        return { id, nome: u?.nome || 'Desconhecido', tipo: u?.tipo || '—', municipio_id: u?.municipio_id || null, suplente_id: u?.suplente_id || null, total: stats.l + stats.e + stats.f + stats.fern, ...stats };
+         return { id, nome: u?.nome || 'Desconhecido', tipo: u?.tipo || '—', municipio_id: u?.municipio_id || null, suplente_id: u?.suplente_id || null, superior_id: u?.superior_id || null, total: stats.l + stats.e + stats.f + stats.fern, ...stats };
       })
       .sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome));
   }, [filteredL, filteredE, filteredF, filteredFern, usuarios]);
