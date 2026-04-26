@@ -536,7 +536,12 @@ export default function AdminDashboard() {
         )}
 
         {vistaAtiva === 'arvore' && (
-          <TabArvore usuarios={usuarios} />
+          <TabArvore 
+            usuarios={usuarios} 
+            liderancas={liderancas} 
+            eleitores={eleitores} 
+            fiscais={fiscais} 
+          />
         )}
 
         {/* ══════════ RANKING ══════════ */}
