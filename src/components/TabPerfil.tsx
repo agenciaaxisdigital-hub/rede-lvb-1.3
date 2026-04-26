@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import ModulosUsuario from '@/components/ModulosUsuario';
+import { PRESETS_TIPO, MODULOS as MODULOS_FULL } from '@/components/ModulosUsuario';
 import SecaoAfiliados from '@/components/SecaoAfiliados';
 import LinkCaptacaoCard from '@/components/LinkCaptacaoCard';
 
@@ -37,12 +38,7 @@ const tipoColors: Record<string, string> = {
   fernanda: 'bg-primary/10 text-primary',
 };
 
-const MODULOS_OPTIONS = [
-  { id: 'master', label: '🔑 Acesso Master' },
-  { id: 'cadastrar_liderancas', label: '👥 Lideranças' },
-  { id: 'cadastrar_fiscais', label: '🔍 Fiscais' },
-  { id: 'cadastrar_eleitores', label: '🎯 Eleitores' },
-];
+const MODULOS_OPTIONS = MODULOS_FULL.map(m => ({ id: m.id, label: m.label }));
 
 interface SuplenteOption {
   id: string;
@@ -326,13 +322,8 @@ export default function TabPerfil() {
   // Effect to update modules based on role (presets)
   useEffect(() => {
     if (view === 'create') {
-      if (tipoNovo === 'suplente') {
-        setSelectedModulos(new Set(['cadastrar_liderancas', 'cadastrar_fiscais', 'cadastrar_eleitores']));
-      } else if (tipoNovo === 'lideranca') {
-        setSelectedModulos(new Set(['cadastrar_liderancas', 'cadastrar_eleitores']));
-      } else if (tipoNovo === 'coordenador') {
-        setSelectedModulos(new Set(['master']));
-      }
+      const preset = PRESETS_TIPO[tipoNovo];
+      if (preset) setSelectedModulos(new Set(preset));
     }
   }, [tipoNovo, view]);
 
