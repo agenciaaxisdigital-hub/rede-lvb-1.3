@@ -86,7 +86,7 @@ export default function CampoLigacaoPolitica({
     let query = (supabase as any)
       .from('hierarquia_usuarios')
       .select('id, nome, tipo, suplente_id, municipio_id')
-      .eq('ativo', true)
+      // .eq('ativo', true)
       .in('tipo', tipos)
       .order('nome');
 
