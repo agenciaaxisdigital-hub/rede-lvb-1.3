@@ -26,6 +26,7 @@ const emptyForm = {
   lider_principal_id: '', origem_captacao: '',
   apoiadores_estimados: '', meta_votos: '',
   status: 'Ativa', nivel_comprometimento: '', observacoes: '',
+  responsavel_id: '',
 };
 
 interface Props {
@@ -38,7 +39,8 @@ export default function TabCadastrar({ onSaved }: Props) {
   const { eventoAtivo } = useEvento();
   const [saving, setSaving] = useState(false);
   const [liderancasExistentes, setLiderancasExistentes] = useState<{ id: string; nome: string }[]>([]);
-  const [form, setForm] = useState({ ...emptyForm });
+  const [usuariosSistema, setUsuariosSistema] = useState<{ id: string; nome: string; tipo: string }[]>([]);
+  const [form, setForm] = useState({ ...emptyForm, responsavel_id: '' });
 
   // Persist form draft to IndexedDB (survives refresh/crash/close)
   const { clearDraft } = useFormDraft('cadastrar-lideranca', form, setForm, emptyForm);
@@ -65,10 +67,13 @@ export default function TabCadastrar({ onSaved }: Props) {
   }, [usuario]);
 
   useEffect(() => {
-    supabase.from('liderancas').select('id, pessoas(nome)').eq('status', 'Ativa')
-      .then(({ data }) => {
-        if (data) setLiderancasExistentes(data.map((l: any) => ({ id: l.id, nome: l.pessoas?.nome || '—' })));
-      });
+    Promise.all([
+      supabase.from('liderancas').select('id, pessoas(nome)').eq('status', 'Ativa'),
+      supabase.from('hierarquia_usuarios').select('id, nome, tipo').eq('ativo', true).order('nome')
+    ]).then(([lRes, uRes]) => {
+      if (lRes.data) setLiderancasExistentes(lRes.data.map((l: any) => ({ id: l.id, nome: l.pessoas?.nome || '—' })));
+      if (uRes.data) setUsuariosSistema(uRes.data);
+    });
   }, []);
 
   const update = useCallback((field: string, value: string) => setForm(f => ({ ...f, [field]: value })), []);
@@ -141,7 +146,7 @@ export default function TabCadastrar({ onSaved }: Props) {
       meta_votos: form.meta_votos ? parseInt(form.meta_votos) : null,
       status: form.status, nivel_comprometimento: form.nivel_comprometimento || null,
       observacoes: form.observacoes || null, 
-      cadastrado_por: usuario?.id || null,
+      cadastrado_por: form.responsavel_id || usuario?.id || null,
       suplente_id: suplenteId,
       municipio_id: ligMunicipioId || cidadeAtiva?.id || null,
       evento_id: eventoAtivo?.id || null,
@@ -339,6 +344,25 @@ export default function TabCadastrar({ onSaved }: Props) {
         <div className="space-y-1">
           <label className="text-xs font-medium text-muted-foreground">Observações</label>
           <textarea value={form.observacoes} onChange={e => update('observacoes', e.target.value)} rows={3} placeholder="Anotações..." className={textareaCls} />
+        </div>
+      </div>
+
+      {/* Vínculo no Sistema */}
+      <div className="section-card">
+        <h2 className="section-title">🔗 Responsável no Sistema</h2>
+        <p className="text-[10px] text-muted-foreground mb-3 leading-tight">Vincule este cadastro a um usuário específico do sistema para visualização na árvore hierárquica.</p>
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-muted-foreground">Selecionar Usuário</label>
+          <select 
+            value={form.responsavel_id} 
+            onChange={e => update('responsavel_id', e.target.value)} 
+            className={selectCls}
+          >
+            <option value="">{usuario?.nome || 'Eu'} (Padrão)</option>
+            {usuariosSistema.filter(u => u.id !== usuario?.id).map(u => (
+              <option key={u.id} value={u.id}>{u.nome} ({u.tipo})</option>
+            ))}
+          </select>
         </div>
       </div>
 

@@ -29,9 +29,10 @@ interface FormState {
   telefone: string;
   cidade: string;
   instagram: string;
+  responsavel_id: string;
 }
 
-const EMPTY: FormState = { nome: '', telefone: '', cidade: '', instagram: '' };
+const EMPTY: FormState = { nome: '', telefone: '', cidade: '', instagram: '', responsavel_id: '' };
 
 const inputCls = 'w-full h-11 px-3 bg-card border border-border rounded-xl text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30 transition-all';
 const labelCls = 'text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block';
@@ -44,6 +45,7 @@ export default function TabCadastrosFernanda() {
   const [busca, setBusca] = useState('');
   const [form, setForm] = useState<FormState>(EMPTY);
   const [saving, setSaving] = useState(false);
+  const [usuariosSistema, setUsuariosSistema] = useState<{ id: string; nome: string; tipo: string }[]>([]);
   const [selected, setSelected] = useState<CadastroFernanda | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [periodo, setPeriodo] = useState<'todos' | 'hoje' | 'ontem' | 'semana' | 'mes' | 'data'>('hoje');
@@ -52,15 +54,21 @@ export default function TabCadastrosFernanda() {
 
   const carregar = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('cadastros_fernanda' as any)
-      .select('*')
-      .order('criado_em', { ascending: false });
-    if (error) {
-      toast({ title: 'Erro ao carregar', description: error.message, variant: 'destructive' });
+    const [cRes, uRes] = await Promise.all([
+      supabase.from('cadastros_fernanda' as any).select('*').order('criado_em', { ascending: false }),
+      supabase.from('hierarquia_usuarios').select('id, nome, tipo').eq('ativo', true).order('nome')
+    ]);
+    
+    if (cRes.error) {
+      toast({ title: 'Erro ao carregar', description: cRes.error.message, variant: 'destructive' });
     } else {
-      setCadastros((data || []) as unknown as CadastroFernanda[]);
+      setCadastros((cRes.data || []) as unknown as CadastroFernanda[]);
     }
+    
+    if (uRes.data) {
+      setUsuariosSistema(uRes.data);
+    }
+    
     setLoading(false);
   }, []);
 
@@ -131,7 +139,7 @@ export default function TabCadastrosFernanda() {
       telefone: form.telefone.trim(),
       cidade: form.cidade.trim() || null,
       instagram: form.instagram.trim() || null,
-      cadastrado_por: usuario?.id ?? null,
+      cadastrado_por: form.responsavel_id || usuario?.id || null,
     };
     if (form.id) {
       const { data, error } = await supabase.from('cadastros_fernanda' as any).update(payload).eq('id', form.id).select().single();
@@ -152,7 +160,14 @@ export default function TabCadastrosFernanda() {
 
   const abrirNovo = () => { setForm(EMPTY); setMode('form'); };
   const abrirEditar = (c: CadastroFernanda) => {
-    setForm({ id: c.id, nome: c.nome, telefone: c.telefone, cidade: c.cidade ?? '', instagram: c.instagram ?? '' });
+    setForm({ 
+      id: c.id, 
+      nome: c.nome, 
+      telefone: c.telefone, 
+      cidade: c.cidade ?? '', 
+      instagram: c.instagram ?? '',
+      responsavel_id: c.cadastrado_por ?? ''
+    });
     setMode('form');
   };
   const abrirDetalhe = (c: CadastroFernanda) => { setSelected(c); setConfirmDelete(false); setMode('detail'); };
@@ -230,6 +245,22 @@ export default function TabCadastrosFernanda() {
               placeholder="@usuario"
               className={inputCls}
             />
+          </div>
+          <div>
+            <label className={labelCls}>Responsável no Sistema</label>
+            <select 
+              value={form.responsavel_id} 
+              onChange={(e) => setForm({ ...form, responsavel_id: e.target.value })}
+              className={inputCls}
+            >
+              <option value="">{usuario?.nome || 'Eu'} (Padrão)</option>
+              {usuariosSistema.filter(u => u.id !== usuario?.id).map(u => (
+                <option key={u.id} value={u.id}>{u.nome} ({u.tipo})</option>
+              ))}
+            </select>
+            <p className="text-[10px] text-muted-foreground mt-1 px-1 leading-tight">
+              Vincule este cadastro a um usuário para aparecer na árvore hierárquica dele.
+            </p>
           </div>
         </div>
 
