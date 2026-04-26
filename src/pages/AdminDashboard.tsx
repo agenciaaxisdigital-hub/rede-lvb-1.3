@@ -884,9 +884,11 @@ export default function AdminDashboard() {
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-semibold text-foreground truncate">{r.pessoa?.nome || '—'}</p>
                     </div>
-                    {getCargoTag(r.suplente_id) && (
-                      <p className="text-[10px] text-primary/70 truncate">🔗 {getCargoTag(r.suplente_id)}</p>
-                    )}
+                     {(r.suplente_nome || r.lideranca_nome) && (
+                       <p className="text-[10px] text-primary/70 truncate">
+                         🔗 {r.suplente_nome || r.lideranca_nome} {getCargoTag(r.suplente_id) && `(${getCargoTag(r.suplente_id)})`}
+                       </p>
+                     )}
                     <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground">
                       <span>{r.pessoa?.cpf || 'Sem CPF'}</span>
                       <span>{r.pessoa?.telefone || 'Sem tel.'}</span>
