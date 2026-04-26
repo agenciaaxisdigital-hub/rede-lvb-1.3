@@ -2,8 +2,9 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth, TipoUsuario } from '@/contexts/AuthContext';
 import { useCidade } from '@/contexts/CidadeContext';
 import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 import {
-  LogOut, Shield, User, UserPlus, Loader2, Crown, Users, Eye, Copy, X,
+  LogOut, Shield, User, UserPlus, Loader2, Crown, Users, Eye, Copy, X, Network,
   Pencil, Trash2, Settings, Search, ArrowLeft, KeyRound, EyeOff, ChevronDown,
   MapPin, Building2, Plus, ClipboardList
 } from 'lucide-react';
@@ -65,6 +66,7 @@ interface UsuarioItem {
   suplente_id: string | null;
   auth_user_id: string | null;
   municipio_id: string | null;
+  superior_id: string | null;
 }
 
 type ViewMode = 'list' | 'create' | 'edit';
@@ -165,6 +167,7 @@ function SelfPasswordChange() {
 export default function TabPerfil() {
   const { usuario, isAdmin, tipoUsuario, signOut } = useAuth();
   const { municipios } = useCidade();
+  const navigate = useNavigate();
 
   // Data
   const [usuarios, setUsuarios] = useState<UsuarioItem[]>([]);
@@ -188,6 +191,7 @@ export default function TabPerfil() {
   const [externalSearch, setExternalSearch] = useState('');
   const [createCidade, setCreateCidade] = useState('');
   const [cargoTagPerfil, setCargoTagPerfil] = useState('');
+  const [createSuperiorId, setCreateSuperiorId] = useState('');
 
   // Edit
   const [editUser, setEditUser] = useState<UsuarioItem | null>(null);
@@ -197,6 +201,7 @@ export default function TabPerfil() {
   const [editSaving, setEditSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editCidade, setEditCidade] = useState('');
+  const [editSuperiorId, setEditSuperiorId] = useState('');
 
   // Credentials modal after creation
   const [credenciais, setCredenciais] = useState<{ nome: string; senha: string; id: string; auth_user_id: string; tipo: string } | null>(null);
@@ -209,7 +214,7 @@ export default function TabPerfil() {
     try {
       const usrRes = await supabase
         .from('hierarquia_usuarios')
-        .select('id, nome, tipo, criado_em, suplente_id, auth_user_id, municipio_id')
+        .select('id, nome, tipo, criado_em, suplente_id, auth_user_id, municipio_id, superior_id')
         .eq('ativo', true)
         .order('nome')
         .abortSignal(controller.signal);
@@ -298,6 +303,7 @@ export default function TabPerfil() {
     setExternalSearch('');
     setCreateCidade(municipios.length === 1 ? municipios[0].id : '');
     setCargoTagPerfil('');
+    setCreateSuperiorId('');
   };
 
   const handleCreate = async () => {
@@ -342,7 +348,7 @@ export default function TabPerfil() {
         nome: nomeUsuario,
         senha: senhaNova.trim(),
         tipo: tipoNovo,
-        superior_id: usuario?.id || null,
+        superior_id: createSuperiorId || usuario?.id || null,
         municipio_id: createCidade,
       };
       if (createMode === 'suplente' && selectedExternalId) {
@@ -390,6 +396,7 @@ export default function TabPerfil() {
     setShowEditSenha(false);
     setConfirmDelete(false);
     setEditCidade(u.municipio_id || '');
+    setEditSuperiorId(u.superior_id || '');
     setView('edit');
   };
 
@@ -404,7 +411,8 @@ export default function TabPerfil() {
       if (editNome.trim() !== editUser.nome) body.novo_nome = editNome.trim();
       if (editSenha.trim()) body.nova_senha = editSenha.trim();
       if (editCidade && editCidade !== (editUser.municipio_id || '')) body.novo_municipio_id = editCidade;
-      if (!body.novo_nome && !body.nova_senha && !body.novo_municipio_id) { toast({ title: 'Nenhuma alteração' }); setEditSaving(false); return; }
+      if (editSuperiorId !== (editUser.superior_id || '')) body.novo_superior_id = editSuperiorId || null;
+      if (!body.novo_nome && !body.nova_senha && !body.novo_municipio_id && !body.novo_superior_id) { toast({ title: 'Nenhuma alteração' }); setEditSaving(false); return; }
 
       const { data, error } = await supabase.functions.invoke('gerenciar-usuario', { body });
       if (error) throw new Error(error.message);
@@ -697,6 +705,20 @@ export default function TabPerfil() {
               </select>
             </div>
 
+            {/* Superior / Vinculação */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                <Users size={12} /> Indicado por (Superior)
+              </label>
+              <select value={createSuperiorId} onChange={e => setCreateSuperiorId(e.target.value)} className={inputCls}>
+                <option value="">Sem vínculo (Admin)</option>
+                {usuarios.map(u => (
+                  <option key={u.id} value={u.id}>{u.nome} ({tipoLabels[u.tipo as TipoUsuario] || u.tipo})</option>
+                ))}
+              </select>
+              <p className="text-[10px] text-muted-foreground">O usuário selecionado será o superior direto na rede.</p>
+            </div>
+
             {/* Módulos */}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Módulos / Permissões</label>
@@ -797,6 +819,19 @@ export default function TabPerfil() {
               </select>
             </div>
 
+            {/* Superior / Vinculação */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                <Users size={12} /> Indicado por (Superior)
+              </label>
+              <select value={editSuperiorId} onChange={e => setEditSuperiorId(e.target.value)} className={inputCls}>
+                <option value="">Sem vínculo (Admin)</option>
+                {usuarios.filter(u => u.id !== editUser.id).map(u => (
+                  <option key={u.id} value={u.id}>{u.nome} ({tipoLabels[u.tipo as TipoUsuario] || u.tipo})</option>
+                ))}
+              </select>
+            </div>
+
             <button
               onClick={handleEdit}
               disabled={editSaving}
@@ -866,11 +901,19 @@ export default function TabPerfil() {
       {/* User management - Admin only */}
       {isAdmin && (
         <div className="section-card">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-1">
             <h2 className="section-title">🔑 Usuários do Sistema</h2>
+          </div>
+          <div className="flex items-center gap-2 mb-4">
+            <button
+              onClick={() => navigate('/vinculos')}
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 active:scale-95 transition-all"
+            >
+              <Network size={14} /> Vincular Rede
+            </button>
             <button
               onClick={openCreate}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-primary text-primary-foreground hover:opacity-90 active:scale-95 transition-all"
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-primary text-primary-foreground hover:opacity-90 active:scale-95 transition-all shadow-sm"
             >
               <UserPlus size={14} /> Novo
             </button>
