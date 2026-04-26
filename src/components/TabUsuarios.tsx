@@ -302,12 +302,6 @@ export default function TabUsuarios() {
 
       const { data, error } = await supabase.functions.invoke('gerenciar-usuario', { body: payload });
 
-  // Search results for linking in edit mode
-  const editSupFiltered = useMemo(() => {
-    if (!editSupSearch) return [];
-    const q = editSupSearch.toLowerCase();
-    return suplentes.filter(s => s.nome.toLowerCase().includes(q)).slice(0, 5);
-  }, [suplentes, editSupSearch]);
       if (error) {
         let errorMessage = error.message;
         const context = (error as any).context;
