@@ -33,7 +33,7 @@ function getInitialTab(): TabId {
 }
 
 export default function Home() {
-  const { isAdmin, tipoUsuario, usuario } = useAuth();
+   const { isAdmin, tipoUsuario, usuario, isLideranca, isSuplente } = useAuth();
   useRealtimeSync();
   useLocationTracking();
   const { municipios } = useCidade();
@@ -66,22 +66,32 @@ export default function Home() {
       handleTabChange('cadastros');
       return;
     }
-    if (isAdminOrCoord) return;
-    supabase.from('usuario_modulos').select('modulo').eq('usuario_id', usuario.id)
-      .then(({ data }) => {
-        if (!data) return;
-        const modulos = new Set(data.map((d: any) => d.modulo));
-        const hasLiderancas = modulos.has('master') || modulos.has('cadastrar_liderancas');
-        const hasEleitores = modulos.has('master') || modulos.has('cadastrar_liderancas') || modulos.has('cadastrar_eleitores');
-        
-        if ((activeTab === 'liderancas' || activeTab === 'fiscais') && !hasLiderancas) {
-          if (hasEleitores) {
-            handleTabChange('eleitores');
-          } else {
-            handleTabChange('cadastros');
-          }
-        }
-      });
+     if (isAdminOrCoord) return;
+     supabase.from('usuario_modulos').select('modulo').eq('usuario_id', usuario.id)
+       .then(({ data }) => {
+         if (!data) return;
+         const modulos = new Set(data.map((d: any) => d.modulo));
+         const hasMaster = modulos.has('master');
+         const hasLiderancasMod = modulos.has('cadastrar_liderancas');
+         const hasEleitoresMod = modulos.has('cadastrar_eleitores');
+         
+         const hasLiderancas = hasMaster || hasLiderancasMod;
+         const hasEleitores = hasMaster || hasLiderancasMod || hasEleitoresMod;
+         const hasFiscais = hasMaster || (isSuplente && hasLiderancasMod);
+         
+         if (activeTab === 'fiscais' && !hasFiscais) {
+           handleTabChange('cadastros');
+           return;
+         }
+
+         if (activeTab === 'liderancas' && !hasLiderancas) {
+           if (hasEleitores) {
+             handleTabChange('eleitores');
+           } else {
+             handleTabChange('cadastros');
+           }
+         }
+       });
   }, [usuario?.id, isAdminOrCoord, activeTab, handleTabChange]);
 
   useEffect(() => {
