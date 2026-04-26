@@ -408,10 +408,11 @@ function gerarToken() {
              <div className="bg-emerald-500/5 rounded-lg px-3 py-2 text-center">
                <p className="text-lg font-bold text-emerald-600">{ativos.length}</p>
                <p className="text-[10px] text-muted-foreground">Ativos</p>
-             </div>
-           </div>
- 
-           {loading ? (
+            </div>
+          </>
+        )}
+
+        {!isCollapsed && (loading ? (
         <div className="flex items-center justify-center py-6 text-muted-foreground gap-2 text-sm">
           <Loader2 size={16} className="animate-spin text-primary" /> Carregando…
         </div>
