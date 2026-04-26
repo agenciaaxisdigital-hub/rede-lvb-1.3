@@ -208,8 +208,17 @@ export default function TabPerfil() {
   const [showEditSenha, setShowEditSenha] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [editCidade, setEditCidade] = useState('');
-  const [editSuperiorId, setEditSuperiorId] = useState('');
+   const [editCidade, setEditCidade] = useState('');
+   const [editSuperiorId, setEditSuperiorId] = useState('');
+   const [editCargoTag, setEditCargoTag] = useState('');
+   const [superiorNome, setSuperiorNome] = useState<string | null>(null);
+ 
+   useEffect(() => {
+     if (usuario?.superior_id) {
+       supabase.from('hierarquia_usuarios').select('nome').eq('id', usuario.superior_id).single()
+         .then(({ data }) => setSuperiorNome(data?.nome || null));
+     }
+   }, [usuario?.superior_id]);
 
   // Credentials modal after creation
   const [credenciais, setCredenciais] = useState<{ nome: string; senha: string; id: string; auth_user_id: string; tipo: string } | null>(null);
@@ -410,39 +419,61 @@ export default function TabPerfil() {
   };
 
   // ─── EDIT ───────────────────────────────────────
-  const openEdit = (u: UsuarioItem) => {
-    setEditUser(u);
-    setEditNome(u.nome);
-    setEditSenha('');
-    setShowEditSenha(false);
-    setConfirmDelete(false);
-    setEditCidade(u.municipio_id || '');
-    setEditSuperiorId(u.superior_id || '');
-    setView('edit');
-  };
+   const openEdit = (u: UsuarioItem) => {
+     setEditUser(u);
+     setEditNome(u.nome);
+     setEditSenha('');
+     setShowEditSenha(false);
+     setConfirmDelete(false);
+     setEditCidade(u.municipio_id || '');
+     setEditSuperiorId(u.superior_id || '');
+     setEditCargoTag(getSuplenteTag(u.suplente_id) || '');
+     setView('edit');
+   };
 
   const handleEdit = async () => {
     if (!editUser) return;
     if (!editNome.trim()) { toast({ title: 'Nome não pode ser vazio', variant: 'destructive' }); return; }
     if (editSenha && editSenha.length < 6) { toast({ title: 'Senha deve ter ao menos 6 caracteres', variant: 'destructive' }); return; }
 
-    setEditSaving(true);
-    try {
-      const body: any = { acao: 'atualizar', hierarquia_id: editUser.id, auth_user_id: editUser.auth_user_id };
-      if (editNome.trim() !== editUser.nome) body.novo_nome = editNome.trim();
-      if (editSenha.trim()) body.nova_senha = editSenha.trim();
-      if (editCidade && editCidade !== (editUser.municipio_id || '')) body.novo_municipio_id = editCidade;
-      if (editSuperiorId !== (editUser.superior_id || '')) body.novo_superior_id = editSuperiorId || null;
-      if (!body.novo_nome && !body.nova_senha && !body.novo_municipio_id && !body.novo_superior_id) { toast({ title: 'Nenhuma alteração' }); setEditSaving(false); return; }
-
-      const { data, error } = await supabase.functions.invoke('gerenciar-usuario', { body });
-      if (error) throw new Error(error.message);
-      if (data?.error) throw new Error(data.error);
-
-      toast({ title: '✅ Usuário atualizado!' });
-      setView('list');
-      fetchAll();
-    } catch (err: any) {
+     setEditSaving(true);
+     try {
+       // Update cargo tag if changed
+       const originalCargo = getSuplenteTag(editUser.suplente_id) || '';
+       let cargoChanged = false;
+       if (editUser.suplente_id && editCargoTag.trim() !== originalCargo) {
+         const { error: cargoError } = await (supabase as any)
+           .from('suplentes')
+           .update({ cargo_disputado: editCargoTag.trim() })
+           .eq('id', editUser.suplente_id);
+         if (cargoError) throw new Error(`Erro ao atualizar cargo: ${cargoError.message}`);
+         cargoChanged = true;
+       }
+ 
+       const body: any = { acao: 'atualizar', hierarquia_id: editUser.id, auth_user_id: editUser.auth_user_id };
+       if (editNome.trim() !== editUser.nome) body.novo_nome = editNome.trim();
+       if (editSenha.trim()) body.nova_senha = editSenha.trim();
+       if (editCidade && editCidade !== (editUser.municipio_id || '')) body.novo_municipio_id = editCidade;
+       if (editSuperiorId !== (editUser.superior_id || '')) body.novo_superior_id = editSuperiorId || null;
+       
+       const noChanges = !body.novo_nome && !body.nova_senha && !body.novo_municipio_id && !body.novo_superior_id;
+       
+       if (noChanges && !cargoChanged) {
+         toast({ title: 'Nenhuma alteração' });
+         setEditSaving(false);
+         return;
+       }
+ 
+       if (!noChanges) {
+         const { data, error } = await supabase.functions.invoke('gerenciar-usuario', { body });
+         if (error) throw new Error(error.message);
+         if (data?.error) throw new Error(data.error);
+       }
+ 
+       toast({ title: '✅ Usuário atualizado!' });
+       setView('list');
+       fetchAll();
+     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
     } finally {
       setEditSaving(false);
