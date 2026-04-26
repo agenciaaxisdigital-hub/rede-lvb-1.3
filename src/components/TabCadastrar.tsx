@@ -38,6 +38,7 @@ export default function TabCadastrar({ onSaved }: Props) {
   const { eventoAtivo } = useEvento();
   const [saving, setSaving] = useState(false);
   const [liderancasExistentes, setLiderancasExistentes] = useState<{ id: string; nome: string }[]>([]);
+  const [usuariosSistema, setUsuariosSistema] = useState<{ id: string; nome: string; tipo: string }[]>([]);
   const [form, setForm] = useState({ ...emptyForm });
 
   // Persist form draft to IndexedDB (survives refresh/crash/close)
@@ -65,10 +66,13 @@ export default function TabCadastrar({ onSaved }: Props) {
   }, [usuario]);
 
   useEffect(() => {
-    supabase.from('liderancas').select('id, pessoas(nome)').eq('status', 'Ativa')
-      .then(({ data }) => {
-        if (data) setLiderancasExistentes(data.map((l: any) => ({ id: l.id, nome: l.pessoas?.nome || '—' })));
-      });
+    Promise.all([
+      supabase.from('liderancas').select('id, pessoas(nome)').eq('status', 'Ativa'),
+      supabase.from('hierarquia_usuarios').select('id, nome, tipo').eq('ativo', true).order('nome')
+    ]).then(([lRes, uRes]) => {
+      if (lRes.data) setLiderancasExistentes(lRes.data.map((l: any) => ({ id: l.id, nome: l.pessoas?.nome || '—' })));
+      if (uRes.data) setUsuariosSistema(uRes.data);
+    });
   }, []);
 
   const update = useCallback((field: string, value: string) => setForm(f => ({ ...f, [field]: value })), []);
