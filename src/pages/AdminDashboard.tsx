@@ -535,6 +535,10 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {vistaAtiva === 'arvore' && (
+          <TabArvore usuarios={usuarios} />
+        )}
+
         {/* ══════════ RANKING ══════════ */}
         {vistaAtiva === 'ranking' && (() => {
           let filtered = rankingUsuarios;
