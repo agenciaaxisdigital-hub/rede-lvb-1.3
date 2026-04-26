@@ -348,9 +348,111 @@ export default function TabArvore({ usuarios, liderancas, eleitores, fiscais }: 
         </div>
       )}
 
-      {/* Dialog para Cadastro */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+       {/* Dialog para Cadastro */}
+       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+         <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+           <DialogHeader>
+             <DialogTitle className="flex items-center gap-2">
+               <Plus className="text-primary" size={18} />
+               Novo Cadastro para {usuarios.find(u => u.id === selectedForCadastro)?.nome}
+             </DialogTitle>
+           </DialogHeader>
+           <div className="py-2">
+              <TabCadastrar 
+                 onSaved={() => setIsDialogOpen(false)} 
+                 responsavelId={selectedForCadastro || undefined} 
+              />
+           </div>
+         </DialogContent>
+       </Dialog>
+ 
+       {/* Dialog para Edição */}
+       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+         <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+           <DialogHeader>
+             <DialogTitle className="flex items-center gap-2">
+               <Pencil className="text-primary" size={18} />
+               Editar {selectedForEdit?.tipo === 'lideranca' ? 'Liderança' : selectedForEdit?.tipo === 'fiscal' ? 'Fiscal' : 'Eleitor'}
+             </DialogTitle>
+           </DialogHeader>
+           <div className="py-2">
+              {/* Edição Simples de Tag e Observações */}
+              <EditForm 
+                id={selectedForEdit?.id} 
+                tipo={selectedForEdit?.tipo} 
+                onClose={() => { setIsEditDialogOpen(false); toast({ title: '✅ Alterações salvas' }); }} 
+              />
+           </div>
+         </DialogContent>
+       </Dialog>
+     </div>
+   );
+ }
+ 
+ function EditForm({ id, tipo, onClose }: { id?: string, tipo?: string, onClose: () => void }) {
+   const [tag, setTag] = useState('');
+   const [obs, setObs] = useState('');
+   const [loading, setLoading] = useState(true);
+   const [saving, setSaving] = useState(false);
+ 
+   useMemo(async () => {
+     if (!id || !tipo) return;
+     setLoading(true);
+     const table = tipo === 'lideranca' ? 'liderancas' : tipo === 'fiscal' ? 'fiscais' : 'possiveis_eleitores';
+     const { data } = await (supabase as any).from(table).select('tipo_lideranca, observacoes').eq('id', id).single();
+     if (data) {
+       setTag(data.tipo_lideranca || '');
+       setObs(data.observacoes || '');
+     }
+     setLoading(false);
+   }, [id, tipo]);
+ 
+   const handleSave = async () => {
+     setSaving(true);
+     const table = tipo === 'lideranca' ? 'liderancas' : tipo === 'fiscal' ? 'fiscais' : 'possiveis_eleitores';
+     const updateData: any = { observacoes: obs };
+     if (tipo === 'lideranca') updateData.tipo_lideranca = tag;
+     
+     const { error } = await (supabase as any).from(table).update(updateData).eq('id', id);
+     setSaving(false);
+     if (error) {
+       toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' });
+     } else {
+       onClose();
+     }
+   };
+ 
+   if (loading) return <div className="py-10 text-center"><Loader2 className="animate-spin mx-auto text-primary" /></div>;
+ 
+   return (
+     <div className="space-y-4">
+       {tipo === 'lideranca' && (
+         <div className="space-y-1.5">
+           <label className="text-xs font-bold text-muted-foreground uppercase">Tag / Tipo de Serviço</label>
+           <Input 
+             value={tag} 
+             onChange={e => setTag(e.target.value)} 
+             placeholder="Ex: Liderança Bairro X, Apoio Y..."
+           />
+         </div>
+       )}
+       <div className="space-y-1.5">
+         <label className="text-xs font-bold text-muted-foreground uppercase">Observações</label>
+         <textarea 
+           value={obs} 
+           onChange={e => setObs(e.target.value)} 
+           className="w-full min-h-[100px] p-3 rounded-xl border border-border bg-card text-sm"
+           placeholder="Anotações gerais..."
+         />
+       </div>
+       <Button onClick={handleSave} disabled={saving} className="w-full gradient-primary text-white font-bold h-12 rounded-xl">
+         {saving ? <Loader2 className="animate-spin" /> : 'Salvar Alterações'}
+       </Button>
+     </div>
+   );
+ }
+ 
+ import { Loader2 } from 'lucide-react';
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plus className="text-primary" size={18} />
