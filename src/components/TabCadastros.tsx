@@ -46,9 +46,10 @@ interface CadastroUnificado {
   meta_votos: number | null;
   nivel_comprometimento: string | null;
   origem_captacao: string | null;
-  lideranca_nome: string | null;
-  // Eleitor specific
-  compromisso_voto: string | null;
+   lideranca_nome: string | null;
+   suplente_nome: string | null;
+   // Eleitor specific
+   compromisso_voto: string | null;
   cargo_tag: string | null;
 }
 
@@ -112,9 +113,10 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
     meta_votos: null as number | null,
     nivel_comprometimento: null as string | null,
     origem_captacao: item.origem_captacao || null,
-    lideranca_nome: null as string | null,
-    compromisso_voto: null as string | null,
-    cargo_tag: item.suplentes?.cargo_disputado || null,
+     lideranca_nome: null as string | null,
+     suplente_nome: item.suplentes?.nome || null,
+     compromisso_voto: null as string | null,
+     cargo_tag: item.suplentes?.cargo_disputado || null,
   });
 
   const cadastros = useMemo(() => {
@@ -365,11 +367,21 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {c.regiao && (
-                        <span className="text-[10px] text-muted-foreground truncate">{c.regiao}</span>
-                      )}
-                      {!c.regiao && c.telefone && (
+                     <div className="flex items-center gap-1.5 flex-wrap">
+                       {c.suplente_nome && (
+                         <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded bg-primary/5 text-primary/70 font-semibold border border-primary/10">
+                           {c.suplente_nome}
+                         </span>
+                       )}
+                       {c.lideranca_nome && (
+                         <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
+                           {c.lideranca_nome}
+                         </span>
+                       )}
+                       {c.regiao && (
+                         <span className="text-[10px] text-muted-foreground truncate">{c.regiao}</span>
+                       )}
+                       {!c.regiao && !c.suplente_nome && c.telefone && (
                         <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
                           <Phone size={9} /> {c.telefone}
                         </span>
@@ -429,30 +441,33 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
                             <Field label="Colégio" value={c.colegio_eleitoral} span2 />
                           </div>
                         </div>
-                        {c.tipo === 'lideranca' && (
-                          <div>
-                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Dados da Liderança</p>
-                            <div className="grid grid-cols-2 gap-1.5">
-                              <Field label="Tipo" value={c.tipo_lideranca} />
-                              <Field label="Nível" value={c.nivel} />
-                              <Field label="Comprometimento" value={c.nivel_comprometimento} />
-                              <Field label="Apoiadores" value={c.apoiadores_estimados} />
-                              <Field label="Meta votos" value={c.meta_votos} />
-                              <Field label="Região" value={c.regiao} />
-                              <Field label="Bairros" value={c.bairros_influencia} span2 />
-                              <Field label="Comunidades" value={c.comunidades_influencia} span2 />
-                            </div>
-                          </div>
-                        )}
-                        {c.tipo === 'eleitor' && (
-                          <div>
-                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Vínculo do Eleitor</p>
-                            <div className="grid grid-cols-2 gap-1.5">
-                              <Field label="Compromisso" value={c.compromisso_voto} />
-                              <Field label="Liderança" value={c.lideranca_nome} />
-                            </div>
-                          </div>
-                        )}
+                         {/* Vínculo section for all */}
+                         {(c.suplente_nome || c.lideranca_nome) && (
+                           <div>
+                             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Vínculo / Ligação</p>
+                             <div className="grid grid-cols-2 gap-1.5">
+                               {c.suplente_nome && <Field label="Candidato" value={c.suplente_nome} />}
+                               {c.lideranca_nome && <Field label="Liderança" value={c.lideranca_nome} />}
+                               {c.tipo === 'eleitor' && c.compromisso_voto && <Field label="Compromisso" value={c.compromisso_voto} />}
+                             </div>
+                           </div>
+                         )}
+
+                         {c.tipo === 'lideranca' && (
+                           <div>
+                             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Dados da Liderança</p>
+                             <div className="grid grid-cols-2 gap-1.5">
+                               <Field label="Tipo" value={c.tipo_lideranca} />
+                               <Field label="Nível" value={c.nivel} />
+                               <Field label="Comprometimento" value={c.nivel_comprometimento} />
+                               <Field label="Apoiadores" value={c.apoiadores_estimados} />
+                               <Field label="Meta votos" value={c.meta_votos} />
+                               <Field label="Região" value={c.regiao} />
+                               <Field label="Bairros" value={c.bairros_influencia} span2 />
+                               <Field label="Comunidades" value={c.comunidades_influencia} span2 />
+                             </div>
+                           </div>
+                         )}
                         <div>
                           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Outros</p>
                           <div className="grid grid-cols-2 gap-1.5">
