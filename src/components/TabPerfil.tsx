@@ -208,8 +208,17 @@ export default function TabPerfil() {
   const [showEditSenha, setShowEditSenha] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [editCidade, setEditCidade] = useState('');
-  const [editSuperiorId, setEditSuperiorId] = useState('');
+   const [editCidade, setEditCidade] = useState('');
+   const [editSuperiorId, setEditSuperiorId] = useState('');
+   const [editCargoTag, setEditCargoTag] = useState('');
+   const [superiorNome, setSuperiorNome] = useState<string | null>(null);
+ 
+   useEffect(() => {
+     if (usuario?.superior_id) {
+       supabase.from('hierarquia_usuarios').select('nome').eq('id', usuario.superior_id).single()
+         .then(({ data }) => setSuperiorNome(data?.nome || null));
+     }
+   }, [usuario?.superior_id]);
 
   // Credentials modal after creation
   const [credenciais, setCredenciais] = useState<{ nome: string; senha: string; id: string; auth_user_id: string; tipo: string } | null>(null);
@@ -410,39 +419,61 @@ export default function TabPerfil() {
   };
 
   // ─── EDIT ───────────────────────────────────────
-  const openEdit = (u: UsuarioItem) => {
-    setEditUser(u);
-    setEditNome(u.nome);
-    setEditSenha('');
-    setShowEditSenha(false);
-    setConfirmDelete(false);
-    setEditCidade(u.municipio_id || '');
-    setEditSuperiorId(u.superior_id || '');
-    setView('edit');
-  };
+   const openEdit = (u: UsuarioItem) => {
+     setEditUser(u);
+     setEditNome(u.nome);
+     setEditSenha('');
+     setShowEditSenha(false);
+     setConfirmDelete(false);
+     setEditCidade(u.municipio_id || '');
+     setEditSuperiorId(u.superior_id || '');
+     setEditCargoTag(getSuplenteTag(u.suplente_id) || '');
+     setView('edit');
+   };
 
   const handleEdit = async () => {
     if (!editUser) return;
     if (!editNome.trim()) { toast({ title: 'Nome não pode ser vazio', variant: 'destructive' }); return; }
     if (editSenha && editSenha.length < 6) { toast({ title: 'Senha deve ter ao menos 6 caracteres', variant: 'destructive' }); return; }
 
-    setEditSaving(true);
-    try {
-      const body: any = { acao: 'atualizar', hierarquia_id: editUser.id, auth_user_id: editUser.auth_user_id };
-      if (editNome.trim() !== editUser.nome) body.novo_nome = editNome.trim();
-      if (editSenha.trim()) body.nova_senha = editSenha.trim();
-      if (editCidade && editCidade !== (editUser.municipio_id || '')) body.novo_municipio_id = editCidade;
-      if (editSuperiorId !== (editUser.superior_id || '')) body.novo_superior_id = editSuperiorId || null;
-      if (!body.novo_nome && !body.nova_senha && !body.novo_municipio_id && !body.novo_superior_id) { toast({ title: 'Nenhuma alteração' }); setEditSaving(false); return; }
-
-      const { data, error } = await supabase.functions.invoke('gerenciar-usuario', { body });
-      if (error) throw new Error(error.message);
-      if (data?.error) throw new Error(data.error);
-
-      toast({ title: '✅ Usuário atualizado!' });
-      setView('list');
-      fetchAll();
-    } catch (err: any) {
+     setEditSaving(true);
+     try {
+       // Update cargo tag if changed
+       const originalCargo = getSuplenteTag(editUser.suplente_id) || '';
+       let cargoChanged = false;
+       if (editUser.suplente_id && editCargoTag.trim() !== originalCargo) {
+         const { error: cargoError } = await (supabase as any)
+           .from('suplentes')
+           .update({ cargo_disputado: editCargoTag.trim() })
+           .eq('id', editUser.suplente_id);
+         if (cargoError) throw new Error(`Erro ao atualizar cargo: ${cargoError.message}`);
+         cargoChanged = true;
+       }
+ 
+       const body: any = { acao: 'atualizar', hierarquia_id: editUser.id, auth_user_id: editUser.auth_user_id };
+       if (editNome.trim() !== editUser.nome) body.novo_nome = editNome.trim();
+       if (editSenha.trim()) body.nova_senha = editSenha.trim();
+       if (editCidade && editCidade !== (editUser.municipio_id || '')) body.novo_municipio_id = editCidade;
+       if (editSuperiorId !== (editUser.superior_id || '')) body.novo_superior_id = editSuperiorId || null;
+       
+       const noChanges = !body.novo_nome && !body.nova_senha && !body.novo_municipio_id && !body.novo_superior_id;
+       
+       if (noChanges && !cargoChanged) {
+         toast({ title: 'Nenhuma alteração' });
+         setEditSaving(false);
+         return;
+       }
+ 
+       if (!noChanges) {
+         const { data, error } = await supabase.functions.invoke('gerenciar-usuario', { body });
+         if (error) throw new Error(error.message);
+         if (data?.error) throw new Error(data.error);
+       }
+ 
+       toast({ title: '✅ Usuário atualizado!' });
+       setView('list');
+       fetchAll();
+     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
     } finally {
       setEditSaving(false);
@@ -805,10 +836,23 @@ export default function TabPerfil() {
           </div>
 
           <div className="space-y-3">
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Nome de acesso</label>
-              <input type="text" value={editNome} onChange={e => setEditNome(e.target.value)} className={inputCls} />
-            </div>
+             <div className="space-y-1">
+               <label className="text-xs font-medium text-muted-foreground">Nome de acesso</label>
+               <input type="text" value={editNome} onChange={e => setEditNome(e.target.value)} className={inputCls} />
+             </div>
+ 
+             {editUser.suplente_id && (
+               <div className="space-y-1">
+                 <label className="text-xs font-medium text-muted-foreground">Cargo / Profissão</label>
+                 <input
+                   type="text"
+                   value={editCargoTag}
+                   onChange={e => setEditCargoTag(e.target.value)}
+                   className={inputCls}
+                   placeholder="Ex: Vereador, Assistente Social..."
+                 />
+               </div>
+             )}
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
                 <KeyRound size={12} /> Nova senha (vazio = manter atual)
@@ -907,10 +951,15 @@ export default function TabPerfil() {
         <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
           <IconComponent size={28} className="text-primary" />
         </div>
-        <h2 className="text-lg font-bold text-foreground mt-3">{usuario?.nome || '—'}</h2>
-        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider mt-1 ${tipoColors[tipoUsuario || ''] || 'bg-secondary text-secondary-foreground'}`}>
-          {tipoUsuario ? tipoLabels[tipoUsuario] : '—'}
-        </span>
+         <h2 className="text-lg font-bold text-foreground mt-3">{usuario?.nome || '—'}</h2>
+         {superiorNome && (
+           <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1 justify-center">
+             <Network size={10} /> Vinculado a {superiorNome}
+           </p>
+         )}
+         <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider mt-2 ${tipoColors[tipoUsuario || ''] || 'bg-secondary text-secondary-foreground'}`}>
+           {tipoUsuario ? tipoLabels[tipoUsuario] : '—'}
+         </span>
       </div>
 
       {/* Self password change */}
@@ -991,11 +1040,16 @@ export default function TabPerfil() {
                         <p className="text-sm font-semibold text-foreground truncate">{u.nome}</p>
                         {(u.tipo === 'super_admin' || u.tipo === 'coordenador') && <Crown size={12} className="text-primary shrink-0" />}
                       </div>
-                      <p className="text-[10px] text-muted-foreground">
-                        {tipoLabels[u.tipo as TipoUsuario] || u.tipo}
-                        {getSuplenteNome(u.suplente_id) ? ` · ${getSuplenteNome(u.suplente_id)}` : ''}
-                        {u.municipio_id && (() => { const m = municipios.find(m => m.id === u.municipio_id); return m ? ` · ${m.nome}` : ''; })()}
-                      </p>
+                       <p className="text-[10px] text-muted-foreground flex flex-wrap items-center gap-x-1">
+                         {tipoLabels[u.tipo as TipoUsuario] || u.tipo}
+                         {getSuplenteNome(u.suplente_id) && <span>· {getSuplenteNome(u.suplente_id)}</span>}
+                         {u.superior_id && usuarios.find(usr => usr.id === u.superior_id) && (
+                           <span className="flex items-center gap-0.5">
+                             · <Network size={8} /> {usuarios.find(usr => usr.id === u.superior_id)?.nome}
+                           </span>
+                         )}
+                         {u.municipio_id && (() => { const m = municipios.find(m => m.id === u.municipio_id); return m ? <span>· {m.nome}</span> : null; })()}
+                       </p>
                       {getSuplenteTag(u.suplente_id) && (
                         <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-accent/50 text-[9px] font-medium text-accent-foreground mt-0.5">
                           {getSuplenteTag(u.suplente_id)}
