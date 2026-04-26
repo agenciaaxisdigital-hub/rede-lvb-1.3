@@ -1,4 +1,5 @@
-import { useState, useRef, useCallback, lazy, Suspense, useEffect } from 'react';
+ import { useState, useRef, useCallback, lazy, Suspense, useEffect } from 'react';
+ import { useScrollRestore } from '@/hooks/useScrollRestore';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCidade } from '@/contexts/CidadeContext';
 import { useEvento } from '@/contexts/EventoContext';
@@ -41,19 +42,18 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<TabId>(() => getInitialTab());
   const [visitedTabs, setVisitedTabs] = useState<Set<TabId>>(() => new Set([getInitialTab()]));
   const [refreshKey, setRefreshKey] = useState(0);
-  const scrollRef = useRef<HTMLDivElement>(null);
+   const { scrollRef, onScroll } = useScrollRestore(activeTab);
 
   const isAdminOrCoord = tipoUsuario === 'super_admin' || tipoUsuario === 'coordenador';
   const showCitySelector = isAdminOrCoord && municipios.length > 0;
 
-  const handleTabChange = useCallback((tab: TabId) => {
-    setActiveTab(tab);
-    setVisitedTabs(prev => {
-      if (prev.has(tab)) return prev;
-      return new Set([...prev, tab]);
-    });
-    scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
+   const handleTabChange = useCallback((tab: TabId) => {
+     setActiveTab(tab);
+     setVisitedTabs(prev => {
+       if (prev.has(tab)) return prev;
+       return new Set([...prev, tab]);
+     });
+   }, []);
 
   // Auto-correct tab if user doesn't have access to current tab
   useEffect(() => {
@@ -135,7 +135,7 @@ export default function Home() {
         </div>
       </header>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain">
+       <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto overscroll-contain">
         <div className="max-w-[672px] mx-auto px-4 py-4">
           <Suspense fallback={<div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-primary" /></div>}>
             {visitedTabs.has('liderancas') && activeTab === 'liderancas' && <TabLiderancas refreshKey={refreshKey} onSaved={handleSaved} />}

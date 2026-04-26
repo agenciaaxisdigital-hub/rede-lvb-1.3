@@ -178,7 +178,14 @@ export default function TabPerfil() {
   const [search, setSearch] = useState('');
 
   // View mode
-  const [view, setView] = useState<ViewMode>('list');
+   const [view, setView] = useState<ViewMode>('list');
+ 
+   // Restore scroll when returning to list
+   useEffect(() => {
+     if (view === 'list') {
+       window.dispatchEvent(new CustomEvent('restore-scroll'));
+     }
+   }, [view]);
 
   // Create form
   const [createMode, setCreateMode] = useState<'suplente' | 'lideranca' | 'livre'>('suplente');
