@@ -704,12 +704,17 @@ export default function TabSuplentes({ refreshKey }: Props) {
                   }`}>
                     {temAcesso ? <CheckCircle2 size={18} className="text-emerald-500" /> : <Users size={18} className="text-amber-500" />}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <span className="font-semibold text-foreground text-sm truncate block">{s.nome}</span>
-                    <p className="text-[10px] text-muted-foreground truncate">
-                      {[s.cargo_disputado, s.partido, s.regiao_atuacao].filter(Boolean).join(' · ') || '—'}
-                    </p>
-                  </div>
+                   <div className="flex-1 min-w-0">
+                     <span className="font-semibold text-foreground text-sm truncate block">{s.nome}</span>
+                     <div className="flex items-center gap-1.5 flex-wrap">
+                       <span className="text-[10px] text-muted-foreground truncate">{[s.cargo_disputado, s.partido, s.regiao_atuacao].filter(Boolean).join(' · ') || '—'}</span>
+                       {getUserForSuplente(s.id)?.superior_id && (
+                         <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium bg-primary/10 text-primary flex items-center gap-0.5 whitespace-nowrap">
+                           <Network size={8} /> {usuarios.find(u => u.id === getUserForSuplente(s.id)?.superior_id)?.nome || 'Vinculado'}
+                         </span>
+                       )}
+                     </div>
+                   </div>
                 </button>
                 {temAcesso ? (
                   <button
