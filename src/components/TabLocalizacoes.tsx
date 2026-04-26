@@ -452,7 +452,7 @@ export default function TabLocalizacoes() {
                           className="flex items-center gap-1 text-[11px] text-primary font-medium mt-1 hover:underline"
                         >
                           {isUserExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-                          {isUserExpanded ? 'Ocultar' : `Ver mais ${olderLocs.length} localização${olderLocs.length > 1 ? 'ões' : ''}`}
+                          {isUserExpanded ? 'Ocultar' : `Ver mais ${olderLocs.length} ${olderLocs.length > 1 ? 'localizações' : 'localização'}`}
                         </button>
                       )}
 
