@@ -56,7 +56,7 @@ export default function TabCadastrosFernanda() {
     setLoading(true);
     const [cRes, uRes] = await Promise.all([
       supabase.from('cadastros_fernanda' as any).select('*').order('criado_em', { ascending: false }),
-      supabase.from('hierarquia_usuarios').select('id, nome, tipo').eq('ativo', true).order('nome')
+      supabase.from('hierarquia_usuarios').select('id, nome, tipo').order('nome')
     ]);
     
     if (cRes.error) {

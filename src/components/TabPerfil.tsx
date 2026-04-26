@@ -223,7 +223,7 @@ export default function TabPerfil() {
       const usrRes = await supabase
         .from('hierarquia_usuarios')
         .select('id, nome, tipo, criado_em, suplente_id, auth_user_id, municipio_id, superior_id')
-        .eq('ativo', true)
+        // .eq('ativo', true)
         .order('nome')
         .abortSignal(controller.signal);
 

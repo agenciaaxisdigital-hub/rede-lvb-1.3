@@ -76,7 +76,7 @@ export default function TabCadastrar({ onSaved, responsavelId }: Props) {
   useEffect(() => {
     Promise.all([
       supabase.from('liderancas').select('id, pessoas(nome)').eq('status', 'Ativa'),
-      supabase.from('hierarquia_usuarios').select('id, nome, tipo').eq('ativo', true).order('nome')
+      supabase.from('hierarquia_usuarios').select('id, nome, tipo').order('nome')
     ]).then(([lRes, uRes]) => {
       if (lRes.data) setLiderancasExistentes(lRes.data.map((l: any) => ({ id: l.id, nome: l.pessoas?.nome || '—' })));
       if (uRes.data) setUsuariosSistema(uRes.data);

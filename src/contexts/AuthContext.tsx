@@ -122,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .from('hierarquia_usuarios')
         .select('*')
         .eq('auth_user_id', authUserId)
-        .eq('ativo', true)
+        // .eq('ativo', true) // Temporariamente desativado para depuração
         .single();
       console.log(`[Auth] fetchUsuario ${(performance.now() - t0).toFixed(0)}ms`);
       if (error) {
