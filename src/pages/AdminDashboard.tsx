@@ -669,9 +669,6 @@ export default function AdminDashboard() {
                                  <span className="text-[8px] px-1.5 py-0.5 rounded-md bg-green-500/10 text-green-600 font-bold uppercase tracking-wider flex items-center gap-0.5" title={`Vinculado a ${getUserName(u.superior_id)}`}>
                                    <Network size={8} /> {getUserName(u.superior_id)}
                                  </span>
-        {vistaAtiva === 'arvore' && (
-          <TabArvore usuarios={usuarios} />
-        )}
                                )}
                               {getCargoTag(u.suplente_id) && (
                                 <span className="text-[8px] px-1.5 py-0.5 rounded-md bg-accent/50 text-accent-foreground font-medium">{getCargoTag(u.suplente_id)}</span>
