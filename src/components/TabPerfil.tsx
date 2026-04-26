@@ -65,6 +65,7 @@ interface UsuarioItem {
   suplente_id: string | null;
   auth_user_id: string | null;
   municipio_id: string | null;
+  superior_id: string | null;
 }
 
 type ViewMode = 'list' | 'create' | 'edit';
@@ -211,7 +212,7 @@ export default function TabPerfil() {
     try {
       const usrRes = await supabase
         .from('hierarquia_usuarios')
-        .select('id, nome, tipo, criado_em, suplente_id, auth_user_id, municipio_id')
+        .select('id, nome, tipo, criado_em, suplente_id, auth_user_id, municipio_id, superior_id')
         .eq('ativo', true)
         .order('nome')
         .abortSignal(controller.signal);
@@ -393,11 +394,9 @@ export default function TabPerfil() {
     setShowEditSenha(false);
     setConfirmDelete(false);
     setEditCidade(u.municipio_id || '');
-    // We need the superior_id from the user. We need to fetch it or include it in the select.
-    // Looking at line 212, superior_id is NOT included in the select.
+    setEditSuperiorId(u.superior_id || '');
     setView('edit');
   };
-    setView('edit');
   };
 
   const handleEdit = async () => {
@@ -411,7 +410,8 @@ export default function TabPerfil() {
       if (editNome.trim() !== editUser.nome) body.novo_nome = editNome.trim();
       if (editSenha.trim()) body.nova_senha = editSenha.trim();
       if (editCidade && editCidade !== (editUser.municipio_id || '')) body.novo_municipio_id = editCidade;
-      if (!body.novo_nome && !body.nova_senha && !body.novo_municipio_id) { toast({ title: 'Nenhuma alteração' }); setEditSaving(false); return; }
+      if (editSuperiorId !== (editUser.superior_id || '')) body.novo_superior_id = editSuperiorId || null;
+      if (!body.novo_nome && !body.nova_senha && !body.novo_municipio_id && !body.novo_superior_id) { toast({ title: 'Nenhuma alteração' }); setEditSaving(false); return; }
 
       const { data, error } = await supabase.functions.invoke('gerenciar-usuario', { body });
       if (error) throw new Error(error.message);
