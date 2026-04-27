@@ -44,19 +44,27 @@ async function checarExistencia(user: string): Promise<{ exists: boolean; via: s
       const url = `https://graph.facebook.com/v21.0/${igUserId}?fields=business_discovery.username(${encodeURIComponent(user)}){username}&access_token=${encodeURIComponent(token)}`;
       const res = await fetch(url);
       const json: any = await res.json().catch(() => ({}));
+      console.log('graph-api response', user, res.status, JSON.stringify(json));
       if (res.ok && json?.business_discovery?.username) {
         return { exists: true, via: 'graph-api' };
       }
-      // Códigos típicos quando o usuário não existe / não é business / privado
+      // Códigos típicos quando o usuário NÃO existe (não é conta business pública)
       const code = json?.error?.code;
       const sub = json?.error?.error_subcode;
-      // 24 = não foi possível encontrar conta business com esse username
-      if (code === 110 || sub === 2207013 || /does not exist|not found|cannot be found/i.test(json?.error?.message || '')) {
+      const msg = String(json?.error?.message || '');
+      // Mensagens típicas: "Unsupported get request" / "does not exist" / código 100 subcode 33
+      if (
+        sub === 2207013 ||
+        sub === 33 ||
+        code === 110 ||
+        (code === 100 && /does not exist|cannot be loaded|business account/i.test(msg)) ||
+        /does not exist|not found|cannot be found/i.test(msg)
+      ) {
         return { exists: false, via: 'graph-api' };
       }
-      // Outros erros (rate limit, token, etc.) → cai no fallback
-    } catch (_e) {
-      // segue para fallback
+      // Outros erros (rate limit, token inválido, permissão) → cai no fallback
+    } catch (e) {
+      console.error('graph-api fetch error', e);
     }
   }
 
