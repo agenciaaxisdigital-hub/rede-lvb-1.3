@@ -1005,6 +1005,13 @@ export default function AdminDashboard() {
              <AdminCadastrosAfiliados />
            </Suspense>
          )}
+
+         {/* ══════════ MENÇÕES INSTAGRAM ══════════ */}
+         {vistaAtiva === 'mencoes' && (
+           <Suspense fallback={<div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-primary" /></div>}>
+             <AdminMencoesInstagram />
+           </Suspense>
+         )}
  
 
       </div>
