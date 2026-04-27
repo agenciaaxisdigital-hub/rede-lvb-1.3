@@ -218,7 +218,7 @@ export default function AdminMencoesInstagram() {
         <p className="text-[11px] text-muted-foreground leading-relaxed">
           Vínculo via <span className="font-semibold text-foreground">@</span> do Instagram cadastrado no usuário. Monitora marcações em
           <span className="font-semibold text-foreground"> @{CONTA}</span> e a hashtag <span className="font-semibold text-foreground">#{HASHTAG}</span>.
-          Atualização automática a cada 1 minuto.
+          Atualização automática a cada 10 segundos.
         </p>
         <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
           <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-2 py-1.5">
