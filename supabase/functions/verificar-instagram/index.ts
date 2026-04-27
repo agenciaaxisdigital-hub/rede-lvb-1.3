@@ -97,6 +97,37 @@ async function checarExistencia(user: string): Promise<{ exists: boolean; via: s
   }
 }
 
+async function checarViaProxy(user: string): Promise<{ exists: boolean; via: string } | null> {
+  // Proxy de leitura público (r.jina.ai) — bypassa bloqueio de IP do Instagram
+  // Retorna o conteúdo renderizado da página em texto/markdown
+  try {
+    const res = await fetch(`https://r.jina.ai/https://www.instagram.com/${encodeURIComponent(user)}/`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'text/plain',
+        'X-Return-Format': 'text',
+      },
+    });
+    if (res.status === 404) return { exists: false, via: 'proxy-404' };
+    if (!res.ok) return null;
+    const txt = (await res.text()).toLowerCase();
+    if (!txt || txt.length < 50) return null;
+    // Sinais de "não existe"
+    if (/sorry, this page isn'?t available/i.test(txt)) return { exists: false, via: 'proxy-text' };
+    if (/a página não está disponível/i.test(txt)) return { exists: false, via: 'proxy-text' };
+    if (/page not found/i.test(txt) && /instagram/i.test(txt)) return { exists: false, via: 'proxy-text' };
+    // Sinais positivos: aparece o handle, "followers", "posts", "seguidores"
+    if (txt.includes(`@${user}`)) return { exists: true, via: 'proxy-handle' };
+    if (txt.includes(`instagram.com/${user}`)) return { exists: true, via: 'proxy-url' };
+    if (/(followers|seguidores|posts|publicações|following|seguindo)/i.test(txt) && txt.includes(user)) {
+      return { exists: true, via: 'proxy-meta' };
+    }
+    return null;
+  } catch (_e) {
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
@@ -132,7 +163,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    const result = await checarExistencia(user);
+    let result = await checarExistencia(user);
+    if (!result) {
+      // Fallback via proxy de leitura (bypassa bloqueio de IP)
+      result = await checarViaProxy(user);
+    }
     if (!result) {
       // Inconclusivo — não bloqueia o cadastro, mas não confirma
       return new Response(JSON.stringify({ ok: true, exists: null, status: 'inconclusivo', usuario: user }), {
