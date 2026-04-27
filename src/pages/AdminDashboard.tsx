@@ -7,10 +7,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useLiderancas, useEleitores, useUsuarios, useFiscaisAdmin, useRealtimeSync } from '@/hooks/useDataCache';
 import {
-   ArrowLeft, Users, Target, Search, X, Shield,
-   ChevronDown, ChevronUp, Loader2, Download, Trophy,
-   BarChart3, UserCog, Eye, Building2, Plus, MapPin, Calendar, Trash2, ClipboardList,
-   Network
+    ArrowLeft, Users, Target, Search, X, Shield,
+    ChevronDown, ChevronUp, Loader2, Download, Trophy,
+    BarChart3, UserCog, Eye, Building2, Plus, MapPin, Calendar, Trash2, ClipboardList,
+    Network, Instagram
  } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { exportAllCadastros, exportCadastrosFiltered } from '@/lib/exportXlsx';
@@ -20,9 +20,10 @@ import GerenciarEventos from '@/components/GerenciarEventos';
 import { lazy, Suspense } from 'react';
 import TabArvore from '@/components/TabArvore';
 
- const TabLocalizacoes = lazy(() => import('@/components/TabLocalizacoes'));
- const AdminCadastrosFernanda = lazy(() => import('@/components/AdminCadastrosFernanda'));
- const AdminCadastrosAfiliados = lazy(() => import('@/components/AdminCadastrosAfiliados'));
+  const TabLocalizacoes = lazy(() => import('@/components/TabLocalizacoes'));
+  const AdminCadastrosFernanda = lazy(() => import('@/components/AdminCadastrosFernanda'));
+  const AdminCadastrosAfiliados = lazy(() => import('@/components/AdminCadastrosAfiliados'));
+  const AdminMencoesInstagram = lazy(() => import('@/components/AdminMencoesInstagram'));
 
 
 /* ── types ── */
@@ -78,7 +79,7 @@ interface FiscalReg {
 /* ── constants ── */
 type Periodo = 'hoje' | 'semana' | 'mes' | 'total';
 type TipoFiltro = 'todos' | 'lideranca' | 'eleitor' | 'fiscal';
-  type VistaAtiva = 'usuarios' | 'ranking' | 'registros' | 'cidades' | 'localizacao' | 'eventos' | 'fernanda' | 'afiliados' | 'arvore';
+type VistaAtiva = 'usuarios' | 'ranking' | 'registros' | 'cidades' | 'localizacao' | 'eventos' | 'fernanda' | 'afiliados' | 'arvore' | 'mencoes';
 type TipoUsuarioFiltro = 'todos' | 'suplente' | 'lideranca' | 'coordenador' | 'fernanda';
 
 const periodoLabels: Record<Periodo, string> = { hoje: 'Hoje', semana: 'Semana', mes: 'Mês', total: 'Total' };
@@ -315,6 +316,7 @@ export default function AdminDashboard() {
      { id: 'eventos', icon: Calendar, label: 'Eventos' },
      { id: 'fernanda', icon: ClipboardList, label: 'Fernanda' },
      { id: 'afiliados', icon: Users, label: 'Afiliados' },
+     { id: 'mencoes', icon: Instagram, label: 'Menções' },
      ...(municipios.length > 1 ? [{ id: 'cidades' as VistaAtiva, icon: Building2, label: 'Cidades' }] : []),
    ];
 
@@ -1001,6 +1003,13 @@ export default function AdminDashboard() {
          {vistaAtiva === 'afiliados' && (
            <Suspense fallback={<div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-primary" /></div>}>
              <AdminCadastrosAfiliados />
+           </Suspense>
+         )}
+
+         {/* ══════════ MENÇÕES INSTAGRAM ══════════ */}
+         {vistaAtiva === 'mencoes' && (
+           <Suspense fallback={<div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-primary" /></div>}>
+             <AdminMencoesInstagram />
            </Suspense>
          )}
  
