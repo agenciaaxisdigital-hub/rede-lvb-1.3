@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCidade } from '@/contexts/CidadeContext';
 import { toast } from '@/hooks/use-toast';
 import {
-  Loader2, UserPlus, Users, User, CheckCircle2, Search, Eye, EyeOff, Shield, Plus, Pencil, Link2
+  Loader2, UserPlus, Users, User, CheckCircle2, Search, Eye, EyeOff, Shield, Plus, Pencil, Link2, Instagram
 } from 'lucide-react';
 
 interface SuplenteExterno {
@@ -64,6 +64,7 @@ export default function TabCriarUsuarios() {
   const [cidadeSelecionada, setCidadeSelecionada] = useState('');
   const [cidadeErro, setCidadeErro] = useState('');
   const [saving, setSaving] = useState(false);
+  const [instagramHandle, setInstagramHandle] = useState('');
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -117,6 +118,7 @@ export default function TabCriarUsuarios() {
     setCidadeSelecionada('');
     setCidadeErro('');
     setCriarNovoMode(false);
+    setInstagramHandle('');
     // Load existing cargo for suplente
     if (tipo === 'suplente') {
       const sup = suplentes.find(s => s.id === id);
@@ -137,6 +139,7 @@ export default function TabCriarUsuarios() {
     setCidadeSelecionada('');
     setCidadeErro('');
     setTipoAcesso('suplente');
+    setInstagramHandle('');
   };
 
   const handleCreate = async () => {
@@ -176,6 +179,7 @@ export default function TabCriarUsuarios() {
           tipo: tipoAcesso,
           superior_id: superiorId || null,
           municipio_id: cidadeSelecionada,
+          instagram: instagramHandle.trim() || null,
         };
 
         // Suplente and Liderança are always self-linked
@@ -216,6 +220,7 @@ export default function TabCriarUsuarios() {
         tipo: tipoAcesso,
         superior_id: superiorId || null,
         municipio_id: cidadeSelecionada,
+        instagram: instagramHandle.trim() || null,
       };
       if (selecionado.tipo === 'suplente') {
         payload.suplente_id = selecionado.id;
@@ -490,6 +495,24 @@ export default function TabCriarUsuarios() {
               {cidadeErro && <p className="text-xs text-destructive mt-1">{cidadeErro}</p>}
             </div>
 
+            {/* Instagram */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                <Instagram size={12} /> @ Instagram
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">@</span>
+                <input
+                  type="text"
+                  value={instagramHandle}
+                  onChange={e => setInstagramHandle(e.target.value.replace(/^@+/, ''))}
+                  className={`${inputCls} pl-7`}
+                  placeholder="usuario_instagram"
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground">Usado para rastrear posts/menções do usuário</p>
+            </div>
+
             {/* Submit */}
             <button
               onClick={handleCreate} disabled={saving}
@@ -610,6 +633,24 @@ export default function TabCriarUsuarios() {
                 ))}
               </select>
               {cidadeErro && <p className="text-xs text-destructive mt-1">{cidadeErro}</p>}
+            </div>
+
+            {/* Instagram */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                <Instagram size={12} /> @ Instagram
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">@</span>
+                <input
+                  type="text"
+                  value={instagramHandle}
+                  onChange={e => setInstagramHandle(e.target.value.replace(/^@+/, ''))}
+                  className={`${inputCls} pl-7`}
+                  placeholder="usuario_instagram"
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground">Usado para rastrear posts/menções do usuário</p>
             </div>
 
             {/* Submit */}

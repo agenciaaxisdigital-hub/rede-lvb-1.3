@@ -13,6 +13,7 @@ const bodySchema = z.object({
   superior_id: z.string().uuid().nullable().optional(),
   suplente_id: z.string().uuid().nullable().optional(),
   municipio_id: z.string().uuid().nullable().optional(),
+  instagram: z.string().trim().max(60).nullable().optional(),
 });
 
 Deno.serve(async (req) => {
@@ -30,7 +31,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { nome, senha, tipo, superior_id, suplente_id, municipio_id } = parsed.data;
+    const { nome, senha, tipo, superior_id, suplente_id, municipio_id, instagram } = parsed.data;
+    const instagramLimpo = instagram ? instagram.replace(/^@+/, '').trim().toLowerCase() || null : null;
 
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -132,6 +134,7 @@ Deno.serve(async (req) => {
         superior_id: superior_id || null,
         suplente_id: suplente_id || null,
         municipio_id: municipio_id || null,
+        instagram: instagramLimpo,
       })
       .select('id')
       .single();
