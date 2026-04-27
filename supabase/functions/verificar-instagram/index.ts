@@ -3,11 +3,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Cache em memória por instância (TTL 1h)
 const cache = new Map<string, { exists: boolean; ts: number }>();
 const TTL_MS = 60 * 60 * 1000;
 
-// Rate-limit best-effort por IP
 const recent = new Map<string, number[]>();
 const WINDOW_MS = 60_000;
 const MAX_PER_WINDOW = 30;
@@ -21,7 +19,6 @@ function rateLimited(ip: string) {
 
 function normalize(input: string): string {
   let s = (input || '').trim();
-  // Aceita URL completa
   s = s.replace(/^https?:\/\/(www\.)?instagram\.com\//i, '');
   s = s.replace(/^@/, '');
   s = s.replace(/\/+$/g, '');
@@ -31,7 +28,6 @@ function normalize(input: string): string {
 }
 
 function formatoValido(user: string): boolean {
-  // Regras IG: 1-30 chars, letras/números/underline/ponto, não começa/termina com ponto, sem ponto duplo
   if (!user || user.length < 1 || user.length > 30) return false;
   if (!/^[a-z0-9._]+$/.test(user)) return false;
   if (user.startsWith('.') || user.endsWith('.')) return false;
@@ -40,36 +36,55 @@ function formatoValido(user: string): boolean {
 }
 
 async function checarExistencia(user: string): Promise<{ exists: boolean; via: string } | null> {
-  // Tenta endpoint público (sem login) — mais leve que HTML
-  const headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml',
-    'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
-  };
-  try {
-    const res = await fetch(`https://www.instagram.com/${encodeURIComponent(user)}/`, {
-      method: 'GET',
-      headers,
-      redirect: 'manual',
-    });
-    // 200 = existe; 404 = não existe; 301/302 para /accounts/login = bloqueio (inconclusivo)
-    if (res.status === 404) return { exists: false, via: 'html-404' };
-    if (res.status === 200) {
+  // O Instagram serve a tela de login pra qualquer browser, mas devolve metadados
+  // Open Graph reais quando o User-Agent é de um bot de link preview
+  // (WhatsApp / Facebook / Twitter). Perfis válidos têm og:title com nome e
+  // og:description com followers. Inexistentes não têm.
+  const userAgents = [
+    'WhatsApp/2.24.20.0',
+    'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+    'Twitterbot/1.0',
+  ];
+
+  for (const ua of userAgents) {
+    try {
+      const res = await fetch(`https://www.instagram.com/${encodeURIComponent(user)}/`, {
+        method: 'GET',
+        headers: {
+          'User-Agent': ua,
+          'Accept': 'text/html,application/xhtml+xml',
+          'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+        },
+        redirect: 'manual',
+      });
+      if (res.status === 404) return { exists: false, via: 'bot-404' };
+      if (res.status !== 200) {
+        try { await res.text(); } catch (_) { /* noop */ }
+        continue;
+      }
       const html = await res.text();
-      // Checagens negativas no HTML
-      if (/Sorry, this page isn'?t available/i.test(html)) return { exists: false, via: 'html-text' };
-      if (/A página não está disponível/i.test(html)) return { exists: false, via: 'html-text' };
-      // Sinais positivos
-      if (new RegExp(`"username":"${user}"`, 'i').test(html)) return { exists: true, via: 'html-json' };
-      if (new RegExp(`@${user}`, 'i').test(html)) return { exists: true, via: 'html-handle' };
-      // 200 sem sinais claros — assumir existe (a Meta serve uma shell)
-      return { exists: true, via: 'html-200' };
+      if (/Sorry, this page isn'?t available/i.test(html)) return { exists: false, via: 'bot-text' };
+      if (/A página não está disponível/i.test(html)) return { exists: false, via: 'bot-text' };
+
+      const ogTitle = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)?.[1] || '';
+      const ogDesc = html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i)?.[1] || '';
+      const handlePattern = new RegExp(`@${user}\\b`, 'i');
+
+      if (handlePattern.test(ogTitle) || handlePattern.test(ogDesc)) {
+        return { exists: true, via: 'og-handle' };
+      }
+      if (/Followers,.*Following,.*Posts/i.test(ogDesc) || /Seguidores.*Seguindo.*Publica/i.test(ogDesc)) {
+        return { exists: true, via: 'og-counts' };
+      }
+      if (ogTitle && /^Instagram$/i.test(ogTitle.trim()) && !ogDesc) {
+        return { exists: false, via: 'og-generic' };
+      }
+      // sem og útil — tenta próximo UA
+    } catch (_e) {
+      // próximo UA
     }
-    // Demais status: inconclusivo
-    return null;
-  } catch (_err) {
-    return null;
   }
+  return null;
 }
 
 Deno.serve(async (req) => {
@@ -109,7 +124,6 @@ Deno.serve(async (req) => {
 
     const result = await checarExistencia(user);
     if (!result) {
-      // Inconclusivo — não bloqueia o cadastro, mas não confirma
       return new Response(JSON.stringify({ ok: true, exists: null, status: 'inconclusivo', usuario: user }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
