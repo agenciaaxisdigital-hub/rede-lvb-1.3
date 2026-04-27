@@ -36,10 +36,31 @@ function formatoValido(user: string): boolean {
 }
 
 async function checarExistencia(user: string): Promise<{ exists: boolean; via: string } | null> {
-  // O Instagram serve a tela de login pra qualquer browser, mas devolve metadados
-  // Open Graph reais quando o User-Agent é de um bot de link preview
-  // (WhatsApp / Facebook / Twitter). Perfis válidos têm og:title com nome e
-  // og:description com followers. Inexistentes não têm.
+  // 1) Tenta a Graph API oficial da Meta (Instagram Business Discovery)
+  const token = Deno.env.get('INSTAGRAM_ACCESS_TOKEN');
+  const igUserId = Deno.env.get('INSTAGRAM_BUSINESS_ID') || '17841478297498593';
+  if (token) {
+    try {
+      const url = `https://graph.facebook.com/v21.0/${igUserId}?fields=business_discovery.username(${encodeURIComponent(user)}){username}&access_token=${encodeURIComponent(token)}`;
+      const res = await fetch(url);
+      const json: any = await res.json().catch(() => ({}));
+      if (res.ok && json?.business_discovery?.username) {
+        return { exists: true, via: 'graph-api' };
+      }
+      // Códigos típicos quando o usuário não existe / não é business / privado
+      const code = json?.error?.code;
+      const sub = json?.error?.error_subcode;
+      // 24 = não foi possível encontrar conta business com esse username
+      if (code === 110 || sub === 2207013 || /does not exist|not found|cannot be found/i.test(json?.error?.message || '')) {
+        return { exists: false, via: 'graph-api' };
+      }
+      // Outros erros (rate limit, token, etc.) → cai no fallback
+    } catch (_e) {
+      // segue para fallback
+    }
+  }
+
+  // 2) Fallback: scraping com User-Agent de bot (pode falhar em IPs de cloud)
   const userAgents = [
     'WhatsApp/2.24.20.0',
     'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
