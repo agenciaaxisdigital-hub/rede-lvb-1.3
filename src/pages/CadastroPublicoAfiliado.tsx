@@ -591,7 +591,11 @@ export default function CadastroPublicoAfiliado() {
             </div>
             <div>
               <label className={labelCls}>WhatsApp *</label>
-              <input type="tel" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} className={inputCls} required maxLength={40} placeholder="(00) 00000-0000" />
+              <div className="relative">
+                <input type="tel" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} className={inputCls + ' pr-9'} required maxLength={40} placeholder="(00) 00000-0000" />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2"><TelefoneStatusIcon status={telStatusSarelli} /></div>
+              </div>
+              {telefoneHelpText(telStatusSarelli) && <p className="text-[10px] text-destructive mt-1">{telefoneHelpText(telStatusSarelli)}</p>}
               <p className="text-[10px] text-muted-foreground mt-1">Usado também como telefone de contato.</p>
             </div>
             <div>
@@ -622,7 +626,13 @@ export default function CadastroPublicoAfiliado() {
             </div>
             <div>
               <label className={labelCls}>Instagram</label>
-              <input type="text" value={instagram} onChange={e => setInstagram(e.target.value)} className={inputCls} maxLength={120} placeholder="@usuario" />
+              <div className="relative">
+                <input type="text" value={instagram} onChange={e => setInstagram(e.target.value)} className={inputCls + ' pr-9'} maxLength={120} placeholder="@usuario" />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2"><InstagramStatusIcon status={igStatusSarelli} /></div>
+              </div>
+              {instagramHelpText(igStatusSarelli) && (
+                <p className={`text-[10px] mt-1 ${igStatusSarelli === 'ok' ? 'text-green-600' : igStatusSarelli === 'inconclusivo' ? 'text-amber-600' : 'text-destructive'}`}>{instagramHelpText(igStatusSarelli)}</p>
+              )}
             </div>
           </div>
 
