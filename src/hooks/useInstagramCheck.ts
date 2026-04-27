@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export type InstagramStatus = 'idle' | 'checking' | 'ok' | 'invalido' | 'nao_existe' | 'inconclusivo';
 
@@ -23,79 +23,19 @@ function formatoValido(u: string) {
 
 export function useInstagramCheck(value: string): InstagramStatus {
   const [status, setStatus] = useState<InstagramStatus>('idle');
-  const reqIdRef = useRef(0);
 
   useEffect(() => {
     const user = normalize(value);
     if (!user) { setStatus('idle'); return; }
     if (!formatoValido(user)) { setStatus('invalido'); return; }
-    setStatus('checking');
-    const myId = ++reqIdRef.current;
-    const t = window.setTimeout(async () => {
-      try {
-        // Verifica direto do navegador (IP residencial não é bloqueado pelo IG).
-        // Usa "no-cors" → não conseguimos ler o status, mas o navegador segue redirects
-        // e devolve uma resposta opaque. Para detectar 404, usamos uma <img> com favicon
-        // do perfil: existe se carrega, não existe se falha.
-        const exists = await checkViaFavicon(user);
-        if (myId !== reqIdRef.current) return;
-        if (exists === true) setStatus('ok');
-        else if (exists === false) setStatus('nao_existe');
-        else setStatus('inconclusivo');
-      } catch {
-        if (myId === reqIdRef.current) setStatus('inconclusivo');
-      }
-    }, 600);
-    return () => window.clearTimeout(t);
+    // Verificação de existência online desativada: todos os endpoints gratuitos
+    // (Graph API, scrapers, proxies CORS, unavatar) estão bloqueados ou exigem
+    // login. Validamos apenas o formato do @ — existência fica por conta do
+    // usuário, sem falsos negativos visuais.
+    setStatus('ok');
   }, [value]);
 
   return status;
-}
-
-// Estratégia: o Instagram retorna a página de perfil com 200 OK quando o usuário existe
-// e 404 quando não existe. No browser, podemos usar uma <img> apontando para o
-// endpoint de imagem do perfil. Como recurso público de imagem, ele é
-// servido com CORS aberto e o erro de carga indica usuário inexistente.
-function checkViaFavicon(user: string): Promise<boolean | null> {
-  // Tenta múltiplos provedores em paralelo. Se QUALQUER um confirmar, vale.
-  const providers = [
-    `https://www.instagram.com/${encodeURIComponent(user)}/favicon.ico`,
-    `https://avatars.io/instagram/${encodeURIComponent(user)}`,
-    `https://unavatar.io/instagram/${encodeURIComponent(user)}?fallback=false`,
-  ];
-  return new Promise((resolve) => {
-    let pending = providers.length;
-    let confirmedExists = false;
-    let anyAnswered = false;
-    const timer = window.setTimeout(() => {
-      if (!anyAnswered) resolve(null);
-      else if (!confirmedExists) resolve(false);
-    }, 6000);
-
-    providers.forEach((src) => {
-      const img = new Image();
-      img.onload = () => {
-        anyAnswered = true;
-        if (img.naturalWidth > 1) {
-          confirmedExists = true;
-          window.clearTimeout(timer);
-          resolve(true);
-        }
-        if (--pending === 0 && !confirmedExists) {
-          window.clearTimeout(timer);
-          resolve(false);
-        }
-      };
-      img.onerror = () => {
-        anyAnswered = true;
-        if (--pending === 0 && !confirmedExists) {
-          window.clearTimeout(timer);
-          resolve(false);
-        }
-      };
-      img.src = `${src}${src.includes('?') ? '&' : '?'}t=${Date.now()}`;
-    });
-  });
 }
 
 export type TelefoneStatus = 'idle' | 'ok' | 'invalido';
