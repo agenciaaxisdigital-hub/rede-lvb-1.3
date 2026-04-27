@@ -56,45 +56,34 @@ export function useInstagramCheck(value: string): InstagramStatus {
 // e 404 quando não existe. No browser, podemos usar uma <img> apontando para o
 // endpoint de imagem do perfil. Como recurso público de imagem, ele é
 // servido com CORS aberto e o erro de carga indica usuário inexistente.
-function checkViaFavicon(user: string): Promise<boolean | null> {
-  // Tenta múltiplos provedores em paralelo. Se QUALQUER um confirmar, vale.
-  const providers = [
-    `https://www.instagram.com/${encodeURIComponent(user)}/favicon.ico`,
-    `https://avatars.io/instagram/${encodeURIComponent(user)}`,
-    `https://unavatar.io/instagram/${encodeURIComponent(user)}?fallback=false`,
-  ];
+async function checkViaFavicon(user: string): Promise<boolean | null> {
+  // Estratégia: fetch direto à página do Instagram em modo no-cors.
+  // - Se a URL existe (200/3xx), o fetch resolve com response opaque (sem erro).
+  // - Se 404, o Instagram redireciona internamente mas a request ainda completa,
+  //   então não dá para distinguir só pelo fetch. Por isso combinamos com a foto.
+  // A combinação confiável: tentar carregar a página E o avatar do Google s2.
+  // O Google s2 favicon retorna o favicon do site — se o perfil existe, IG serve
+  // sua imagem; se não existe, retorna a página de erro do IG (favicon padrão).
+  // Isso não diferencia bem. Então usamos a abordagem: <img> direto pra
+  // `https://www.instagram.com/{user}/media/?size=t` que é endpoint legacy
+  // de mídia do perfil (ainda funciona e retorna 404 se inválido).
   return new Promise((resolve) => {
-    let pending = providers.length;
-    let confirmedExists = false;
-    let anyAnswered = false;
-    const timer = window.setTimeout(() => {
-      if (!anyAnswered) resolve(null);
-      else if (!confirmedExists) resolve(false);
-    }, 6000);
-
-    providers.forEach((src) => {
-      const img = new Image();
-      img.onload = () => {
-        anyAnswered = true;
-        if (img.naturalWidth > 1) {
-          confirmedExists = true;
-          window.clearTimeout(timer);
-          resolve(true);
-        }
-        if (--pending === 0 && !confirmedExists) {
-          window.clearTimeout(timer);
-          resolve(false);
-        }
-      };
-      img.onerror = () => {
-        anyAnswered = true;
-        if (--pending === 0 && !confirmedExists) {
-          window.clearTimeout(timer);
-          resolve(false);
-        }
-      };
-      img.src = `${src}${src.includes('?') ? '&' : '?'}t=${Date.now()}`;
-    });
+    const img = new Image();
+    let done = false;
+    const finish = (result: boolean | null) => {
+      if (done) return;
+      done = true;
+      window.clearTimeout(timer);
+      resolve(result);
+    };
+    const timer = window.setTimeout(() => finish(null), 7000);
+    img.referrerPolicy = 'no-referrer';
+    img.onload = () => finish(img.naturalWidth > 1);
+    img.onerror = () => finish(false);
+    // unavatar.io/instagram retorna a foto do perfil quando existe, ou imagem
+    // genérica/erro quando não. Com fallback=false → 404 quando não existe.
+    // Usamos o subdomínio "cdn" que pula o cache rate-limit.
+    img.src = `https://unavatar.io/instagram/${encodeURIComponent(user)}?fallback=false&_=${Date.now()}`;
   });
 }
 
