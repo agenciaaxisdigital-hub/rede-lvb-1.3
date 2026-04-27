@@ -1412,6 +1412,7 @@ export type Database = {
           auth_user_id: string | null
           criado_em: string | null
           id: string
+          instagram: string | null
           link_token: string | null
           municipio_id: string | null
           nome: string
@@ -1425,6 +1426,7 @@ export type Database = {
           auth_user_id?: string | null
           criado_em?: string | null
           id?: string
+          instagram?: string | null
           link_token?: string | null
           municipio_id?: string | null
           nome: string
@@ -1438,6 +1440,7 @@ export type Database = {
           auth_user_id?: string | null
           criado_em?: string | null
           id?: string
+          instagram?: string | null
           link_token?: string | null
           municipio_id?: string | null
           nome?: string
