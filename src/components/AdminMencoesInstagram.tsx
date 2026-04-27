@@ -309,7 +309,12 @@ export default function AdminMencoesInstagram() {
                   {g.usuario.nome.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-foreground truncate">{g.usuario.nome}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-semibold text-foreground truncate">{g.usuario.nome}</p>
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide bg-primary/10 text-primary shrink-0">
+                      {g.usuario.tipo === 'lideranca' ? 'Lider.' : g.usuario.tipo === 'suplente' ? 'Supl.' : g.usuario.tipo === 'afiliado' ? 'Afil.' : g.usuario.tipo === 'fernanda' ? 'Fern.' : g.usuario.tipo}
+                    </span>
+                  </div>
                   {editingId === g.usuario.id ? (
                     <div className="flex items-center gap-1 mt-1">
                       <span className="text-[10px] text-muted-foreground">@</span>
