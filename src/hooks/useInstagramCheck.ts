@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 
 export type InstagramStatus = 'idle' | 'checking' | 'ok' | 'invalido' | 'nao_existe' | 'inconclusivo';
 
@@ -34,14 +33,14 @@ export function useInstagramCheck(value: string): InstagramStatus {
     const myId = ++reqIdRef.current;
     const t = window.setTimeout(async () => {
       try {
-        const { data, error } = await supabase.functions.invoke('verificar-instagram', {
-          body: { usuario: user },
-        });
+        // Verifica direto do navegador (IP residencial não é bloqueado pelo IG).
+        // Usa "no-cors" → não conseguimos ler o status, mas o navegador segue redirects
+        // e devolve uma resposta opaque. Para detectar 404, usamos uma <img> com favicon
+        // do perfil: existe se carrega, não existe se falha.
+        const exists = await checkViaFavicon(user);
         if (myId !== reqIdRef.current) return;
-        if (error) { setStatus('inconclusivo'); return; }
-        if (data?.status === 'formato_invalido') { setStatus('invalido'); return; }
-        if (data?.exists === true) setStatus('ok');
-        else if (data?.exists === false) setStatus('nao_existe');
+        if (exists === true) setStatus('ok');
+        else if (exists === false) setStatus('nao_existe');
         else setStatus('inconclusivo');
       } catch {
         if (myId === reqIdRef.current) setStatus('inconclusivo');
@@ -51,6 +50,37 @@ export function useInstagramCheck(value: string): InstagramStatus {
   }, [value]);
 
   return status;
+}
+
+// Estratégia: o Instagram retorna a página de perfil com 200 OK quando o usuário existe
+// e 404 quando não existe. No browser, podemos usar uma <img> apontando para o
+// endpoint de imagem do perfil. Como recurso público de imagem, ele é
+// servido com CORS aberto e o erro de carga indica usuário inexistente.
+function checkViaFavicon(user: string): Promise<boolean | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    let done = false;
+    const timer = window.setTimeout(() => {
+      if (done) return;
+      done = true;
+      resolve(null); // inconclusivo (timeout)
+    }, 5000);
+    img.onload = () => {
+      if (done) return;
+      done = true;
+      window.clearTimeout(timer);
+      // Se naturalWidth > 1, carregou imagem real → perfil existe
+      resolve(img.naturalWidth > 1);
+    };
+    img.onerror = () => {
+      if (done) return;
+      done = true;
+      window.clearTimeout(timer);
+      resolve(false);
+    };
+    // Endpoint público que retorna a foto de perfil (CORS-friendly via <img>).
+    img.src = `https://unavatar.io/instagram/${encodeURIComponent(user)}?fallback=false&t=${Date.now()}`;
+  });
 }
 
 export type TelefoneStatus = 'idle' | 'ok' | 'invalido';
