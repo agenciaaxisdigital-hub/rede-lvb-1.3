@@ -143,6 +143,14 @@ Deno.serve(async (req) => {
 
     const tipoDestino = p.tipo || 'lideranca';
     const whatsappFinal = (p.whatsapp?.trim() || p.telefone?.trim() || '').trim();
+    const instagramFinal = (p.instagram?.trim() || p.rede_social?.trim() || '').trim();
+    const exigeInstagram = tipoDestino === 'lideranca' || tipoDestino === 'fiscal' || tipoDestino === 'eleitor';
+    if (exigeInstagram) {
+      if (!instagramFinal) return jres({ error: 'Informe a rede social' }, 400);
+      if (!(await instagramConfirmado(instagramFinal))) {
+        return jres({ error: 'Instagram não confirmado. Corrija o @ informado.' }, 400);
+      }
+    }
 
     // ─── FERNANDA ──────────────────────────────────────────────────────────
     if (tipoDestino === 'fernanda') {
@@ -195,7 +203,7 @@ Deno.serve(async (req) => {
         whatsapp: whatsappFinal,
         email: p.email?.trim() || null,
         data_nascimento: p.data_nascimento || null,
-        instagram: p.instagram?.trim() || null,
+        instagram: instagramFinal || null,
         facebook: p.facebook?.trim() || null,
         titulo_eleitor: p.titulo_eleitor?.trim() || null,
         zona_eleitoral: p.zona_eleitoral?.trim() || null,
