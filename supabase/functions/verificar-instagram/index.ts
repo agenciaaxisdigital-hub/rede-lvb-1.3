@@ -36,7 +36,39 @@ function formatoValido(user: string): boolean {
 }
 
 async function checarExistencia(user: string): Promise<{ exists: boolean; via: string } | null> {
-  // 1) Tenta a Graph API oficial da Meta (Instagram Business Discovery)
+  // 1) Endpoint web_profile_info — o mais confiável, cobre contas pessoais e business
+  try {
+    const wres = await fetch(
+      `https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(user)}`,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
+          'Accept': '*/*',
+          'X-IG-App-ID': '936619743392459',
+          'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+          'Sec-Fetch-Site': 'same-origin',
+          'Referer': `https://www.instagram.com/${encodeURIComponent(user)}/`,
+        },
+      },
+    );
+    console.log('web_profile_info status', user, wres.status);
+    if (wres.status === 404) return { exists: false, via: 'web-profile-404' };
+    if (wres.ok) {
+      const json: any = await wres.json().catch(() => ({}));
+      const u = json?.data?.user;
+      if (u && String(u.username || '').toLowerCase() === user) {
+        return { exists: true, via: 'web-profile' };
+      }
+      if (json && json.data && json.data.user === null) {
+        return { exists: false, via: 'web-profile-null' };
+      }
+    }
+    // Outros status (401/429/403) → cai no fallback
+  } catch (e) {
+    console.error('web_profile_info error', e);
+  }
+
+  // 2) Tenta a Graph API oficial da Meta (Instagram Business Discovery)
   const token = Deno.env.get('INSTAGRAM_ACCESS_TOKEN');
   const igUserId = Deno.env.get('INSTAGRAM_BUSINESS_ID') || '17841478297498593';
   if (token) {
