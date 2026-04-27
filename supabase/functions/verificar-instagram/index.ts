@@ -3,7 +3,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const cache = new Map<string, { exists: boolean; ts: number }>();
+const cache = new Map<string, { exists: boolean; ts: number; via: string }>();
 const TTL_MS = 60 * 60 * 1000;
 
 const recent = new Map<string, number[]>();
@@ -178,7 +178,7 @@ Deno.serve(async (req) => {
     const now = Date.now();
     const cached = cache.get(user);
     if (cached && now - cached.ts < TTL_MS) {
-      return new Response(JSON.stringify({ ok: true, exists: cached.exists, usuario: user, cache: true }), {
+      return new Response(JSON.stringify({ ok: true, exists: cached.exists, usuario: user, via: cached.via, cache: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -189,7 +189,7 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    cache.set(user, { exists: result.exists, ts: now });
+    cache.set(user, { exists: result.exists, ts: now, via: result.via });
     return new Response(JSON.stringify({ ok: true, exists: result.exists, usuario: user, via: result.via }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
