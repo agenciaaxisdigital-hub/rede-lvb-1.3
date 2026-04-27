@@ -281,7 +281,7 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
           <h3 className="section-title">👤 Dados Pessoais</h3>
           <Info label="CPF" value={p.cpf ? formatCPF(p.cpf) : null} />
           <Info label="WhatsApp" value={p.whatsapp} />
-          <Info label="Rede social" value={p.instagram || p.facebook} link={p.instagram ? `https://instagram.com/${p.instagram.replace('@', '')}` : undefined} />
+          <Info label="Instagram" value={p.instagram || p.facebook} link={p.instagram ? `https://instagram.com/${p.instagram.replace('@', '')}` : undefined} />
           <Info label="Região" value={e.origem_captacao} />
         </div>
 
@@ -348,9 +348,9 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
             {telefoneHelpText(telStatus) && <p className="text-[10px] text-destructive">{telefoneHelpText(telStatus)}</p>}
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Rede social <span className="text-primary">*</span></label>
+            <label className="text-xs font-medium text-muted-foreground">Instagram <span className="text-primary">*</span></label>
             <div className="relative">
-              <input type="text" value={form.instagram} onChange={e => update('instagram', e.target.value)} placeholder="Instagram (@ ou link)" className={inputCls + ' pr-9'} />
+              <input type="text" value={form.instagram} onChange={e => update('instagram', e.target.value)} placeholder="@usuario" className={inputCls + ' pr-9'} />
               <div className="absolute right-2 top-1/2 -translate-y-1/2"><InstagramStatusIcon status={igStatus} /></div>
             </div>
             {instagramHelpText(igStatus) && (

@@ -236,7 +236,7 @@ export default function TabRede() {
           <Info label="CPF" value={p?.cpf ? maskCPF(p.cpf) : null} />
           <Info label="WhatsApp" value={p?.whatsapp} />
           <Info label="E-mail" value={p?.email} link={p?.email ? `mailto:${p.email}` : undefined} />
-          <Info label="Rede social" value={p?.instagram || p?.facebook} link={p?.instagram ? `https://instagram.com/${p.instagram.replace('@', '')}` : undefined} />
+          <Info label="Instagram" value={p?.instagram || p?.facebook} link={p?.instagram ? `https://instagram.com/${p.instagram.replace('@', '')}` : undefined} />
           <Info label="Nascimento" value={p?.data_nascimento ? new Date(p.data_nascimento + 'T12:00:00').toLocaleDateString('pt-BR') : null} />
         </div>
 
