@@ -15,6 +15,8 @@ import { addToOfflineQueue } from '@/lib/offlineQueue';
 import CampoLigacaoPolitica from '@/components/CampoLigacaoPolitica';
 import LinkCaptacaoCard from '@/components/LinkCaptacaoCard';
 import SkeletonLista from '@/components/SkeletonLista';
+import { useInstagramCheck, checkTelefone } from '@/hooks/useInstagramCheck';
+import { InstagramStatusIcon, TelefoneStatusIcon, instagramHelpText, telefoneHelpText } from '@/components/CampoStatusIcon';
 
 const compromissoOptions = ['Confirmado', 'Provável', 'Indefinido', 'Improvável'];
 const situacoesTitulo = ['Regular', 'Cancelado', 'Suspenso', 'Não informado'];
@@ -70,6 +72,8 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
   const paginaRef = useRef(0);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ ...emptyForm });
+  const igStatus = useInstagramCheck(form.instagram);
+  const telStatus = checkTelefone(form.whatsapp);
   const [liderancas, setLiderancas] = useState<{ id: string; nome: string }[]>([]);
 
   // Ligação política
@@ -336,11 +340,21 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
           </div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">WhatsApp <span className="text-primary">*</span></label>
-            <input type="tel" value={form.whatsapp} onChange={e => update('whatsapp', e.target.value)} placeholder="(00) 00000-0000" className={inputCls} />
+            <div className="relative">
+              <input type="tel" value={form.whatsapp} onChange={e => update('whatsapp', e.target.value)} placeholder="(00) 00000-0000" className={inputCls + ' pr-9'} />
+              <div className="absolute right-2 top-1/2 -translate-y-1/2"><TelefoneStatusIcon status={telStatus} /></div>
+            </div>
+            {telefoneHelpText(telStatus) && <p className="text-[10px] text-destructive">{telefoneHelpText(telStatus)}</p>}
           </div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">Rede social <span className="text-primary">*</span></label>
-            <input type="text" value={form.instagram} onChange={e => update('instagram', e.target.value)} placeholder="Instagram ou Facebook (@ ou link)" className={inputCls} />
+            <div className="relative">
+              <input type="text" value={form.instagram} onChange={e => update('instagram', e.target.value)} placeholder="Instagram (@ ou link)" className={inputCls + ' pr-9'} />
+              <div className="absolute right-2 top-1/2 -translate-y-1/2"><InstagramStatusIcon status={igStatus} /></div>
+            </div>
+            {instagramHelpText(igStatus) && (
+              <p className={`text-[10px] ${igStatus === 'ok' ? 'text-green-600' : igStatus === 'inconclusivo' ? 'text-amber-600' : 'text-destructive'}`}>{instagramHelpText(igStatus)}</p>
+            )}
           </div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">Região de atuação <span className="text-primary">*</span></label>

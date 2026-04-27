@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Loader2, CheckCircle2, ClipboardList, Eye, EyeOff, KeyRound, LogIn, MapPin, Heart, Sparkles, UserCheck } from 'lucide-react';
+import { useInstagramCheck, checkTelefone } from '@/hooks/useInstagramCheck';
+import { InstagramStatusIcon, TelefoneStatusIcon, instagramHelpText, telefoneHelpText } from '@/components/CampoStatusIcon';
 
 export default function CadastroPublicoAfiliado() {
   const params = useParams<{ token?: string; slugComToken?: string }>();
@@ -55,6 +57,8 @@ export default function CadastroPublicoAfiliado() {
   const [capBuscandoCep, setCapBuscandoCep] = useState(false);
   const [capRede, setCapRede] = useState('');
   const [capInstagram, setCapInstagram] = useState('');
+  const igStatusCap = useInstagramCheck(capInstagram);
+  const telStatusCap = checkTelefone(capTelefone);
   // Eleitorais (lideranca/fiscal/eleitor)
   const [capTitulo, setCapTitulo] = useState('');
   const [capZona, setCapZona] = useState('');
@@ -81,6 +85,9 @@ export default function CadastroPublicoAfiliado() {
   const [ufCep, setUfCep] = useState('');
   const [buscandoCep, setBuscandoCep] = useState(false);
   const [instagram, setInstagram] = useState('');
+  // Validações ao vivo
+  const igStatusSarelli = useInstagramCheck(instagram);
+  const telStatusSarelli = checkTelefone(whatsapp);
   // Eleitorais
   const [tituloEleitor, setTituloEleitor] = useState('');
   const [zonaEleitoral, setZonaEleitoral] = useState('');
@@ -381,7 +388,11 @@ export default function CadastroPublicoAfiliado() {
               </div>
               <div>
                 <label className={labelCls}>Telefone *</label>
-                <input type="tel" value={capTelefone} onChange={e => setCapTelefone(e.target.value)} className={inputCls} required maxLength={40} placeholder="(00) 00000-0000" />
+                <div className="relative">
+                  <input type="tel" value={capTelefone} onChange={e => setCapTelefone(e.target.value)} className={inputCls + ' pr-9'} required maxLength={40} placeholder="(00) 00000-0000" />
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2"><TelefoneStatusIcon status={telStatusCap} /></div>
+                </div>
+                {telefoneHelpText(telStatusCap) && <p className="text-[10px] text-destructive mt-1">{telefoneHelpText(telStatusCap)}</p>}
               </div>
               <div>
                 <label className={labelCls}>Data de nascimento</label>
@@ -417,7 +428,13 @@ export default function CadastroPublicoAfiliado() {
               {tipoParam === 'fernanda' && (
                 <div>
                   <label className={labelCls}>Instagram</label>
-                  <input type="text" value={capInstagram} onChange={e => setCapInstagram(e.target.value)} className={inputCls} maxLength={120} placeholder="@usuario" />
+                  <div className="relative">
+                    <input type="text" value={capInstagram} onChange={e => setCapInstagram(e.target.value)} className={inputCls + ' pr-9'} maxLength={120} placeholder="@usuario" />
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2"><InstagramStatusIcon status={igStatusCap} /></div>
+                  </div>
+                  {instagramHelpText(igStatusCap) && (
+                    <p className={`text-[10px] mt-1 ${igStatusCap === 'ok' ? 'text-green-600' : igStatusCap === 'inconclusivo' ? 'text-amber-600' : 'text-destructive'}`}>{instagramHelpText(igStatusCap)}</p>
+                  )}
                 </div>
               )}
               {/* CPF e e-mail (lideranca/fiscal/eleitor) */}
@@ -574,7 +591,11 @@ export default function CadastroPublicoAfiliado() {
             </div>
             <div>
               <label className={labelCls}>WhatsApp *</label>
-              <input type="tel" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} className={inputCls} required maxLength={40} placeholder="(00) 00000-0000" />
+              <div className="relative">
+                <input type="tel" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} className={inputCls + ' pr-9'} required maxLength={40} placeholder="(00) 00000-0000" />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2"><TelefoneStatusIcon status={telStatusSarelli} /></div>
+              </div>
+              {telefoneHelpText(telStatusSarelli) && <p className="text-[10px] text-destructive mt-1">{telefoneHelpText(telStatusSarelli)}</p>}
               <p className="text-[10px] text-muted-foreground mt-1">Usado também como telefone de contato.</p>
             </div>
             <div>
@@ -605,7 +626,13 @@ export default function CadastroPublicoAfiliado() {
             </div>
             <div>
               <label className={labelCls}>Instagram</label>
-              <input type="text" value={instagram} onChange={e => setInstagram(e.target.value)} className={inputCls} maxLength={120} placeholder="@usuario" />
+              <div className="relative">
+                <input type="text" value={instagram} onChange={e => setInstagram(e.target.value)} className={inputCls + ' pr-9'} maxLength={120} placeholder="@usuario" />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2"><InstagramStatusIcon status={igStatusSarelli} /></div>
+              </div>
+              {instagramHelpText(igStatusSarelli) && (
+                <p className={`text-[10px] mt-1 ${igStatusSarelli === 'ok' ? 'text-green-600' : igStatusSarelli === 'inconclusivo' ? 'text-amber-600' : 'text-destructive'}`}>{instagramHelpText(igStatusSarelli)}</p>
+              )}
             </div>
           </div>
 
