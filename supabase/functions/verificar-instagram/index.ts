@@ -40,92 +40,54 @@ function formatoValido(user: string): boolean {
 }
 
 async function checarExistencia(user: string): Promise<{ exists: boolean; via: string } | null> {
-  const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+async function checarExistencia(user: string): Promise<{ exists: boolean; via: string } | null> {
+  // O Instagram serve a página de login para qualquer UA "browser", mas
+  // retorna metadados Open Graph reais quando o UA é de um bot de link preview
+  // (WhatsApp, Facebook, Twitter). Perfis existentes têm og:title com o nome
+  // e og:description com contagem de followers; perfis inexistentes não têm.
+  const userAgents = [
+    'WhatsApp/2.24.20.0',
+    'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+    'Twitterbot/1.0',
+  ];
 
-  // Método 1: endpoint web_profile_info (JSON oficial usado pelo site, sem login)
-  try {
-    const res = await fetch(
-      `https://i.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(user)}`,
-      {
+  for (const ua of userAgents) {
+    try {
+      const res = await fetch(`https://www.instagram.com/${encodeURIComponent(user)}/`, {
         method: 'GET',
         headers: {
-          'User-Agent': UA,
-          'Accept': 'application/json',
+          'User-Agent': ua,
+          'Accept': 'text/html,application/xhtml+xml',
           'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
-          'X-IG-App-ID': '936619743392459',
-          'X-Requested-With': 'XMLHttpRequest',
-          'Referer': `https://www.instagram.com/${encodeURIComponent(user)}/`,
         },
-      },
-    );
-    if (res.status === 404) return { exists: false, via: 'api-404' };
-    if (res.status === 200) {
-      const json = await res.json().catch(() => null) as any;
-      const u = json?.data?.user;
-      if (u && (u.username || u.id)) return { exists: true, via: 'api-json' };
-      return { exists: false, via: 'api-empty' };
-    }
-    // 401/403/429 -> tenta fallback
-  } catch (_e) {
-    // segue p/ fallback
-  }
-
-  // Método 2: HEAD na página pública (mobile UA)
-  try {
-    const res = await fetch(`https://www.instagram.com/${encodeURIComponent(user)}/`, {
-      method: 'GET',
-      headers: {
-        'User-Agent': UA,
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
-      },
-      redirect: 'manual',
-    });
-    if (res.status === 404) return { exists: false, via: 'html-404' };
-    if (res.status === 200) {
+        redirect: 'manual',
+      });
+      if (res.status === 404) return { exists: false, via: `bot-404` };
+      if (res.status !== 200) continue; // tenta próximo UA
       const html = await res.text();
-      if (/Sorry, this page isn'?t available/i.test(html)) return { exists: false, via: 'html-text' };
-      if (/A página não está disponível/i.test(html)) return { exists: false, via: 'html-text' };
-      if (new RegExp(`"username":"${user}"`, 'i').test(html)) return { exists: true, via: 'html-json' };
-      if (new RegExp(`@${user}\\b`, 'i').test(html)) return { exists: true, via: 'html-handle' };
-      // 200 sem sinais claros: provavelmente shell de login — inconclusivo
-      return null;
+      // Sinais negativos explícitos
+      if (/Sorry, this page isn'?t available/i.test(html)) return { exists: false, via: 'bot-text' };
+      if (/A página não está disponível/i.test(html)) return { exists: false, via: 'bot-text' };
+      // Sinal positivo principal: og:title com "@user" ou og:description com followers
+      const ogTitle = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)?.[1] || '';
+      const ogDesc = html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i)?.[1] || '';
+      const handlePattern = new RegExp(`@${user}\\b`, 'i');
+      if (handlePattern.test(ogTitle) || handlePattern.test(ogDesc)) {
+        return { exists: true, via: 'og-handle' };
+      }
+      if (/Followers,.*Following,.*Posts/i.test(ogDesc) || /Seguidores.*Seguindo.*Publica/i.test(ogDesc)) {
+        return { exists: true, via: 'og-counts' };
+      }
+      // Página renderizou metadados de "Instagram" genérico (sem perfil) → não existe
+      if (ogTitle && /^Instagram$/i.test(ogTitle.trim()) && !ogDesc) {
+        return { exists: false, via: 'og-generic' };
+      }
+      // Sem og útil — tenta próximo UA
+    } catch (_e) {
+      // tenta próximo
     }
-    return null;
-  } catch (_err) {
-    return null;
   }
-}
-
-async function checarViaProxy(user: string): Promise<{ exists: boolean; via: string } | null> {
-  // Proxy de leitura público (r.jina.ai) — bypassa bloqueio de IP do Instagram
-  // Retorna o conteúdo renderizado da página em texto/markdown
-  try {
-    const res = await fetch(`https://r.jina.ai/https://www.instagram.com/${encodeURIComponent(user)}/`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'text/plain',
-        'X-Return-Format': 'text',
-      },
-    });
-    if (res.status === 404) return { exists: false, via: 'proxy-404' };
-    if (!res.ok) return null;
-    const txt = (await res.text()).toLowerCase();
-    if (!txt || txt.length < 50) return null;
-    // Sinais de "não existe"
-    if (/sorry, this page isn'?t available/i.test(txt)) return { exists: false, via: 'proxy-text' };
-    if (/a página não está disponível/i.test(txt)) return { exists: false, via: 'proxy-text' };
-    if (/page not found/i.test(txt) && /instagram/i.test(txt)) return { exists: false, via: 'proxy-text' };
-    // Sinais positivos: aparece o handle, "followers", "posts", "seguidores"
-    if (txt.includes(`@${user}`)) return { exists: true, via: 'proxy-handle' };
-    if (txt.includes(`instagram.com/${user}`)) return { exists: true, via: 'proxy-url' };
-    if (/(followers|seguidores|posts|publicações|following|seguindo)/i.test(txt) && txt.includes(user)) {
-      return { exists: true, via: 'proxy-meta' };
-    }
-    return null;
-  } catch (_e) {
-    return null;
-  }
+  return null; // inconclusivo
 }
 
 Deno.serve(async (req) => {
