@@ -431,7 +431,15 @@ export default function CadastroPublicoAfiliado() {
               </div>
               <div>
                 <label className={labelCls}>Rede social</label>
-                <input type="text" value={capRede} onChange={e => setCapRede(e.target.value)} className={inputCls} maxLength={200} placeholder="@usuario / link" />
+                <div className="relative">
+                  <input type="text" value={capRede} onChange={e => setCapRede(e.target.value)} className={inputCls + (tipoParam !== 'fernanda' ? ' pr-9' : '')} maxLength={200} placeholder="@usuario / link" />
+                  {tipoParam !== 'fernanda' && (
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2"><InstagramStatusIcon status={igStatusCap} /></div>
+                  )}
+                </div>
+                {tipoParam !== 'fernanda' && instagramHelpText(igStatusCap) && (
+                  <p className={`text-[10px] mt-1 ${igStatusCap === 'ok' ? 'text-green-600' : igStatusCap === 'inconclusivo' ? 'text-amber-600' : 'text-destructive'}`}>{instagramHelpText(igStatusCap)}</p>
+                )}
               </div>
               {/* Instagram dedicado para Fernanda; demais usam rede_social acima */}
               {tipoParam === 'fernanda' && (
