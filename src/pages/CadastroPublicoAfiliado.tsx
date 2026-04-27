@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Loader2, CheckCircle2, ClipboardList, Eye, EyeOff, KeyRound, LogIn, MapPin, Heart, Sparkles, UserCheck } from 'lucide-react';
+import { useInstagramCheck, checkTelefone } from '@/hooks/useInstagramCheck';
+import { InstagramStatusIcon, TelefoneStatusIcon, instagramHelpText, telefoneHelpText } from '@/components/CampoStatusIcon';
 
 export default function CadastroPublicoAfiliado() {
   const params = useParams<{ token?: string; slugComToken?: string }>();
