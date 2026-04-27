@@ -100,8 +100,11 @@ async function checarExistencia(user: string): Promise<{ exists: boolean; via: s
     }
   }
 
-  // 2) Fallback: scraping com User-Agent de bot (pode falhar em IPs de cloud)
+  // 3) Fallback público: página web normal. O endpoint JSON do Instagram
+  // costuma retornar 401/429 sem sessão; a página HTML ainda diferencia
+  // perfil real (og:url/og:title/@usuario/profilePage_ID) de perfil inexistente.
   const userAgents = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
     'WhatsApp/2.24.20.0',
     'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
     'Twitterbot/1.0',
@@ -129,16 +132,25 @@ async function checarExistencia(user: string): Promise<{ exists: boolean; via: s
 
       const ogTitle = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)?.[1] || '';
       const ogDesc = html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i)?.[1] || '';
+      const ogUrl = html.match(/<meta[^>]+property=["']og:url["'][^>]+content=["']([^"']+)["']/i)?.[1] || '';
       const handlePattern = new RegExp(`@${user}\\b`, 'i');
 
-      if (handlePattern.test(ogTitle) || handlePattern.test(ogDesc)) {
-        return { exists: true, via: 'og-handle' };
+      if (
+        handlePattern.test(ogTitle) ||
+        handlePattern.test(ogDesc) ||
+        new RegExp(`instagram\\.com/${user}/?$`, 'i').test(ogUrl) ||
+        /profilePage_\d+/.test(html)
+      ) {
+        return { exists: true, via: 'html-profile' };
       }
       if (/Followers,.*Following,.*Posts/i.test(ogDesc) || /Seguidores.*Seguindo.*Publica/i.test(ogDesc)) {
-        return { exists: true, via: 'og-counts' };
+        return { exists: true, via: 'html-counts' };
+      }
+      if (!ogTitle && !ogDesc && !ogUrl && !/profilePage_\d+/.test(html)) {
+        return { exists: false, via: 'html-no-profile' };
       }
       if (ogTitle && /^Instagram$/i.test(ogTitle.trim()) && !ogDesc) {
-        return { exists: false, via: 'og-generic' };
+        return { exists: false, via: 'html-generic' };
       }
       // sem og útil — tenta próximo UA
     } catch (_e) {
