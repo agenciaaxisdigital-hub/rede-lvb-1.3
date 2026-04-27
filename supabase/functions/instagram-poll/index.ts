@@ -12,7 +12,8 @@ const HASHTAG_ALVO = 'chamaadoutora';
 // IG_USER_ID = id numérico da conta business "agenciaaxisdigital" (Instagram Graph API)
 // IG_ACCESS_TOKEN = token de longa duração da página vinculada
 const IG_USER_ID = Deno.env.get('IG_USER_ID') || '';
-const IG_ACCESS_TOKEN = Deno.env.get('IG_ACCESS_TOKEN') || '';
+// Aceita tanto IG_ACCESS_TOKEN (novo) quanto INSTAGRAM_ACCESS_TOKEN (legado)
+const IG_ACCESS_TOKEN = (Deno.env.get('IG_ACCESS_TOKEN') || Deno.env.get('INSTAGRAM_ACCESS_TOKEN') || '').trim();
 const GRAPH = 'https://graph.facebook.com/v21.0';
 
 const supabase = createClient(
