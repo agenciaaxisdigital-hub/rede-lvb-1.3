@@ -19,7 +19,6 @@ export function TelefoneStatusIcon({ status }: { status: TelefoneStatus }) {
 export function instagramHelpText(status: InstagramStatus): string | null {
   if (status === 'invalido') return 'Formato inválido (use letras, números, ponto, underline).';
   if (status === 'nao_existe') return 'Esse @ não foi encontrado no Instagram.';
-  if (status === 'inconclusivo') return 'Não foi possível confirmar — verifique manualmente.';
   return null;
 }
 
