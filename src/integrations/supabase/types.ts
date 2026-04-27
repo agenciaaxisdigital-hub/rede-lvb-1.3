@@ -1462,6 +1462,51 @@ export type Database = {
           },
         ]
       }
+      instagram_mencoes: {
+        Row: {
+          autor_id: string | null
+          autor_username: string | null
+          conta_monitorada: string | null
+          criado_em: string
+          hashtag: string | null
+          id: string
+          media_id: string | null
+          media_type: string | null
+          permalink: string | null
+          raw: Json
+          texto: string | null
+          tipo: string
+        }
+        Insert: {
+          autor_id?: string | null
+          autor_username?: string | null
+          conta_monitorada?: string | null
+          criado_em?: string
+          hashtag?: string | null
+          id?: string
+          media_id?: string | null
+          media_type?: string | null
+          permalink?: string | null
+          raw?: Json
+          texto?: string | null
+          tipo: string
+        }
+        Update: {
+          autor_id?: string | null
+          autor_username?: string | null
+          conta_monitorada?: string | null
+          criado_em?: string
+          hashtag?: string | null
+          id?: string
+          media_id?: string | null
+          media_type?: string | null
+          permalink?: string | null
+          raw?: Json
+          texto?: string | null
+          tipo?: string
+        }
+        Relationships: []
+      }
       liderancas: {
         Row: {
           apoiadores_estimados: number | null
