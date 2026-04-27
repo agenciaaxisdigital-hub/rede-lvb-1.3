@@ -11,6 +11,8 @@ import { resolverLigacaoPolitica } from '@/lib/resolverLigacaoPolitica';
 import { toast } from '@/hooks/use-toast';
 
 import CampoLigacaoPolitica from '@/components/CampoLigacaoPolitica';
+import { useInstagramCheck, checkTelefone } from '@/hooks/useInstagramCheck';
+import { InstagramStatusIcon, TelefoneStatusIcon, instagramHelpText, telefoneHelpText } from '@/components/CampoStatusIcon';
 import LinkCaptacaoCard from '@/components/LinkCaptacaoCard';
 import SkeletonLista from '@/components/SkeletonLista';
 import { useOfflineItems, type OfflineListItem } from '@/hooks/useOfflineItems';
