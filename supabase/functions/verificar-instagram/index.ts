@@ -189,6 +189,14 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    // Segurança contra falsos positivos: só aceita confirmação positiva quando
+    // vier de endpoint de perfil/Graph API com username exato. Scraping genérico
+    // nunca deve aprovar qualquer coisa.
+    if (result.exists && !['web-profile', 'graph-api', 'og-handle'].includes(result.via)) {
+      return new Response(JSON.stringify({ ok: true, exists: null, status: 'inconclusivo', usuario: user, via: result.via }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     cache.set(user, { exists: result.exists, ts: now, via: result.via });
     return new Response(JSON.stringify({ ok: true, exists: result.exists, usuario: user, via: result.via }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
