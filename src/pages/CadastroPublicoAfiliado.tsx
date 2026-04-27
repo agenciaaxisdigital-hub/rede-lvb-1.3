@@ -388,7 +388,11 @@ export default function CadastroPublicoAfiliado() {
               </div>
               <div>
                 <label className={labelCls}>Telefone *</label>
-                <input type="tel" value={capTelefone} onChange={e => setCapTelefone(e.target.value)} className={inputCls} required maxLength={40} placeholder="(00) 00000-0000" />
+                <div className="relative">
+                  <input type="tel" value={capTelefone} onChange={e => setCapTelefone(e.target.value)} className={inputCls + ' pr-9'} required maxLength={40} placeholder="(00) 00000-0000" />
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2"><TelefoneStatusIcon status={telStatusCap} /></div>
+                </div>
+                {telefoneHelpText(telStatusCap) && <p className="text-[10px] text-destructive mt-1">{telefoneHelpText(telStatusCap)}</p>}
               </div>
               <div>
                 <label className={labelCls}>Data de nascimento</label>
@@ -424,7 +428,13 @@ export default function CadastroPublicoAfiliado() {
               {tipoParam === 'fernanda' && (
                 <div>
                   <label className={labelCls}>Instagram</label>
-                  <input type="text" value={capInstagram} onChange={e => setCapInstagram(e.target.value)} className={inputCls} maxLength={120} placeholder="@usuario" />
+                  <div className="relative">
+                    <input type="text" value={capInstagram} onChange={e => setCapInstagram(e.target.value)} className={inputCls + ' pr-9'} maxLength={120} placeholder="@usuario" />
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2"><InstagramStatusIcon status={igStatusCap} /></div>
+                  </div>
+                  {instagramHelpText(igStatusCap) && (
+                    <p className={`text-[10px] mt-1 ${igStatusCap === 'ok' ? 'text-green-600' : igStatusCap === 'inconclusivo' ? 'text-amber-600' : 'text-destructive'}`}>{instagramHelpText(igStatusCap)}</p>
+                  )}
                 </div>
               )}
               {/* CPF e e-mail (lideranca/fiscal/eleitor) */}
