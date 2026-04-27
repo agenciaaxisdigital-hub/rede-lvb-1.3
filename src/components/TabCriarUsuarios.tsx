@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCidade } from '@/contexts/CidadeContext';
 import { toast } from '@/hooks/use-toast';
 import {
-  Loader2, UserPlus, Users, User, CheckCircle2, Search, Eye, EyeOff, Shield, Plus, Pencil, Link2
+  Loader2, UserPlus, Users, User, CheckCircle2, Search, Eye, EyeOff, Shield, Plus, Pencil, Link2, Instagram
 } from 'lucide-react';
 
 interface SuplenteExterno {
@@ -64,6 +64,7 @@ export default function TabCriarUsuarios() {
   const [cidadeSelecionada, setCidadeSelecionada] = useState('');
   const [cidadeErro, setCidadeErro] = useState('');
   const [saving, setSaving] = useState(false);
+  const [instagramHandle, setInstagramHandle] = useState('');
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -117,6 +118,7 @@ export default function TabCriarUsuarios() {
     setCidadeSelecionada('');
     setCidadeErro('');
     setCriarNovoMode(false);
+    setInstagramHandle('');
     // Load existing cargo for suplente
     if (tipo === 'suplente') {
       const sup = suplentes.find(s => s.id === id);
@@ -137,6 +139,7 @@ export default function TabCriarUsuarios() {
     setCidadeSelecionada('');
     setCidadeErro('');
     setTipoAcesso('suplente');
+    setInstagramHandle('');
   };
 
   const handleCreate = async () => {
@@ -176,6 +179,7 @@ export default function TabCriarUsuarios() {
           tipo: tipoAcesso,
           superior_id: superiorId || null,
           municipio_id: cidadeSelecionada,
+          instagram: instagramHandle.trim() || null,
         };
 
         // Suplente and Liderança are always self-linked
@@ -216,6 +220,7 @@ export default function TabCriarUsuarios() {
         tipo: tipoAcesso,
         superior_id: superiorId || null,
         municipio_id: cidadeSelecionada,
+        instagram: instagramHandle.trim() || null,
       };
       if (selecionado.tipo === 'suplente') {
         payload.suplente_id = selecionado.id;
