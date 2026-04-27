@@ -310,7 +310,6 @@ export default function AdminDashboard() {
    const vistaLabels: { id: VistaAtiva; icon: any; label: string }[] = [
       { id: 'ranking', icon: Trophy, label: 'Ranking' },
       { id: 'arvore', icon: Network, label: 'Árvore' },
-      { id: 'usuarios', icon: UserCog, label: 'Usuários' },
      { id: 'localizacao', icon: MapPin, label: 'Localização' },
      { id: 'registros', icon: Eye, label: 'Registros' },
      { id: 'eventos', icon: Calendar, label: 'Eventos' },
