@@ -38,13 +38,25 @@ function formatoValido(user: string): boolean {
 async function checarExistencia(user: string): Promise<{ exists: boolean; via: string } | null> {
   // 1) Endpoint web_profile_info — o mais confiável, cobre contas pessoais e business
   try {
+    const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
+    const home = await fetch('https://www.instagram.com/', {
+      headers: {
+        'User-Agent': userAgent,
+        'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+      },
+    });
+    const cookie = home.headers.get('set-cookie') || '';
+    const csrf = cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
     const wres = await fetch(
       `https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(user)}`,
       {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
+          'User-Agent': userAgent,
           'Accept': '*/*',
           'X-IG-App-ID': '936619743392459',
+          'X-CSRFToken': csrf,
+          'X-Requested-With': 'XMLHttpRequest',
+          'Cookie': cookie,
           'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
           'Sec-Fetch-Site': 'same-origin',
           'Referer': `https://www.instagram.com/${encodeURIComponent(user)}/`,
