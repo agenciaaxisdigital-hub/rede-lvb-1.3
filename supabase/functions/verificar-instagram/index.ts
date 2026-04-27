@@ -38,13 +38,25 @@ function formatoValido(user: string): boolean {
 async function checarExistencia(user: string): Promise<{ exists: boolean; via: string } | null> {
   // 1) Endpoint web_profile_info — o mais confiável, cobre contas pessoais e business
   try {
+    const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
+    const home = await fetch('https://www.instagram.com/', {
+      headers: {
+        'User-Agent': userAgent,
+        'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+      },
+    });
+    const cookie = home.headers.get('set-cookie') || '';
+    const csrf = cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
     const wres = await fetch(
       `https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(user)}`,
       {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
+          'User-Agent': userAgent,
           'Accept': '*/*',
           'X-IG-App-ID': '936619743392459',
+          'X-CSRFToken': csrf,
+          'X-Requested-With': 'XMLHttpRequest',
+          'Cookie': cookie,
           'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
           'Sec-Fetch-Site': 'same-origin',
           'Referer': `https://www.instagram.com/${encodeURIComponent(user)}/`,
@@ -100,8 +112,11 @@ async function checarExistencia(user: string): Promise<{ exists: boolean; via: s
     }
   }
 
-  // 2) Fallback: scraping com User-Agent de bot (pode falhar em IPs de cloud)
+  // 3) Fallback público: página web normal. O endpoint JSON do Instagram
+  // costuma retornar 401/429 sem sessão; a página HTML ainda diferencia
+  // perfil real (og:url/og:title/@usuario/profilePage_ID) de perfil inexistente.
   const userAgents = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
     'WhatsApp/2.24.20.0',
     'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
     'Twitterbot/1.0',
@@ -129,16 +144,25 @@ async function checarExistencia(user: string): Promise<{ exists: boolean; via: s
 
       const ogTitle = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)?.[1] || '';
       const ogDesc = html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i)?.[1] || '';
+      const ogUrl = html.match(/<meta[^>]+property=["']og:url["'][^>]+content=["']([^"']+)["']/i)?.[1] || '';
       const handlePattern = new RegExp(`@${user}\\b`, 'i');
 
-      if (handlePattern.test(ogTitle) || handlePattern.test(ogDesc)) {
-        return { exists: true, via: 'og-handle' };
+      if (
+        handlePattern.test(ogTitle) ||
+        handlePattern.test(ogDesc) ||
+        new RegExp(`instagram\\.com/${user}/?$`, 'i').test(ogUrl) ||
+        /profilePage_\d+/.test(html)
+      ) {
+        return { exists: true, via: 'html-profile' };
       }
       if (/Followers,.*Following,.*Posts/i.test(ogDesc) || /Seguidores.*Seguindo.*Publica/i.test(ogDesc)) {
-        return { exists: true, via: 'og-counts' };
+        return { exists: true, via: 'html-counts' };
+      }
+      if (!ogTitle && !ogDesc && !ogUrl && !/profilePage_\d+/.test(html)) {
+        return { exists: false, via: 'html-no-profile' };
       }
       if (ogTitle && /^Instagram$/i.test(ogTitle.trim()) && !ogDesc) {
-        return { exists: false, via: 'og-generic' };
+        return { exists: false, via: 'html-generic' };
       }
       // sem og útil — tenta próximo UA
     } catch (_e) {
@@ -192,7 +216,7 @@ Deno.serve(async (req) => {
     // Segurança contra falsos positivos: só aceita confirmação positiva quando
     // vier de endpoint de perfil/Graph API com username exato. Scraping genérico
     // nunca deve aprovar qualquer coisa.
-    if (result.exists && !['web-profile', 'graph-api', 'og-handle'].includes(result.via)) {
+    if (result.exists && !['web-profile', 'graph-api', 'html-profile'].includes(result.via)) {
       return new Response(JSON.stringify({ ok: true, exists: null, status: 'inconclusivo', usuario: user, via: result.via }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

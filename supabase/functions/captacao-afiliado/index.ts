@@ -55,6 +55,35 @@ function rateLimited(ip: string) {
   return arr.length > MAX;
 }
 
+function normalizarInstagram(input: string): string {
+  let s = (input || '').trim();
+  s = s.replace(/^https?:\/\/(www\.)?instagram\.com\//i, '');
+  s = s.replace(/^@/, '');
+  s = s.replace(/\/+$/g, '');
+  s = s.split('/')[0];
+  s = s.split('?')[0];
+  return s.toLowerCase();
+}
+
+function formatoInstagramValido(usuario: string): boolean {
+  if (!usuario || usuario.length < 1 || usuario.length > 30) return false;
+  if (!/^[a-z0-9._]+$/.test(usuario)) return false;
+  if (usuario.startsWith('.') || usuario.endsWith('.') || usuario.includes('..')) return false;
+  return true;
+}
+
+async function instagramConfirmado(usuarioRaw: string): Promise<boolean> {
+  const usuario = normalizarInstagram(usuarioRaw);
+  if (!formatoInstagramValido(usuario)) return false;
+  const res = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/verificar-instagram`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ usuario }),
+  });
+  const json: any = await res.json().catch(() => ({}));
+  return res.ok && json?.exists === true;
+}
+
 async function buscarAfiliado(supabaseAdmin: any, token: string) {
   let query = supabaseAdmin
     .from('hierarquia_usuarios')
@@ -114,6 +143,14 @@ Deno.serve(async (req) => {
 
     const tipoDestino = p.tipo || 'lideranca';
     const whatsappFinal = (p.whatsapp?.trim() || p.telefone?.trim() || '').trim();
+    const instagramFinal = (p.instagram?.trim() || p.rede_social?.trim() || '').trim();
+    const exigeInstagram = tipoDestino === 'lideranca' || tipoDestino === 'fiscal' || tipoDestino === 'eleitor';
+    if (exigeInstagram) {
+      if (!instagramFinal) return jres({ error: 'Informe a rede social' }, 400);
+      if (!(await instagramConfirmado(instagramFinal))) {
+        return jres({ error: 'Instagram não confirmado. Corrija o @ informado.' }, 400);
+      }
+    }
 
     // ─── FERNANDA ──────────────────────────────────────────────────────────
     if (tipoDestino === 'fernanda') {
@@ -166,7 +203,7 @@ Deno.serve(async (req) => {
         whatsapp: whatsappFinal,
         email: p.email?.trim() || null,
         data_nascimento: p.data_nascimento || null,
-        instagram: p.instagram?.trim() || null,
+        instagram: instagramFinal || null,
         facebook: p.facebook?.trim() || null,
         titulo_eleitor: p.titulo_eleitor?.trim() || null,
         zona_eleitoral: p.zona_eleitoral?.trim() || null,
