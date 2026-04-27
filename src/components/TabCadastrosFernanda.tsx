@@ -12,6 +12,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { useInstagramCheck, checkTelefone } from '@/hooks/useInstagramCheck';
+import { InstagramStatusIcon, TelefoneStatusIcon, instagramHelpText, telefoneHelpText } from '@/components/CampoStatusIcon';
 
 interface CadastroFernanda {
   id: string;
@@ -44,6 +46,8 @@ export default function TabCadastrosFernanda() {
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
   const [form, setForm] = useState<FormState>(EMPTY);
+  const igStatus = useInstagramCheck(form.instagram);
+  const telStatus = checkTelefone(form.telefone);
   const [saving, setSaving] = useState(false);
   const [usuariosSistema, setUsuariosSistema] = useState<{ id: string; nome: string; tipo: string }[]>([]);
   const [selected, setSelected] = useState<CadastroFernanda | null>(null);
@@ -218,13 +222,17 @@ export default function TabCadastrosFernanda() {
           </div>
           <div>
             <label className={labelCls}>Telefone *</label>
-            <input
-              type="tel"
-              value={form.telefone}
-              onChange={(e) => setForm({ ...form, telefone: e.target.value })}
-              placeholder="(00) 00000-0000"
-              className={inputCls}
-            />
+            <div className="relative">
+              <input
+                type="tel"
+                value={form.telefone}
+                onChange={(e) => setForm({ ...form, telefone: e.target.value })}
+                placeholder="(00) 00000-0000"
+                className={inputCls + ' pr-9'}
+              />
+              <div className="absolute right-2 top-1/2 -translate-y-1/2"><TelefoneStatusIcon status={telStatus} /></div>
+            </div>
+            {telefoneHelpText(telStatus) && <p className="text-[10px] text-destructive mt-1">{telefoneHelpText(telStatus)}</p>}
           </div>
           <div>
             <label className={labelCls}>Cidade</label>
@@ -238,13 +246,19 @@ export default function TabCadastrosFernanda() {
           </div>
           <div>
             <label className={labelCls}>Instagram</label>
-            <input
-              type="text"
-              value={form.instagram}
-              onChange={(e) => setForm({ ...form, instagram: e.target.value })}
-              placeholder="@usuario"
-              className={inputCls}
-            />
+            <div className="relative">
+              <input
+                type="text"
+                value={form.instagram}
+                onChange={(e) => setForm({ ...form, instagram: e.target.value })}
+                placeholder="@usuario"
+                className={inputCls + ' pr-9'}
+              />
+              <div className="absolute right-2 top-1/2 -translate-y-1/2"><InstagramStatusIcon status={igStatus} /></div>
+            </div>
+            {instagramHelpText(igStatus) && (
+              <p className={`text-[10px] mt-1 ${igStatus === 'ok' ? 'text-green-600' : igStatus === 'inconclusivo' ? 'text-amber-600' : 'text-destructive'}`}>{instagramHelpText(igStatus)}</p>
+            )}
           </div>
           <div>
             <label className={labelCls}>Responsável no Sistema</label>
