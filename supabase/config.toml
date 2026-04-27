@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.cadastro-afiliado-publico]
 verify_jwt = false
+
+[functions.verificar-instagram]
+verify_jwt = false
