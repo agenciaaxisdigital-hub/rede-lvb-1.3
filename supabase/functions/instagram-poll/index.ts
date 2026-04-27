@@ -53,10 +53,16 @@ async function buscarHashtag(): Promise<Mencao[]> {
   if (!hashtagId) return [];
 
   const fields = 'id,caption,media_type,permalink,timestamp,username,media_url';
-  const recent = await fetchJson(
-    `${GRAPH}/${hashtagId}/recent_media?user_id=${IG_USER_ID}&fields=${fields}&access_token=${IG_ACCESS_TOKEN}`
-  );
-  const items: any[] = recent?.data || [];
+  // Combina recent_media (últimas 24h) + top_media para capturar tudo
+  const [recent, top] = await Promise.all([
+    fetchJson(`${GRAPH}/${hashtagId}/recent_media?user_id=${IG_USER_ID}&fields=${fields}&limit=50&access_token=${IG_ACCESS_TOKEN}`).catch(() => ({ data: [] })),
+    fetchJson(`${GRAPH}/${hashtagId}/top_media?user_id=${IG_USER_ID}&fields=${fields}&limit=50&access_token=${IG_ACCESS_TOKEN}`).catch(() => ({ data: [] })),
+  ]);
+  const seen = new Set<string>();
+  const items: any[] = [];
+  for (const m of [...(recent?.data || []), ...(top?.data || [])]) {
+    if (m?.id && !seen.has(m.id)) { seen.add(m.id); items.push(m); }
+  }
   return items.map((m) => ({
     tipo: 'hashtag',
     autor_username: m.username || null,
