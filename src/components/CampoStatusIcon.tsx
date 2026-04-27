@@ -6,7 +6,8 @@ export function InstagramStatusIcon({ status }: { status: InstagramStatus }) {
   if (status === 'checking') return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
   if (status === 'ok') return <CheckCircle2 className="h-4 w-4 text-green-600" />;
   if (status === 'invalido' || status === 'nao_existe') return <XCircle className="h-4 w-4 text-destructive" />;
-  return <AlertCircle className="h-4 w-4 text-amber-500" />;
+  // Inconclusivo (IP bloqueado pelo IG): mostra check verde já que o formato é válido
+  return <CheckCircle2 className="h-4 w-4 text-green-600" />;
 }
 
 export function TelefoneStatusIcon({ status }: { status: TelefoneStatus }) {
