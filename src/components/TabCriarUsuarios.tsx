@@ -495,6 +495,24 @@ export default function TabCriarUsuarios() {
               {cidadeErro && <p className="text-xs text-destructive mt-1">{cidadeErro}</p>}
             </div>
 
+            {/* Instagram */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                <Instagram size={12} /> @ Instagram
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">@</span>
+                <input
+                  type="text"
+                  value={instagramHandle}
+                  onChange={e => setInstagramHandle(e.target.value.replace(/^@+/, ''))}
+                  className={`${inputCls} pl-7`}
+                  placeholder="usuario_instagram"
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground">Usado para rastrear posts/menções do usuário</p>
+            </div>
+
             {/* Submit */}
             <button
               onClick={handleCreate} disabled={saving}
