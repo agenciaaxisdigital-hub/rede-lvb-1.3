@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 export type InstagramStatus = 'idle' | 'checking' | 'ok' | 'invalido' | 'nao_existe' | 'inconclusivo';
 
@@ -23,16 +24,30 @@ function formatoValido(u: string) {
 
 export function useInstagramCheck(value: string): InstagramStatus {
   const [status, setStatus] = useState<InstagramStatus>('idle');
+  const reqIdRef = useRef(0);
 
   useEffect(() => {
     const user = normalize(value);
     if (!user) { setStatus('idle'); return; }
     if (!formatoValido(user)) { setStatus('invalido'); return; }
-    // Verificação de existência online desativada: todos os endpoints gratuitos
-    // (Graph API, scrapers, proxies CORS, unavatar) estão bloqueados ou exigem
-    // login. Validamos apenas o formato do @ — existência fica por conta do
-    // usuário, sem falsos negativos visuais.
-    setStatus('ok');
+    setStatus('checking');
+    const myId = ++reqIdRef.current;
+    const t = window.setTimeout(async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('verificar-instagram', {
+          body: { usuario: user },
+        });
+        if (myId !== reqIdRef.current) return;
+        if (error) { setStatus('inconclusivo'); return; }
+        if (data?.status === 'formato_invalido') { setStatus('invalido'); return; }
+        if (data?.exists === true) setStatus('ok');
+        else if (data?.exists === false) setStatus('nao_existe');
+        else setStatus('inconclusivo');
+      } catch {
+        if (myId === reqIdRef.current) setStatus('inconclusivo');
+      }
+    }, 600);
+    return () => window.clearTimeout(t);
   }, [value]);
 
   return status;
