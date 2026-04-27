@@ -57,7 +57,8 @@ export default function CadastroPublicoAfiliado() {
   const [capBuscandoCep, setCapBuscandoCep] = useState(false);
   const [capRede, setCapRede] = useState('');
   const [capInstagram, setCapInstagram] = useState('');
-  const igStatusCap = useInstagramCheck(capInstagram);
+  const capInstagramAlvo = tipoParam === 'fernanda' ? capInstagram : capRede;
+  const igStatusCap = useInstagramCheck(capInstagramAlvo);
   const telStatusCap = checkTelefone(capTelefone);
   // Eleitorais (lideranca/fiscal/eleitor)
   const [capTitulo, setCapTitulo] = useState('');
@@ -172,6 +173,14 @@ export default function CadastroPublicoAfiliado() {
     if (!capTelefone.trim() || capTelefone.replace(/\D/g, '').length < 6) {
       toast({ title: 'Informe um telefone válido', variant: 'destructive' }); return;
     }
+    const exigeInstagram = tipoParam === 'lideranca' || tipoParam === 'fiscal' || tipoParam === 'eleitor';
+    const instagramInformado = capInstagramAlvo.trim();
+    if (exigeInstagram && !instagramInformado) {
+      toast({ title: 'Informe a rede social', variant: 'destructive' }); return;
+    }
+    if (instagramInformado && igStatusCap !== 'ok') {
+      toast({ title: 'Instagram não confirmado', description: 'Aguarde a verificação ou corrija o @ informado.', variant: 'destructive' }); return;
+    }
     const exigeEleitoral = tipoParam === 'lideranca' || tipoParam === 'fiscal' || tipoParam === 'eleitor';
     if (exigeEleitoral) {
       if (!capTitulo.trim() || !capZona.trim() || !capSecao.trim() || !capMunicipioEl.trim() || !capColegio.trim()) {
@@ -196,7 +205,7 @@ export default function CadastroPublicoAfiliado() {
           cep: capCep.trim() || null,
           cidade: capCidadeCep || null,
           uf: capUfCep || null,
-          instagram: capInstagram.trim() || null,
+          instagram: instagramInformado || null,
           rede_social: capRede.trim() || null,
           titulo_eleitor: capTitulo.trim() || null,
           zona_eleitoral: capZona.trim() || null,
