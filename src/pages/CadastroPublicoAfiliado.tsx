@@ -83,6 +83,9 @@ export default function CadastroPublicoAfiliado() {
   const [ufCep, setUfCep] = useState('');
   const [buscandoCep, setBuscandoCep] = useState(false);
   const [instagram, setInstagram] = useState('');
+  // Validações ao vivo
+  const igStatusSarelli = useInstagramCheck(instagram);
+  const telStatusSarelli = checkTelefone(whatsapp);
   // Eleitorais
   const [tituloEleitor, setTituloEleitor] = useState('');
   const [zonaEleitoral, setZonaEleitoral] = useState('');
