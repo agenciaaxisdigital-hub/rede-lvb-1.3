@@ -493,7 +493,7 @@ export default function AdminDashboard() {
                                   <Field label="CPF" value={p.cpf} />
                                   <Field label="WhatsApp" value={p.whatsapp} />
                                   <Field label="E-mail" value={p.email} />
-                                  <Field label="Rede social" value={p.instagram || p.facebook} />
+                                  <Field label="Instagram" value={p.instagram || p.facebook} />
                                 </div>
 
                                 {/* Dados Eleitorais */}
@@ -789,7 +789,7 @@ export default function AdminDashboard() {
                                         <Field label="CPF" value={p.cpf} />
                                         <Field label="WhatsApp" value={p.whatsapp} />
                                         <Field label="E-mail" value={p.email} />
-                                        <Field label="Rede social" value={p.instagram || p.facebook} />
+                                        <Field label="Instagram" value={p.instagram || p.facebook} />
                                       </div>
 
                                       {/* Dados Eleitorais */}
@@ -1101,7 +1101,7 @@ export default function AdminDashboard() {
                         <Field label="WhatsApp" value={p.whatsapp} />
                         <Field label="Telefone" value={p.telefone} />
                         <Field label="E-mail" value={p.email} />
-                        <Field label="Rede social" value={p.instagram || p.facebook} />
+                        <Field label="Instagram" value={p.instagram || p.facebook} />
                       </div>
 
                       {/* Dados Eleitorais */}

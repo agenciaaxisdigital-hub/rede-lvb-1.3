@@ -426,7 +426,7 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
                           <div className="grid grid-cols-2 gap-1.5">
                             <Field label="CPF" value={c.cpf ? formatCPF(c.cpf) : null} />
                             <Field label="WhatsApp" value={c.whatsapp} />
-                            <Field label="Rede social" value={c.instagram || c.facebook} />
+                            <Field label="Instagram" value={c.instagram || c.facebook} />
                             <Field label="Região" value={c.regiao} />
                           </div>
                         </div>

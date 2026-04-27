@@ -430,9 +430,9 @@ export default function CadastroPublicoAfiliado() {
                 )}
               </div>
               <div>
-                <label className={labelCls}>Rede social</label>
+                <label className={labelCls}>Instagram{tipoParam !== 'fernanda' && tipoParam !== 'afiliado' ? ' *' : ''}</label>
                 <div className="relative">
-                  <input type="text" value={capRede} onChange={e => setCapRede(e.target.value)} className={inputCls + (tipoParam !== 'fernanda' ? ' pr-9' : '')} maxLength={200} placeholder="@usuario / link" />
+                  <input type="text" value={capRede} onChange={e => setCapRede(e.target.value)} className={inputCls + (tipoParam !== 'fernanda' ? ' pr-9' : '')} maxLength={200} placeholder="@usuario" />
                   {tipoParam !== 'fernanda' && (
                     <div className="absolute right-2 top-1/2 -translate-y-1/2"><InstagramStatusIcon status={igStatusCap} /></div>
                   )}
