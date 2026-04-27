@@ -40,32 +40,57 @@ function formatoValido(user: string): boolean {
 }
 
 async function checarExistencia(user: string): Promise<{ exists: boolean; via: string } | null> {
-  // Tenta endpoint público (sem login) — mais leve que HTML
-  const headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml',
-    'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
-  };
+  const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+
+  // Método 1: endpoint web_profile_info (JSON oficial usado pelo site, sem login)
+  try {
+    const res = await fetch(
+      `https://i.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(user)}`,
+      {
+        method: 'GET',
+        headers: {
+          'User-Agent': UA,
+          'Accept': 'application/json',
+          'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+          'X-IG-App-ID': '936619743392459',
+          'X-Requested-With': 'XMLHttpRequest',
+          'Referer': `https://www.instagram.com/${encodeURIComponent(user)}/`,
+        },
+      },
+    );
+    if (res.status === 404) return { exists: false, via: 'api-404' };
+    if (res.status === 200) {
+      const json = await res.json().catch(() => null) as any;
+      const u = json?.data?.user;
+      if (u && (u.username || u.id)) return { exists: true, via: 'api-json' };
+      return { exists: false, via: 'api-empty' };
+    }
+    // 401/403/429 -> tenta fallback
+  } catch (_e) {
+    // segue p/ fallback
+  }
+
+  // Método 2: HEAD na página pública (mobile UA)
   try {
     const res = await fetch(`https://www.instagram.com/${encodeURIComponent(user)}/`, {
       method: 'GET',
-      headers,
+      headers: {
+        'User-Agent': UA,
+        'Accept': 'text/html,application/xhtml+xml',
+        'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+      },
       redirect: 'manual',
     });
-    // 200 = existe; 404 = não existe; 301/302 para /accounts/login = bloqueio (inconclusivo)
     if (res.status === 404) return { exists: false, via: 'html-404' };
     if (res.status === 200) {
       const html = await res.text();
-      // Checagens negativas no HTML
       if (/Sorry, this page isn'?t available/i.test(html)) return { exists: false, via: 'html-text' };
       if (/A página não está disponível/i.test(html)) return { exists: false, via: 'html-text' };
-      // Sinais positivos
       if (new RegExp(`"username":"${user}"`, 'i').test(html)) return { exists: true, via: 'html-json' };
-      if (new RegExp(`@${user}`, 'i').test(html)) return { exists: true, via: 'html-handle' };
-      // 200 sem sinais claros — assumir existe (a Meta serve uma shell)
-      return { exists: true, via: 'html-200' };
+      if (new RegExp(`@${user}\\b`, 'i').test(html)) return { exists: true, via: 'html-handle' };
+      // 200 sem sinais claros: provavelmente shell de login — inconclusivo
+      return null;
     }
-    // Demais status: inconclusivo
     return null;
   } catch (_err) {
     return null;
