@@ -133,15 +133,26 @@ Deno.serve(async (req) => {
     duracao_ms: 0,
     erro: null as string | null,
     config_ok: !!(IG_USER_ID && IG_ACCESS_TOKEN),
+    debug: {} as Record<string, any>,
   };
 
   try {
     if (!status.config_ok) {
       throw new Error('Faltam secrets IG_USER_ID e/ou IG_ACCESS_TOKEN');
     }
+    // Debug: testa hashtag_search isolado
+    try {
+      const search = await fetchJson(
+        `${GRAPH}/ig_hashtag_search?user_id=${IG_USER_ID}&q=${encodeURIComponent(HASHTAG_ALVO)}&access_token=${IG_ACCESS_TOKEN}`
+      );
+      status.debug.hashtag_id = search?.data?.[0]?.id || null;
+      status.debug.hashtag_search_raw = search;
+    } catch (e: any) {
+      status.debug.hashtag_search_error = e?.message;
+    }
     const [hashtags, mencoes] = await Promise.all([
-      buscarHashtag().catch((e) => { console.error('hashtag err', e); return []; }),
-      buscarMencoes().catch((e) => { console.error('mention err', e); return []; }),
+      buscarHashtag().catch((e) => { console.error('hashtag err', e); status.debug.hashtag_error = e?.message; return []; }),
+      buscarMencoes().catch((e) => { console.error('mention err', e); status.debug.mencoes_error = e?.message; return []; }),
     ]);
     status.hashtag_encontradas = hashtags.length;
     status.mencoes_encontradas = mencoes.length;
