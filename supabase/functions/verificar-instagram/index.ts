@@ -36,7 +36,33 @@ function formatoValido(user: string): boolean {
 }
 
 async function checarExistencia(user: string): Promise<{ exists: boolean; via: string } | null> {
-  // 1) Tenta a Graph API oficial da Meta (Instagram Business Discovery)
+  // 1) Endpoint público de busca do Instagram — funciona pra contas pessoais e business
+  try {
+    const sres = await fetch(
+      `https://www.instagram.com/web/search/topsearch/?context=blended&query=${encodeURIComponent(user)}&count=10`,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148',
+          'Accept': 'application/json',
+          'X-IG-App-ID': '936619743392459',
+          'Accept-Language': 'pt-BR,pt;q=0.9',
+        },
+      },
+    );
+    console.log('topsearch status', user, sres.status);
+    if (sres.ok) {
+      const json: any = await sres.json().catch(() => ({}));
+      const users: any[] = json?.users || [];
+      const found = users.some((u) => String(u?.user?.username || '').toLowerCase() === user);
+      if (found) return { exists: true, via: 'topsearch' };
+      // Se a busca trouxe resultados mas nenhum bate exatamente → não existe
+      if (Array.isArray(users)) return { exists: false, via: 'topsearch-miss' };
+    }
+  } catch (e) {
+    console.error('topsearch error', e);
+  }
+
+  // 2) Tenta a Graph API oficial da Meta (Instagram Business Discovery)
   const token = Deno.env.get('INSTAGRAM_ACCESS_TOKEN');
   const igUserId = Deno.env.get('INSTAGRAM_BUSINESS_ID') || '17841478297498593';
   if (token) {
