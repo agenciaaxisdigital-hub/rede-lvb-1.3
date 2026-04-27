@@ -57,6 +57,8 @@ export default function CadastroPublicoAfiliado() {
   const [capBuscandoCep, setCapBuscandoCep] = useState(false);
   const [capRede, setCapRede] = useState('');
   const [capInstagram, setCapInstagram] = useState('');
+  const igStatusCap = useInstagramCheck(capInstagram);
+  const telStatusCap = checkTelefone(capTelefone);
   // Eleitorais (lideranca/fiscal/eleitor)
   const [capTitulo, setCapTitulo] = useState('');
   const [capZona, setCapZona] = useState('');
