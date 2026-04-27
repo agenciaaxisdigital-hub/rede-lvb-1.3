@@ -57,29 +57,44 @@ export function useInstagramCheck(value: string): InstagramStatus {
 // endpoint de imagem do perfil. Como recurso público de imagem, ele é
 // servido com CORS aberto e o erro de carga indica usuário inexistente.
 function checkViaFavicon(user: string): Promise<boolean | null> {
+  // Tenta múltiplos provedores em paralelo. Se QUALQUER um confirmar, vale.
+  const providers = [
+    `https://www.instagram.com/${encodeURIComponent(user)}/favicon.ico`,
+    `https://avatars.io/instagram/${encodeURIComponent(user)}`,
+    `https://unavatar.io/instagram/${encodeURIComponent(user)}?fallback=false`,
+  ];
   return new Promise((resolve) => {
-    const img = new Image();
-    let done = false;
+    let pending = providers.length;
+    let confirmedExists = false;
+    let anyAnswered = false;
     const timer = window.setTimeout(() => {
-      if (done) return;
-      done = true;
-      resolve(null); // inconclusivo (timeout)
-    }, 5000);
-    img.onload = () => {
-      if (done) return;
-      done = true;
-      window.clearTimeout(timer);
-      // Se naturalWidth > 1, carregou imagem real → perfil existe
-      resolve(img.naturalWidth > 1);
-    };
-    img.onerror = () => {
-      if (done) return;
-      done = true;
-      window.clearTimeout(timer);
-      resolve(false);
-    };
-    // Endpoint público que retorna a foto de perfil (CORS-friendly via <img>).
-    img.src = `https://unavatar.io/instagram/${encodeURIComponent(user)}?fallback=false&t=${Date.now()}`;
+      if (!anyAnswered) resolve(null);
+      else if (!confirmedExists) resolve(false);
+    }, 6000);
+
+    providers.forEach((src) => {
+      const img = new Image();
+      img.onload = () => {
+        anyAnswered = true;
+        if (img.naturalWidth > 1) {
+          confirmedExists = true;
+          window.clearTimeout(timer);
+          resolve(true);
+        }
+        if (--pending === 0 && !confirmedExists) {
+          window.clearTimeout(timer);
+          resolve(false);
+        }
+      };
+      img.onerror = () => {
+        anyAnswered = true;
+        if (--pending === 0 && !confirmedExists) {
+          window.clearTimeout(timer);
+          resolve(false);
+        }
+      };
+      img.src = `${src}${src.includes('?') ? '&' : '?'}t=${Date.now()}`;
+    });
   });
 }
 
