@@ -140,6 +140,63 @@ export type Database = {
         }
         Relationships: []
       }
+      administrativo: {
+        Row: {
+          assinatura: string | null
+          contrato_ate_mes: number | null
+          cpf: string | null
+          created_at: string | null
+          id: string
+          municipio_id: string | null
+          nome: string
+          suplente_id: string | null
+          updated_at: string | null
+          valor_contrato: number | null
+          whatsapp: string | null
+        }
+        Insert: {
+          assinatura?: string | null
+          contrato_ate_mes?: number | null
+          cpf?: string | null
+          created_at?: string | null
+          id?: string
+          municipio_id?: string | null
+          nome: string
+          suplente_id?: string | null
+          updated_at?: string | null
+          valor_contrato?: number | null
+          whatsapp?: string | null
+        }
+        Update: {
+          assinatura?: string | null
+          contrato_ate_mes?: number | null
+          cpf?: string | null
+          created_at?: string | null
+          id?: string
+          municipio_id?: string | null
+          nome?: string
+          suplente_id?: string | null
+          updated_at?: string | null
+          valor_contrato?: number | null
+          whatsapp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "administrativo_municipio_id_fkey"
+            columns: ["municipio_id"]
+            isOneToOne: false
+            referencedRelation: "municipios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "administrativo_suplente_id_fkey"
+            columns: ["suplente_id"]
+            isOneToOne: false
+            referencedRelation: "suplentes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       albuns: {
         Row: {
           atualizado_em: string
@@ -1521,6 +1578,8 @@ export type Database = {
           evento_id: string | null
           id: string
           lider_principal_id: string | null
+          lideranca_vinculada_id: string | null
+          meses_recebimento: number[] | null
           meta_votos: number | null
           municipio_id: string | null
           nivel: string | null
@@ -1532,6 +1591,7 @@ export type Database = {
           status: string | null
           suplente_id: string | null
           tipo_lideranca: string | null
+          vinculada_a: string | null
           zona_atuacao: string | null
         }
         Insert: {
@@ -1544,6 +1604,8 @@ export type Database = {
           evento_id?: string | null
           id?: string
           lider_principal_id?: string | null
+          lideranca_vinculada_id?: string | null
+          meses_recebimento?: number[] | null
           meta_votos?: number | null
           municipio_id?: string | null
           nivel?: string | null
@@ -1555,6 +1617,7 @@ export type Database = {
           status?: string | null
           suplente_id?: string | null
           tipo_lideranca?: string | null
+          vinculada_a?: string | null
           zona_atuacao?: string | null
         }
         Update: {
@@ -1567,6 +1630,8 @@ export type Database = {
           evento_id?: string | null
           id?: string
           lider_principal_id?: string | null
+          lideranca_vinculada_id?: string | null
+          meses_recebimento?: number[] | null
           meta_votos?: number | null
           municipio_id?: string | null
           nivel?: string | null
@@ -1578,6 +1643,7 @@ export type Database = {
           status?: string | null
           suplente_id?: string | null
           tipo_lideranca?: string | null
+          vinculada_a?: string | null
           zona_atuacao?: string | null
         }
         Relationships: [
@@ -1603,6 +1669,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "liderancas_lideranca_vinculada_id_fkey"
+            columns: ["lideranca_vinculada_id"]
+            isOneToOne: false
+            referencedRelation: "liderancas"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "liderancas_municipio_id_fkey"
             columns: ["municipio_id"]
             isOneToOne: false
@@ -1621,6 +1694,13 @@ export type Database = {
             columns: ["suplente_id"]
             isOneToOne: false
             referencedRelation: "suplentes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liderancas_vinculada_a_fkey"
+            columns: ["vinculada_a"]
+            isOneToOne: false
+            referencedRelation: "liderancas"
             referencedColumns: ["id"]
           },
         ]
@@ -2473,6 +2553,7 @@ export type Database = {
           total_campanha: number | null
           total_votos: number | null
           updated_at: string
+          vinculado_id: string | null
         }
         Insert: {
           ano_eleicao?: number | null
@@ -2498,6 +2579,7 @@ export type Database = {
           total_campanha?: number | null
           total_votos?: number | null
           updated_at?: string
+          vinculado_id?: string | null
         }
         Update: {
           ano_eleicao?: number | null
@@ -2523,8 +2605,153 @@ export type Database = {
           total_campanha?: number | null
           total_votos?: number | null
           updated_at?: string
+          vinculado_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "suplentes_vinculado_id_fkey"
+            columns: ["vinculado_id"]
+            isOneToOne: false
+            referencedRelation: "suplentes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tubarao_social: {
+        Row: {
+          atualizado_em: string
+          colegio_eleitoral: string | null
+          cpf: string | null
+          criado_em: string
+          criado_por: string | null
+          email: string | null
+          id: string
+          instagram: string | null
+          municipio: string | null
+          nome: string
+          observacoes: string | null
+          secao: string | null
+          telefone: string | null
+          tipo: string | null
+          titulo_eleitor: string | null
+          uf: string | null
+          zona: string | null
+        }
+        Insert: {
+          atualizado_em?: string
+          colegio_eleitoral?: string | null
+          cpf?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          email?: string | null
+          id?: string
+          instagram?: string | null
+          municipio?: string | null
+          nome: string
+          observacoes?: string | null
+          secao?: string | null
+          telefone?: string | null
+          tipo?: string | null
+          titulo_eleitor?: string | null
+          uf?: string | null
+          zona?: string | null
+        }
+        Update: {
+          atualizado_em?: string
+          colegio_eleitoral?: string | null
+          cpf?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          email?: string | null
+          id?: string
+          instagram?: string | null
+          municipio?: string | null
+          nome?: string
+          observacoes?: string | null
+          secao?: string | null
+          telefone?: string | null
+          tipo?: string | null
+          titulo_eleitor?: string | null
+          uf?: string | null
+          zona?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tubarao_social_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "sindspag_usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tubarao_time: {
+        Row: {
+          atualizado_em: string
+          colegio_eleitoral: string | null
+          cpf: string | null
+          criado_em: string
+          criado_por: string | null
+          email: string | null
+          id: string
+          instagram: string | null
+          municipio: string | null
+          nome: string
+          observacoes: string | null
+          secao: string | null
+          telefone: string | null
+          tipo: string | null
+          titulo_eleitor: string | null
+          uf: string | null
+          zona: string | null
+        }
+        Insert: {
+          atualizado_em?: string
+          colegio_eleitoral?: string | null
+          cpf?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          email?: string | null
+          id?: string
+          instagram?: string | null
+          municipio?: string | null
+          nome: string
+          observacoes?: string | null
+          secao?: string | null
+          telefone?: string | null
+          tipo?: string | null
+          titulo_eleitor?: string | null
+          uf?: string | null
+          zona?: string | null
+        }
+        Update: {
+          atualizado_em?: string
+          colegio_eleitoral?: string | null
+          cpf?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          email?: string | null
+          id?: string
+          instagram?: string | null
+          municipio?: string | null
+          nome?: string
+          observacoes?: string | null
+          secao?: string | null
+          telefone?: string | null
+          tipo?: string | null
+          titulo_eleitor?: string | null
+          uf?: string | null
+          zona?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tubarao_time_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "sindspag_usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       usuario_modulos: {
         Row: {
@@ -2664,6 +2891,27 @@ export type Database = {
         }
         Returns: boolean
       }
+      tubarao_criar_usuario: {
+        Args: { p_cargo: string; p_nome: string; p_senha: string }
+        Returns: Json
+      }
+      tubarao_get_lider_publico: {
+        Args: { p_user_id: string }
+        Returns: {
+          cargo: string
+          id: string
+          nome: string
+        }[]
+      }
+      tubarao_info_lider: {
+        Args: { p_user_id: string }
+        Returns: {
+          v_cargo: string
+          v_nome: string
+        }[]
+      }
+      upsert_lideranca: { Args: { p_payload: Json }; Returns: Json }
+      upsert_lideranca_v3: { Args: { p_payload: Json }; Returns: Json }
     }
     Enums: {
       cargo_admin: "super_admin" | "admin" | "editor"
