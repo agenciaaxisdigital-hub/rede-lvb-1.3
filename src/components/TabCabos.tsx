@@ -64,7 +64,7 @@ interface Props {
   viewOnly?: boolean;
 }
 
-export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) {
+export default function TabCabos({ refreshKey, onSaved, viewOnly }: Props) {
   const { usuario, isAdmin, tipoUsuario, municipioId: authMunicipioId } = useAuth();
   const { cidadeAtiva, isTodasCidades, nomeMunicipioPorId } = useCidade();
   const { data: cachedData, isLoading: cacheLoading, refetch: refetchCache } = useLiderancas();
@@ -83,7 +83,7 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
   const [form, setForm] = useState({ ...emptyForm });
 
   // Persist form draft to IndexedDB (survives refresh/crash/close/PWA update)
-  const { clearDraft } = useFormDraft('cadastrar-lideranca-tab', form, setForm, emptyForm);
+  const { clearDraft } = useFormDraft('cadastrar-cabo-tab', form, setForm, emptyForm);
 
   // Validações ao vivo
   const igStatus = useInstagramCheck(form.instagram);
@@ -118,7 +118,7 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
   // Use cached data from React Query
   useEffect(() => {
     if (cachedData) {
-      setData(cachedData as unknown as LiderancaRow[]);
+      setData((cachedData as unknown as LiderancaRow[]).filter(l => l.tipo_lideranca === 'Cabo Eleitoral'));
       setLoading(false);
       setTemMais(false); // cached data already has all rows
     }
@@ -203,7 +203,7 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
 
       const suplenteId = ligSuplenteId || getSuplementeId();
       const registroData = {
-        tipo_lideranca: form.tipo_lideranca || null,
+        tipo_lideranca: 'Cabo Eleitoral',
         nivel: form.nivel || null, regiao_atuacao: form.regiao_atuacao || null,
         zona_atuacao: form.zona_atuacao || null, bairros_influencia: form.bairros_influencia || null,
         comunidades_influencia: form.comunidades_influencia || null,
@@ -241,7 +241,7 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
       const { error: lError } = await (supabase as any).from('liderancas').insert({ ...registroData, pessoa_id: pessoaId });
       if (lError) throw lError;
 
-      toast({ title: '✅ Liderança cadastrada!' });
+      toast({ title: '✅ Cabo Eleitoral cadastrado!' });
       setForm({ ...emptyForm });
       clearDraft();
       setMode('list');
@@ -271,9 +271,9 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
   }, []);
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Excluir esta liderança permanentemente?')) return;
+    if (!confirm('Excluir este cabo eleitoral permanentemente?')) return;
     await supabase.from('liderancas').delete().eq('id', id);
-    toast({ title: 'Liderança excluída' });
+    toast({ title: 'Cabo Eleitoral excluído' });
     setSelected(null);
     setMode('list');
     invalidarCadastros();
@@ -281,7 +281,7 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
 
   const handleDiscard = async (id: string) => {
     await supabase.from('liderancas').update({ status: 'Descartada', atualizado_em: new Date().toISOString() }).eq('id', id);
-    toast({ title: 'Liderança descartada' });
+    toast({ title: 'Cabo Eleitoral descartado' });
     setSelected(null);
     setMode('list');
     invalidarCadastros();
@@ -387,7 +387,7 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
           <h2 className="section-title">👤 Dados Pessoais</h2>
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">Nome completo <span className="text-primary">*</span></label>
-            <input type="text" value={form.nome} onChange={e => update('nome', e.target.value)} placeholder="Nome da liderança" className={inputCls} />
+            <input type="text" value={form.nome} onChange={e => update('nome', e.target.value)} placeholder="Nome do cabo eleitoral" className={inputCls} />
           </div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">
@@ -473,9 +473,9 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
           cidadeAtivaId={cidadeAtiva?.id || null}
         />
 
-        <button data-testid="btn-salvar-lideranca" onClick={handleSave} disabled={saving}
+        <button data-testid="btn-salvar-cabo" onClick={handleSave} disabled={saving}
           className="w-full h-14 gradient-primary text-white text-base font-semibold rounded-2xl shadow-lg shadow-pink-500/25 active:scale-[0.97] transition-all disabled:opacity-50 flex items-center justify-center gap-2">
-          {saving ? <><Loader2 size={20} className="animate-spin" /> Salvando...</> : '✅ Cadastrar Liderança'}
+          {saving ? <><Loader2 size={20} className="animate-spin" /> Salvando...</> : '✅ Cadastrar Cabo Eleitoral'}
         </button>
       </div>
     );
@@ -486,9 +486,9 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
     <div className="space-y-3 pb-24">
       {!viewOnly && <LinkCaptacaoCard initialVariant="lideranca" lockVariant />}
       {!viewOnly && (
-        <button data-testid="btn-cadastrar-lideranca" onClick={() => { setForm({ ...emptyForm }); setMode('form'); }}
+        <button data-testid="btn-cadastrar-cabo" onClick={() => { setForm({ ...emptyForm }); setMode('form'); }}
           className="w-full h-12 gradient-primary text-white font-semibold rounded-xl active:scale-[0.97] transition-all flex items-center justify-center gap-2">
-          <PlusCircle size={18} /> Cadastrar Liderança
+          <PlusCircle size={18} /> Cadastrar Cabo Eleitoral
         </button>
       )}
 
@@ -515,12 +515,12 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
       )}
 
       <p className="text-xs text-muted-foreground">
-        {filtered.length}{offlineItems.length > 0 ? ` + ${offlineItems.length} pendente${offlineItems.length > 1 ? 's' : ''}` : ''} liderança{filtered.length + offlineItems.length !== 1 ? 's' : ''}
+        {filtered.length}{offlineItems.length > 0 ? ` + ${offlineItems.length} pendente${offlineItems.length > 1 ? 's' : ''}` : ''} cabos eleitorais
       </p>
 
-      <button onClick={() => exportAllCadastros()}
+      <button onClick={() => exportAllCadastros('cabo_eleitoral')}
         className="w-full h-9 flex items-center justify-center gap-2 bg-card border border-border rounded-xl text-xs font-medium text-foreground active:scale-[0.97] transition-all">
-        <Download size={14} /> Exportar Lideranças (Excel)
+        <Download size={14} /> Exportar Cabos (Excel)
       </button>
 
       {loading ? (
@@ -551,7 +551,7 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
 
           {/* Server items */}
           {filtered.length === 0 && offlineItems.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground"><p className="text-sm">Nenhuma liderança encontrada</p></div>
+            <div className="text-center py-12 text-muted-foreground"><p className="text-sm">Nenhum cabo eleitoral encontrado</p></div>
           ) : filtered.map(l => (
             <button key={l.id} onClick={() => { fetchDetalhe(l.id); setMode('detail'); }}
               className="w-full text-left bg-card rounded-xl border border-border p-3 flex items-center gap-3 active:scale-[0.98] transition-transform">
@@ -559,11 +559,8 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
                 <div className="flex items-center gap-2 mb-0.5">
                   <span className="font-semibold text-foreground text-sm truncate">{l.pessoas?.nome || '—'}</span>
                   
-                   {(l as any).origem_captacao === 'visita_comite' && (
+                  {(l as any).origem_captacao === 'visita_comite' && (
                     <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/15 text-blue-600 dark:text-blue-400">Visita</span>
-                  )}
-                  {l.tipo_lideranca === 'Cabo Eleitoral' && (
-                    <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-pink-500/15 text-pink-600">Cabo</span>
                   )}
                 </div>
                  {l.suplentes?.nome && (

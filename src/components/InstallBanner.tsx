@@ -12,10 +12,8 @@ export default function InstallBanner() {
   const [platform, setPlatform] = useState<'ios' | 'android-chrome' | 'android-other' | 'desktop'>('desktop');
 
   useEffect(() => {
-    // Don't show in iframe/preview
+    // Don't show in iframe
     try { if (window.self !== window.top) return; } catch { return; }
-    if (window.location.hostname.includes('lovableproject.com')) return;
-    if (window.location.hostname.includes('id-preview--')) return;
 
     // Check if already installed as PWA
     if (window.matchMedia('(display-mode: standalone)').matches) return;

@@ -122,7 +122,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .from('hierarquia_usuarios')
         .select('*')
         .eq('auth_user_id', authUserId)
-        // .eq('ativo', true) // Temporariamente desativado para depuração
         .single();
       console.log(`[Auth] fetchUsuario ${(performance.now() - t0).toFixed(0)}ms`);
       if (error) {
@@ -143,6 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const usr = await fetchUsuario(authUserId);
     if (!usr) {
+      console.error(`[Auth] Perfil não encontrado para o ID: ${authUserId}. O usuário existe no Auth mas não na tabela hierarquia_usuarios.`);
       setUsuario(null);
       setMunicipioId(null);
       setMunicipioNome(null);
@@ -252,21 +252,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    // Listen for online event to re-validate session
+    // Listen for online event to re-validate session.
+    // Always attempt refresh — isOfflineMode would be stale in this closure.
     const handleOnline = async () => {
-      if (isOfflineMode) {
-        console.log('[Auth] Back online — attempting session refresh');
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session?.user) {
-            setUser(session.user);
-            await initializeUser(session.user.id);
-            setIsOfflineMode(false);
-            console.log('[Auth] Session restored after reconnect');
-          }
-        } catch (err) {
-          console.error('[Auth] Session refresh on reconnect failed:', err);
+      console.log('[Auth] Back online — attempting session refresh');
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          setUser(session.user);
+          await initializeUser(session.user.id);
+          setIsOfflineMode(false);
+          console.log('[Auth] Session restored after reconnect');
         }
+      } catch (err) {
+        console.error('[Auth] Session refresh on reconnect failed:', err);
       }
     };
     window.addEventListener('online', handleOnline);

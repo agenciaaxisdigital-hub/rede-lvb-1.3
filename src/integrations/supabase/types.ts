@@ -1468,11 +1468,13 @@ export type Database = {
           atualizado_em: string | null
           auth_user_id: string | null
           criado_em: string | null
+          data_nascimento: string | null
           id: string
           instagram: string | null
           link_token: string | null
           municipio_id: string | null
           nome: string
+          segue_conta: boolean | null
           superior_id: string | null
           suplente_id: string | null
           tipo: Database["public"]["Enums"]["tipo_usuario"]
@@ -1482,11 +1484,13 @@ export type Database = {
           atualizado_em?: string | null
           auth_user_id?: string | null
           criado_em?: string | null
+          data_nascimento?: string | null
           id?: string
           instagram?: string | null
           link_token?: string | null
           municipio_id?: string | null
           nome: string
+          segue_conta?: boolean | null
           superior_id?: string | null
           suplente_id?: string | null
           tipo: Database["public"]["Enums"]["tipo_usuario"]
@@ -1496,11 +1500,13 @@ export type Database = {
           atualizado_em?: string | null
           auth_user_id?: string | null
           criado_em?: string | null
+          data_nascimento?: string | null
           id?: string
           instagram?: string | null
           link_token?: string | null
           municipio_id?: string | null
           nome?: string
+          segue_conta?: boolean | null
           superior_id?: string | null
           suplente_id?: string | null
           tipo?: Database["public"]["Enums"]["tipo_usuario"]

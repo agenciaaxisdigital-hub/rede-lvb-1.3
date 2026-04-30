@@ -8,8 +8,8 @@ const corsHeaders = {
 
 const bodySchema = z.object({
   nome: z.string().trim().min(1, 'Nome é obrigatório').max(120, 'Nome muito longo'),
-  senha: z.string().min(4, 'Senha deve ter ao menos 4 caracteres').max(72, 'Senha muito longa'),
-  tipo: z.enum(['super_admin', 'coordenador', 'suplente', 'lideranca', 'fiscal', 'fernanda']).optional().default('suplente'),
+  senha: z.string().min(6, 'Senha deve ter ao menos 6 caracteres').max(72, 'Senha muito longa'),
+  tipo: z.enum(['super_admin', 'coordenador', 'suplente', 'lideranca', 'fiscal', 'fernanda', 'afiliado']).optional().default('suplente'),
   superior_id: z.string().uuid().nullable().optional(),
   suplente_id: z.string().uuid().nullable().optional(),
   municipio_id: z.string().uuid().nullable().optional(),
@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
       } else {
         console.error('Auth error:', authError);
         return new Response(
-          JSON.stringify({ error: authError.message }),
+          JSON.stringify({ error: 'Erro ao criar acesso. Tente novamente.' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -144,7 +144,7 @@ Deno.serve(async (req) => {
       // Rollback auth user
       await supabaseAdmin.auth.admin.deleteUser(authUserId);
       return new Response(
-        JSON.stringify({ error: hierarquiaError.message }),
+        JSON.stringify({ error: 'Erro ao registrar usuário no sistema. Tente novamente.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

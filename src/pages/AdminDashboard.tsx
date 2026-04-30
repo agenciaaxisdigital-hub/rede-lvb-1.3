@@ -10,7 +10,7 @@ import {
     ArrowLeft, Users, Target, Search, X, Shield,
     ChevronDown, ChevronUp, Loader2, Download, Trophy,
     BarChart3, UserCog, Eye, Building2, Plus, MapPin, Calendar, Trash2, ClipboardList,
-    Network, Instagram
+    Network, Instagram, Settings
  } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { exportAllCadastros, exportCadastrosFiltered } from '@/lib/exportXlsx';
@@ -24,6 +24,7 @@ import TabArvore from '@/components/TabArvore';
   const AdminCadastrosFernanda = lazy(() => import('@/components/AdminCadastrosFernanda'));
   const AdminCadastrosAfiliados = lazy(() => import('@/components/AdminCadastrosAfiliados'));
   const AdminMencoesInstagram = lazy(() => import('@/components/AdminMencoesInstagram'));
+  const AdminInstagramPanel = lazy(() => import('@/components/AdminInstagramPanel'));
 
 
 /* ── types ── */
@@ -78,12 +79,12 @@ interface FiscalReg {
 
 /* ── constants ── */
 type Periodo = 'hoje' | 'semana' | 'mes' | 'total';
-type TipoFiltro = 'todos' | 'lideranca' | 'eleitor' | 'fiscal';
-type VistaAtiva = 'usuarios' | 'ranking' | 'registros' | 'cidades' | 'localizacao' | 'eventos' | 'fernanda' | 'afiliados' | 'arvore' | 'mencoes';
+type TipoFiltro = 'todos' | 'lideranca' | 'cabo' | 'eleitor' | 'fiscal';
+type VistaAtiva = 'usuarios' | 'ranking' | 'registros' | 'cidades' | 'localizacao' | 'eventos' | 'fernanda' | 'afiliados' | 'arvore' | 'instagram' | 'mencoes';
 type TipoUsuarioFiltro = 'todos' | 'suplente' | 'lideranca' | 'coordenador' | 'fernanda';
 
 const periodoLabels: Record<Periodo, string> = { hoje: 'Hoje', semana: 'Semana', mes: 'Mês', total: 'Total' };
-const tipoFiltroLabels: Record<TipoFiltro, string> = { todos: 'Todos', lideranca: 'Lideranças', eleitor: 'Eleitores', fiscal: 'Fiscais' };
+const tipoFiltroLabels: Record<TipoFiltro, string> = { todos: 'Todos', lideranca: 'Lideranças', cabo: 'Cabos', eleitor: 'Eleitores', fiscal: 'Fiscais' };
 const tipoUsuarioLabels: Record<TipoUsuarioFiltro, string> = { todos: 'Todos', suplente: 'Suplentes', lideranca: 'Lideranças', coordenador: 'Coordenadores', fernanda: 'Fernanda' };
 
 const tipoLabel = (t: string) => {
@@ -152,6 +153,7 @@ export default function AdminDashboard() {
     });
   }, []);
   const getCargoTag = (supId: string | null) => supId ? suplentesTags[supId] || null : null;
+  const getUserName = (userId: string | null) => usuarios.find(u => u.id === userId)?.nome || '—';
 
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [expandedTipo, setExpandedTipo] = useState<string | null>(null);
@@ -192,25 +194,34 @@ export default function AdminDashboard() {
   const filteredF = useMemo(() => fiscais.filter(r => r.criado_em && dateFilter(r.criado_em)), [fiscais, dateFilter]);
   const filteredFern = useMemo(() => cadastrosFernanda.filter(r => dateFilter(r.criado_em)), [cadastrosFernanda, dateFilter]);
 
-  const totais = useMemo(() => ({
-    l: filteredL.length, e: filteredE.length, f: filteredF.length,
-    total: filteredL.length + filteredE.length + filteredF.length,
-  }), [filteredL, filteredE, filteredF]);
+  const totais = useMemo(() => {
+    const l = filteredL.filter(r => r.tipo_lideranca !== 'Cabo Eleitoral').length;
+    const c = filteredL.filter(r => r.tipo_lideranca === 'Cabo Eleitoral').length;
+    return {
+      l, c, e: filteredE.length, f: filteredF.length,
+      total: l + c + filteredE.length + filteredF.length,
+    };
+  }, [filteredL, filteredE, filteredF]);
 
   /* ── Ranking (inclui TODOS os usuários, mesmo com 0 cadastros) ── */
   const rankingUsuarios = useMemo(() => {
-    const map: Record<string, { l: number; e: number; f: number; fern: number }> = {};
+    const map: Record<string, { l: number; c: number; e: number; f: number; fern: number }> = {};
     usuarios.filter(u => u.tipo !== 'super_admin').forEach(u => {
-      map[u.id] = { l: 0, e: 0, f: 0, fern: 0 };
+      map[u.id] = { l: 0, c: 0, e: 0, f: 0, fern: 0 };
     });
-    filteredL.forEach(r => { if (!r.cadastrado_por) return; if (!map[r.cadastrado_por]) map[r.cadastrado_por] = { l: 0, e: 0, f: 0, fern: 0 }; map[r.cadastrado_por].l++; });
-    filteredE.forEach(r => { if (!r.cadastrado_por) return; if (!map[r.cadastrado_por]) map[r.cadastrado_por] = { l: 0, e: 0, f: 0, fern: 0 }; map[r.cadastrado_por].e++; });
-    filteredF.forEach(r => { if (!r.cadastrado_por) return; if (!map[r.cadastrado_por]) map[r.cadastrado_por] = { l: 0, e: 0, f: 0, fern: 0 }; map[r.cadastrado_por].f++; });
-    filteredFern.forEach(r => { if (!r.cadastrado_por) return; if (!map[r.cadastrado_por]) map[r.cadastrado_por] = { l: 0, e: 0, f: 0, fern: 0 }; map[r.cadastrado_por].fern++; });
+    filteredL.forEach(r => {
+      if (!r.cadastrado_por) return;
+      if (!map[r.cadastrado_por]) map[r.cadastrado_por] = { l: 0, c: 0, e: 0, f: 0, fern: 0 };
+      if (r.tipo_lideranca === 'Cabo Eleitoral') map[r.cadastrado_por].c++;
+      else map[r.cadastrado_por].l++;
+    });
+    filteredE.forEach(r => { if (!r.cadastrado_por) return; if (!map[r.cadastrado_por]) map[r.cadastrado_por] = { l: 0, c: 0, e: 0, f: 0, fern: 0 }; map[r.cadastrado_por].e++; });
+    filteredF.forEach(r => { if (!r.cadastrado_por) return; if (!map[r.cadastrado_por]) map[r.cadastrado_por] = { l: 0, c: 0, e: 0, f: 0, fern: 0 }; map[r.cadastrado_por].f++; });
+    filteredFern.forEach(r => { if (!r.cadastrado_por) return; if (!map[r.cadastrado_por]) map[r.cadastrado_por] = { l: 0, c: 0, e: 0, f: 0, fern: 0 }; map[r.cadastrado_por].fern++; });
     return Object.entries(map)
       .map(([id, stats]) => {
         const u = usuarios.find(u => u.id === id);
-         return { id, nome: u?.nome || 'Desconhecido', tipo: u?.tipo || '—', municipio_id: u?.municipio_id || null, suplente_id: u?.suplente_id || null, superior_id: u?.superior_id || null, total: stats.l + stats.e + stats.f + stats.fern, ...stats };
+         return { id, nome: u?.nome || 'Desconhecido', tipo: u?.tipo || '—', municipio_id: u?.municipio_id || null, suplente_id: u?.suplente_id || null, superior_id: u?.superior_id || null, total: stats.l + stats.c + stats.e + stats.f + stats.fern, ...stats };
       })
       .sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome));
   }, [filteredL, filteredE, filteredF, filteredFern, usuarios]);
@@ -219,12 +230,10 @@ export default function AdminDashboard() {
   const filteredUsers = useMemo(() => {
     let list = usuarios.filter(u => u.tipo !== 'super_admin');
     if (tipoUsuarioFiltro !== 'todos') list = list.filter(u => u.tipo === tipoUsuarioFiltro);
-    // Don't filter by city here — show all users and let the UI indicate city
     if (searchTerm) {
       const s = searchTerm.toLowerCase();
       list = list.filter(u => u.nome.toLowerCase().includes(s) || (getCargoTag(u.suplente_id) || '').toLowerCase().includes(s));
     }
-    // Sort: users with matching city first, then others
     if (filtroMunicipioId) {
       list = list.sort((a, b) => {
         const aMatch = a.municipio_id === filtroMunicipioId ? 0 : 1;
@@ -238,8 +247,21 @@ export default function AdminDashboard() {
   /* ── Registros list ── */
   const allRegistros = useMemo(() => {
    let result: { tipo: string; pessoa: Pessoa | null; criado_em: string; cadastrado_por: string | null; suplente_id: string | null; suplente_nome?: string | null; lideranca_nome?: string | null; extra: string }[] = [];
-    if (tipoFiltro === 'todos' || tipoFiltro === 'lideranca')
-     filteredL.forEach(r => result.push({ tipo: 'lideranca', pessoa: r.pessoas, criado_em: r.criado_em, cadastrado_por: r.cadastrado_por, suplente_id: r.suplente_id, suplente_nome: (r as any).suplentes?.nome, extra: r.status || '' }));
+    if (tipoFiltro === 'todos' || tipoFiltro === 'lideranca' || tipoFiltro === 'cabo')
+     filteredL.forEach(r => {
+       const isCabo = r.tipo_lideranca === 'Cabo Eleitoral';
+       if (tipoFiltro === 'lideranca' && isCabo) return;
+       if (tipoFiltro === 'cabo' && !isCabo) return;
+       result.push({
+         tipo: isCabo ? 'cabo' : 'lideranca',
+         pessoa: r.pessoas,
+         criado_em: r.criado_em,
+         cadastrado_por: r.cadastrado_por,
+         suplente_id: r.suplente_id,
+         suplente_nome: (r as any).suplentes?.nome,
+         extra: r.status || ''
+       });
+     });
     if (tipoFiltro === 'todos' || tipoFiltro === 'eleitor')
      filteredE.forEach(r => result.push({ tipo: 'eleitor', pessoa: r.pessoas, criado_em: r.criado_em, cadastrado_por: r.cadastrado_por, suplente_id: r.suplente_id, suplente_nome: (r as any).suplentes?.nome, lideranca_nome: (r as any).liderancas?.pessoas?.nome, extra: r.compromisso_voto || '' }));
     if (tipoFiltro === 'todos' || tipoFiltro === 'fiscal')
@@ -255,8 +277,6 @@ export default function AdminDashboard() {
     }
     return result.sort((a, b) => new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime());
   }, [filteredL, filteredE, filteredF, tipoFiltro, searchTerm, suplentesTags, usuarios]);
-
-  const getUserName = (id: string | null) => id ? (usuarios.find(u => u.id === id)?.nome || '—') : '—';
   const getMedalEmoji = (i: number) => i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}º`;
 
   const handleExport = async (tipo?: 'lideranca' | 'eleitor' | 'fiscal', cadastradoPorId?: string, cadastradoPorNome?: string) => {
@@ -273,7 +293,8 @@ export default function AdminDashboard() {
   const userCadastros = useMemo(() => {
     if (!expandedUser) return null;
     return {
-      liderancas: filteredL.filter(r => r.cadastrado_por === expandedUser),
+      liderancas: filteredL.filter(r => r.cadastrado_por === expandedUser && r.tipo_lideranca !== 'Cabo Eleitoral'),
+      cabos: filteredL.filter(r => r.cadastrado_por === expandedUser && r.tipo_lideranca === 'Cabo Eleitoral'),
       eleitores: filteredE.filter(r => r.cadastrado_por === expandedUser),
       fiscais: filteredF.filter(r => r.cadastrado_por === expandedUser),
     };
@@ -285,7 +306,8 @@ export default function AdminDashboard() {
     const u = usuarios.find(u => u.id === popupUser);
     return {
       usuario: u,
-      liderancas: filteredL.filter(r => r.cadastrado_por === popupUser),
+      liderancas: filteredL.filter(r => r.cadastrado_por === popupUser && r.tipo_lideranca !== 'Cabo Eleitoral'),
+      cabos: filteredL.filter(r => r.cadastrado_por === popupUser && r.tipo_lideranca === 'Cabo Eleitoral'),
       eleitores: filteredE.filter(r => r.cadastrado_por === popupUser),
       fiscais: filteredF.filter(r => r.cadastrado_por === popupUser),
     };
@@ -307,14 +329,16 @@ export default function AdminDashboard() {
     } finally { setDeletingId(null); }
   };
 
-   const vistaLabels: { id: VistaAtiva; icon: any; label: string }[] = [
+  const vistaLabels: { id: VistaAtiva; icon: any; label: string }[] = [
       { id: 'ranking', icon: Trophy, label: 'Ranking' },
       { id: 'arvore', icon: Network, label: 'Árvore' },
      { id: 'localizacao', icon: MapPin, label: 'Localização' },
+     { id: 'usuarios', icon: UserCog, label: 'Usuários' },
      { id: 'registros', icon: Eye, label: 'Registros' },
      { id: 'eventos', icon: Calendar, label: 'Eventos' },
      { id: 'fernanda', icon: ClipboardList, label: 'Fernanda' },
      { id: 'afiliados', icon: Users, label: 'Afiliados' },
+     { id: 'instagram', icon: Instagram, label: 'Instagram' },
      { id: 'mencoes', icon: Instagram, label: 'Menções' },
      ...(municipios.length > 1 ? [{ id: 'cidades' as VistaAtiva, icon: Building2, label: 'Cidades' }] : []),
    ];
@@ -335,53 +359,75 @@ export default function AdminDashboard() {
      >
       <div className="h-[1.5px] gradient-header" />
 
-      {/* ── Header ── */}
       <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-xl border-b border-border">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
-          <button onClick={() => navigate('/')} className="p-1.5 rounded-xl hover:bg-muted active:scale-95 transition-all">
+        <div className="max-w-3xl mx-auto px-4 pt-3 pb-2 flex items-center gap-2">
+          <button onClick={() => navigate('/')} className="p-1.5 rounded-xl hover:bg-muted active:scale-95 transition-all shrink-0">
             <ArrowLeft size={20} className="text-foreground" />
           </button>
-          <div className="flex-1">
-            <h1 className="text-lg font-bold text-foreground">Painel Admin</h1>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-base font-bold text-foreground leading-tight">Painel Admin</h1>
             <p className="text-[10px] text-muted-foreground">Visão completa da rede</p>
           </div>
-          <div className="text-right">
-            <p className="text-lg font-bold text-primary">{totais.total}</p>
-            <p className="text-[9px] text-muted-foreground uppercase tracking-wider">cadastros</p>
+          <button onClick={() => navigate('/gestao')}
+            className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-primary/10 text-primary text-xs font-semibold active:scale-95 transition-all">
+            <Settings size={12} /> Gestão
+          </button>
+        </div>
+
+        {/* Stats breakdown — 4 cards sempre visíveis */}
+        <div className="max-w-3xl mx-auto px-4 pb-2">
+          <div className="grid grid-cols-4 gap-1.5">
+            {[
+              { label: 'Lideranças', value: totais.l, color: 'text-primary bg-primary/8' },
+              { label: 'Cabos', value: totais.c, color: 'text-pink-600 bg-pink-500/8' },
+              { label: 'Eleitores', value: totais.e, color: 'text-emerald-600 bg-emerald-500/8' },
+              { label: 'Fiscais', value: totais.f, color: 'text-amber-600 bg-amber-500/8' },
+            ].map(({ label, value, color }) => (
+              <div key={label} className={`rounded-xl py-2 px-1 text-center ${color}`}>
+                <p className="text-lg font-black leading-none">{value}</p>
+                <p className="text-[9px] font-semibold mt-0.5 leading-tight">{label}</p>
+              </div>
+            ))}
           </div>
         </div>
+
+        {/* Período */}
+        <div className="max-w-3xl mx-auto px-4 pb-1">
+          <div className="flex gap-1">
+            {(Object.keys(periodoLabels) as Periodo[]).map(p => (
+              <button key={p} onClick={() => setPeriodo(p)}
+                className={`flex-1 py-1.5 rounded-lg text-[11px] font-semibold transition-all active:scale-95 ${
+                  periodo === p ? 'gradient-primary text-white shadow-sm' : 'bg-muted text-muted-foreground'
+                }`}>{periodoLabels[p]}</button>
+            ))}
+          </div>
+        </div>
+
+        {/* Seletores */}
         {municipios.length > 1 && (
-          <div className="max-w-3xl mx-auto px-4 pb-2">
+          <div className="max-w-3xl mx-auto px-4 pb-1">
             <SeletorCidade />
           </div>
         )}
         <div className="max-w-3xl mx-auto px-4 pb-2">
           <SeletorEvento />
         </div>
-      </header>
 
-      <div className="max-w-3xl mx-auto px-4 py-4 space-y-4">
-        {/* ── Period filter ── */}
-        <div className="flex gap-1.5">
-          {(Object.keys(periodoLabels) as Periodo[]).map(p => (
-            <button key={p} onClick={() => setPeriodo(p)}
-              className={`flex-1 py-1.5 rounded-full text-[11px] font-semibold transition-all active:scale-95 ${
-                periodo === p ? 'gradient-primary text-white' : 'bg-muted text-muted-foreground'
-              }`}>{periodoLabels[p]}</button>
-          ))}
-        </div>
-
-        {/* ── Tab navigation ── */}
-        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+        {/* Navegação de seções — grid wrap para caber tudo */}
+        <div className="max-w-3xl mx-auto px-4 pb-2 flex flex-wrap gap-1.5">
           {vistaLabels.map(({ id, icon: Icon, label }) => (
-            <button key={id} onClick={() => { setVistaAtiva(id); setSearchTerm(''); setRankingSearch(''); setExpandedUser(null); setTipoFiltro('todos'); setRankingTipoUsuario('todos'); }}
-              className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 ${
-                vistaAtiva === id ? 'gradient-primary text-white shadow-sm' : 'bg-muted text-muted-foreground'
+            <button key={id}
+              onClick={() => { setVistaAtiva(id); setSearchTerm(''); setRankingSearch(''); setExpandedUser(null); setTipoFiltro('todos'); setRankingTipoUsuario('todos'); }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all active:scale-95 ${
+                vistaAtiva === id ? 'gradient-primary text-white shadow-sm' : 'bg-muted/70 text-muted-foreground border border-border/50'
               }`}>
-              <Icon size={14} /> {label}
+              <Icon size={12} /> {label}
             </button>
           ))}
         </div>
+      </header>
+
+      <div className="max-w-3xl mx-auto px-4 py-4 space-y-4">
 
         {/* ══════════ USUÁRIOS ══════════ */}
         {vistaAtiva === 'usuarios' && (
@@ -405,10 +451,11 @@ export default function AdminDashboard() {
             <p className="text-xs text-muted-foreground">{filteredUsers.length} usuário{filteredUsers.length !== 1 ? 's' : ''}</p>
 
             {filteredUsers.map(u => {
-              const uL = filteredL.filter(r => r.cadastrado_por === u.id);
+              const uL = filteredL.filter(r => r.cadastrado_por === u.id && r.tipo_lideranca !== 'Cabo Eleitoral');
+              const uC = filteredL.filter(r => r.cadastrado_por === u.id && r.tipo_lideranca === 'Cabo Eleitoral');
               const uE = filteredE.filter(r => r.cadastrado_por === u.id);
               const uF = filteredF.filter(r => r.cadastrado_por === u.id);
-              const total = uL.length + uE.length + uF.length;
+              const total = uL.length + uC.length + uE.length + uF.length;
               const isExpanded = expandedUser === u.id;
               const cityName = nomeMunicipioPorId(u.municipio_id);
 
@@ -444,10 +491,10 @@ export default function AdminDashboard() {
 
                   {isExpanded && userCadastros && (
                     <div className="border-t border-border px-3 pb-3 pt-2 space-y-2">
-                      {/* Counts */}
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-2 gap-2">
                         {[
                           { key: 'lideranca', label: 'Lideranças', count: userCadastros.liderancas.length, icon: Users },
+                          { key: 'cabo', label: 'Cabos', count: userCadastros.cabos.length, icon: Users },
                           { key: 'eleitor', label: 'Eleitores', count: userCadastros.eleitores.length, icon: Target },
                           { key: 'fiscal', label: 'Fiscais', count: userCadastros.fiscais.length, icon: Shield },
                         ].map(({ key, label, count, icon: Icon }) => (
@@ -464,11 +511,11 @@ export default function AdminDashboard() {
                         ))}
                       </div>
 
-                      {/* Expanded records */}
                       {expandedTipo && (
                         <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
                           {(() => {
                             const records = expandedTipo === 'lideranca' ? userCadastros.liderancas
+                              : expandedTipo === 'cabo' ? userCadastros.cabos
                               : expandedTipo === 'fiscal' ? userCadastros.fiscais
                               : userCadastros.eleitores;
                             if (records.length === 0) return <p className="text-xs text-muted-foreground text-center py-4">Nenhum registro</p>;
@@ -489,7 +536,6 @@ export default function AdminDashboard() {
                                   <span className="text-[10px] text-muted-foreground shrink-0">{new Date(r.criado_em).toLocaleDateString('pt-BR')}</span>
                                 </div>
 
-                                {/* Contato */}
                                 <div className="grid grid-cols-2 gap-1">
                                   <Field label="CPF" value={p.cpf} />
                                   <Field label="WhatsApp" value={p.whatsapp} />
@@ -497,17 +543,7 @@ export default function AdminDashboard() {
                                   <Field label="Instagram" value={p.instagram || p.facebook} />
                                 </div>
 
-                                {/* Dados Eleitorais */}
-                                <div className="grid grid-cols-2 gap-1">
-                                  <Field label="Título" value={p.titulo_eleitor} />
-                                  <Field label="Zona / Seção" value={`${p.zona_eleitoral || '—'} / ${p.secao_eleitoral || '—'}`} />
-                                  <Field label="Município / UF" value={`${p.municipio_eleitoral || '—'} / ${p.uf_eleitoral || '—'}`} />
-                                  <Field label="Colégio" value={p.colegio_eleitoral} />
-                                  <Field label="End. Colégio" value={p.endereco_colegio} />
-                                </div>
-
-                                {/* Dados específicos */}
-                                {expandedTipo === 'lideranca' && (
+                                {(expandedTipo === 'lideranca' || expandedTipo === 'cabo') && (
                                   <div className="grid grid-cols-2 gap-1">
                                     <Field label="Região" value={r.regiao_atuacao} />
                                     <Field label="Comprometimento" value={r.nivel_comprometimento} />
@@ -521,7 +557,6 @@ export default function AdminDashboard() {
                                   </div>
                                 )}
 
-                                {/* Observações */}
                                 {r.observacoes && <Field label="Observações" value={r.observacoes} />}
                               </div>
                             );});
@@ -554,33 +589,26 @@ export default function AdminDashboard() {
         {/* ══════════ RANKING ══════════ */}
         {vistaAtiva === 'ranking' && (() => {
           let filtered = rankingUsuarios;
-
-          // Filtro por tipo de usuário
           if (rankingTipoUsuario !== 'todos') filtered = filtered.filter(u => u.tipo === rankingTipoUsuario);
-
-          // Filtro por tipo de cadastro
           if (tipoFiltro === 'lideranca') filtered = filtered.filter(u => u.l > 0);
+          else if (tipoFiltro === 'cabo') filtered = filtered.filter(u => u.c > 0);
           else if (tipoFiltro === 'eleitor') filtered = filtered.filter(u => u.e > 0);
           else if (tipoFiltro === 'fiscal') filtered = filtered.filter(u => u.f > 0);
 
-          // Busca por nome
           if (rankingSearch) {
             const s = rankingSearch.toLowerCase();
             filtered = filtered.filter(u => u.nome.toLowerCase().includes(s) || (getCargoTag(u.suplente_id) || '').toLowerCase().includes(s));
           }
-
           const maxTotal = filtered.length > 0 ? Math.max(...filtered.map(u => u.total), 1) : 1;
 
           return (
           <div className="space-y-3">
-            {/* Busca */}
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input type="text" placeholder="Buscar usuário..." value={rankingSearch} onChange={e => setRankingSearch(e.target.value)}
                 className="w-full h-10 pl-9 pr-4 rounded-xl bg-muted border border-border text-sm text-foreground placeholder:text-muted-foreground" />
             </div>
 
-            {/* Filtro por tipo de usuário */}
             <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
               {(Object.keys(tipoUsuarioLabels) as TipoUsuarioFiltro[]).map(t => (
                 <button key={t} onClick={() => setRankingTipoUsuario(t)}
@@ -590,7 +618,6 @@ export default function AdminDashboard() {
               ))}
             </div>
 
-            {/* Filtro por tipo de cadastro */}
             <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
               {(Object.keys(tipoFiltroLabels) as TipoFiltro[]).map(t => (
                 <button key={t} onClick={() => setTipoFiltro(t)}
@@ -600,13 +627,10 @@ export default function AdminDashboard() {
               ))}
             </div>
 
-            <p className="text-xs text-muted-foreground">{filtered.length} usuário{filtered.length !== 1 ? 's' : ''}</p>
-
             {filtered.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">Nenhum usuário encontrado</p>
             ) : (
               <div className="space-y-2">
-                {/* Top 3 destaque (só quando sem busca e filtro "todos") */}
                 {!rankingSearch && rankingTipoUsuario === 'todos' && tipoFiltro === 'todos' && filtered.length >= 3 && (
                   <div className="space-y-2 mb-3">
                     {filtered.slice(0, 3).map((u, i) => {
@@ -633,11 +657,9 @@ export default function AdminDashboard() {
                                    <Network size={8} /> {getUserName(u.superior_id)}
                                  </span>
                                )}
-                              {getCargoTag(u.suplente_id) && (
-                                <span className="text-[8px] px-1.5 py-0.5 rounded-md bg-accent/50 text-accent-foreground font-medium">{getCargoTag(u.suplente_id)}</span>
-                              )}
                               <div className="flex gap-1">
                                 {u.l > 0 && <span className="text-[8px] font-semibold text-primary/70">Lid. {u.l}</span>}
+                                {u.c > 0 && <span className="text-[8px] font-semibold text-pink-600/70">Cabos {u.c}</span>}
                                 {u.e > 0 && <span className="text-[8px] font-semibold text-muted-foreground">Eleit. {u.e}</span>}
                                 {u.f > 0 && <span className="text-[8px] font-semibold text-amber-600/70">Fisc. {u.f}</span>}
                               </div>
@@ -650,12 +672,12 @@ export default function AdminDashboard() {
                   </div>
                 )}
 
-                {/* Lista do ranking com expandir */}
                 {filtered.slice((!rankingSearch && rankingTipoUsuario === 'todos' && tipoFiltro === 'todos' && filtered.length >= 3) ? 3 : 0).map((u, i) => {
                   const pos = (!rankingSearch && rankingTipoUsuario === 'todos' && tipoFiltro === 'todos' && filtered.length >= 3) ? i + 3 : i;
                   const pct = maxTotal > 0 ? Math.round((u.total / maxTotal) * 100) : 0;
                   const isExpanded = expandedUser === u.id;
-                  const uLiderancas = filteredL.filter(r => r.cadastrado_por === u.id);
+                  const uLiderancas = filteredL.filter(r => r.cadastrado_por === u.id && r.tipo_lideranca !== 'Cabo Eleitoral');
+                  const uCabos = filteredL.filter(r => r.cadastrado_por === u.id && r.tipo_lideranca === 'Cabo Eleitoral');
                   const uEleitores = filteredE.filter(r => r.cadastrado_por === u.id);
                   const uFiscais = filteredF.filter(r => r.cadastrado_por === u.id);
                   const uFernanda = filteredFern.filter(r => r.cadastrado_por === u.id);
@@ -667,7 +689,6 @@ export default function AdminDashboard() {
                         onClick={() => { setExpandedUser(isExpanded ? null : u.id); setExpandedTipo(null); }}
                         className="w-full text-left relative overflow-hidden"
                       >
-                        {/* Barra de progresso de fundo */}
                         <div
                           className="absolute inset-y-0 left-0 bg-primary/[0.06] transition-all duration-500"
                           style={{ width: `${pct}%` }}
@@ -681,15 +702,12 @@ export default function AdminDashboard() {
                             <p className="text-sm font-semibold text-foreground truncate">{u.nome}</p>
                             <div className="flex items-center gap-1.5 mt-0.5">
                                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{tipoLabel(u.tipo)}</span>
-                               {u.superior_id && (
-                                 <span className="text-[8px] px-1.5 py-0.5 rounded-md bg-green-500/10 text-green-600 font-bold uppercase tracking-wider flex items-center gap-0.5" title={`Vinculado a ${getUserName(u.superior_id)}`}>
-                                   <Network size={8} /> {getUserName(u.superior_id)}
-                                 </span>
-                               )}
-                              {getCargoTag(u.suplente_id) && (
-                                <span className="text-[8px] px-1.5 py-0.5 rounded-md bg-accent/50 text-accent-foreground font-medium">{getCargoTag(u.suplente_id)}</span>
-                              )}
-                              {u.municipio_id && <span className="text-[9px] text-muted-foreground flex items-center gap-0.5"><MapPin size={8} />{nomeMunicipioPorId(u.municipio_id)}</span>}
+                               <div className="flex gap-1">
+                                {u.l > 0 && <span className="text-[8px] font-semibold text-primary/70">Lid. {u.l}</span>}
+                                {u.c > 0 && <span className="text-[8px] font-semibold text-pink-600/70">Cabos {u.c}</span>}
+                                {u.e > 0 && <span className="text-[8px] font-semibold text-muted-foreground">Eleit. {u.e}</span>}
+                                {u.f > 0 && <span className="text-[8px] font-semibold text-amber-600/70">Fisc. {u.f}</span>}
+                              </div>
                             </div>
                           </div>
                           <div className="text-right shrink-0">
@@ -703,47 +721,28 @@ export default function AdminDashboard() {
                       {isExpanded && (
                         <div className="border-t border-border px-3 pb-3 pt-2 space-y-2">
                           {isFernanda ? (
-                            // ─── Vista exclusiva para usuários tipo "fernanda" ───
                             <>
                               <div className="flex items-center justify-between px-1">
                                 <span className="text-[11px] font-semibold text-primary uppercase tracking-wider">🩷 Cadastros Fernanda</span>
                                 <span className="text-[11px] font-bold text-foreground">{uFernanda.length}</span>
                               </div>
-                              {uFernanda.length === 0 ? (
-                                <p className="text-xs text-muted-foreground text-center py-4">Nenhum cadastro ainda</p>
-                              ) : (
-                                <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
-                                  {uFernanda.map(c => (
-                                    <div key={c.id} className="p-3 rounded-xl bg-muted/50 border border-border/50 space-y-1.5">
-                                      <div className="flex items-start justify-between gap-2">
-                                        <p className="text-sm font-semibold text-foreground truncate">{c.nome}</p>
-                                        <span className="text-[10px] text-muted-foreground shrink-0">{new Date(c.criado_em).toLocaleDateString('pt-BR')}</span>
-                                      </div>
-                                      <div className="grid grid-cols-1 gap-1">
-                                        <div className="text-[10px] bg-background rounded px-2 py-1">
-                                          <span className="text-muted-foreground">Telefone:</span>{' '}
-                                          <span className="text-foreground">{c.telefone}</span>
-                                        </div>
-                                        <div className="text-[10px] bg-background rounded px-2 py-1">
-                                          <span className="text-muted-foreground">Cidade:</span>{' '}
-                                          <span className={c.cidade ? 'text-foreground' : 'text-muted-foreground/50 italic'}>{c.cidade || '—'}</span>
-                                        </div>
-                                        <div className="text-[10px] bg-background rounded px-2 py-1">
-                                          <span className="text-muted-foreground">Instagram:</span>{' '}
-                                          <span className={c.instagram ? 'text-foreground' : 'text-muted-foreground/50 italic'}>{c.instagram || '—'}</span>
-                                        </div>
-                                      </div>
+                              <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
+                                {uFernanda.map(c => (
+                                  <div key={c.id} className="p-3 rounded-xl bg-muted/50 border border-border/50 space-y-1.5">
+                                    <div className="flex items-start justify-between gap-2">
+                                      <p className="text-sm font-semibold text-foreground truncate">{c.nome}</p>
+                                      <span className="text-[10px] text-muted-foreground shrink-0">{new Date(c.criado_em).toLocaleDateString('pt-BR')}</span>
                                     </div>
-                                  ))}
-                                </div>
-                              )}
+                                  </div>
+                                ))}
+                              </div>
                             </>
                           ) : (
                             <>
-                          {/* Counts */}
-                          <div className="grid grid-cols-3 gap-2">
+                          <div className="grid grid-cols-2 gap-2">
                             {[
                               { key: 'lideranca', label: 'Lideranças', count: uLiderancas.length, icon: Users },
+                              { key: 'cabo', label: 'Cabos', count: uCabos.length, icon: Users },
                               { key: 'eleitor', label: 'Eleitores', count: uEleitores.length, icon: Target },
                               { key: 'fiscal', label: 'Fiscais', count: uFiscais.length, icon: Shield },
                             ].map(({ key, label, count, icon: Icon }) => (
@@ -760,22 +759,22 @@ export default function AdminDashboard() {
                             ))}
                           </div>
 
-                          {/* Expanded records */}
                           {expandedTipo && (
                             <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
                               {(() => {
                                 const records = expandedTipo === 'lideranca' ? uLiderancas
+                                  : expandedTipo === 'cabo' ? uCabos
                                   : expandedTipo === 'fiscal' ? uFiscais
                                   : uEleitores;
                                 if (records.length === 0) return <p className="text-xs text-muted-foreground text-center py-4">Nenhum registro</p>;
-                                const Field = ({ label, value }: { label: string; value: any }) => (
-                                  <div className="text-[10px] bg-background rounded px-2 py-1">
-                                    <span className="text-muted-foreground">{label}:</span>{' '}
-                                    <span className={value ? 'text-foreground' : 'text-muted-foreground/50 italic'}>{value || '—'}</span>
-                                  </div>
-                                );
                                 return records.map((r: any) => {
                                   const p = r.pessoas || {};
+                                  const Field = ({ label, value }: { label: string; value: any }) => (
+                                    <div className="text-[10px] bg-background rounded px-2 py-1">
+                                      <span className="text-muted-foreground">{label}:</span>{' '}
+                                      <span className={value ? 'text-foreground' : 'text-muted-foreground/50 italic'}>{value || '—'}</span>
+                                    </div>
+                                  );
                                   return (
                                     <div key={r.id} className="p-3 rounded-xl bg-muted/50 border border-border/50 space-y-2">
                                       <div className="flex items-start justify-between">
@@ -784,26 +783,7 @@ export default function AdminDashboard() {
                                         </div>
                                         <span className="text-[10px] text-muted-foreground shrink-0">{new Date(r.criado_em).toLocaleDateString('pt-BR')}</span>
                                       </div>
-
-                                      {/* Contato */}
-                                      <div className="grid grid-cols-2 gap-1">
-                                        <Field label="CPF" value={p.cpf} />
-                                        <Field label="WhatsApp" value={p.whatsapp} />
-                                        <Field label="E-mail" value={p.email} />
-                                        <Field label="Instagram" value={p.instagram || p.facebook} />
-                                      </div>
-
-                                      {/* Dados Eleitorais */}
-                                      <div className="grid grid-cols-2 gap-1">
-                                        <Field label="Título" value={p.titulo_eleitor} />
-                                        <Field label="Zona / Seção" value={`${p.zona_eleitoral || '—'} / ${p.secao_eleitoral || '—'}`} />
-                                        <Field label="Município / UF" value={`${p.municipio_eleitoral || '—'} / ${p.uf_eleitoral || '—'}`} />
-                                        <Field label="Colégio" value={p.colegio_eleitoral} />
-                                        <Field label="End. Colégio" value={p.endereco_colegio} />
-                                      </div>
-
-                                      {/* Dados específicos */}
-                                      {expandedTipo === 'lideranca' && (
+                                      {(expandedTipo === 'lideranca' || expandedTipo === 'cabo') && (
                                         <div className="grid grid-cols-2 gap-1">
                                           <Field label="Região" value={r.regiao_atuacao} />
                                           <Field label="Comprometimento" value={r.nivel_comprometimento} />
@@ -823,8 +803,6 @@ export default function AdminDashboard() {
                                           <Field label="Colégio" value={r.colegio_eleitoral} />
                                         </div>
                                       )}
-
-                                      {/* Observações */}
                                       {r.observacoes && <Field label="Observações" value={r.observacoes} />}
                                     </div>
                                   );
@@ -834,8 +812,6 @@ export default function AdminDashboard() {
                           )}
                             </>
                           )}
-
-                          {/* Export & detail buttons */}
                           <div className="flex gap-2 pt-1">
                             <button onClick={() => setPopupUser(u.id)}
                               className="flex-1 h-9 flex items-center justify-center gap-1.5 bg-primary/10 text-primary rounded-xl text-xs font-semibold active:scale-95 transition-all">
@@ -907,10 +883,11 @@ export default function AdminDashboard() {
                   </div>
                   <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
                     r.tipo === 'lideranca' ? 'bg-primary/10 text-primary'
+                    : r.tipo === 'cabo' ? 'bg-pink-500/15 text-pink-600'
                     : r.tipo === 'fiscal' ? 'bg-amber-500/15 text-amber-600'
                     : 'bg-secondary text-secondary-foreground'
                   }`}>
-                    {r.tipo === 'lideranca' ? 'Liderança' : r.tipo === 'fiscal' ? 'Fiscal' : 'Eleitor'}
+                    {r.tipo === 'lideranca' ? 'Liderança' : r.tipo === 'cabo' ? 'Cabo' : r.tipo === 'fiscal' ? 'Fiscal' : 'Eleitor'}
                   </span>
                 </div>
               ))}
@@ -944,7 +921,6 @@ export default function AdminDashboard() {
                   if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
                   toast({ title: `✅ ${nome} adicionada!` });
                   input.value = '';
-                  // Data will refresh automatically via React Query
                 }}
                 className="h-10 px-4 gradient-primary text-white rounded-xl text-sm font-semibold flex items-center gap-1 active:scale-95">
                 <Plus size={14} /> Adicionar
@@ -953,7 +929,8 @@ export default function AdminDashboard() {
 
             {municipios.map(m => {
               const userCount = usuarios.filter(u => u.municipio_id === m.id).length;
-              const lidCount = liderancas.filter(l => l.municipio_id === m.id).length;
+              const lidCount = liderancas.filter(l => l.municipio_id === m.id && l.tipo_lideranca !== 'Cabo Eleitoral').length;
+              const caboCount = liderancas.filter(l => l.municipio_id === m.id && l.tipo_lideranca === 'Cabo Eleitoral').length;
               const eleCount = eleitores.filter(e => e.municipio_id === m.id).length;
               const fisCount = fiscais.filter(f => f.municipio_id === m.id).length;
 
@@ -972,11 +949,12 @@ export default function AdminDashboard() {
                       Ver →
                     </button>
                   </div>
-                  <div className="flex items-center gap-3 mt-2 pt-2 border-t border-border">
-                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><Users size={10} /> {lidCount}</span>
-                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><Target size={10} /> {eleCount}</span>
-                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><Shield size={10} /> {fisCount}</span>
-                    <span className="ml-auto text-xs font-bold text-primary">{lidCount + eleCount + fisCount}</span>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 pt-2 border-t border-border">
+                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><Users size={10} /> {lidCount} Lid.</span>
+                    <span className="flex items-center gap-1 text-[10px] text-pink-600/70"><Users size={10} /> {caboCount} Cab.</span>
+                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><Target size={10} /> {eleCount} Ele.</span>
+                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><Shield size={10} /> {fisCount} Fis.</span>
+                    <span className="ml-auto text-xs font-bold text-primary">{lidCount + caboCount + eleCount + fisCount} total</span>
                   </div>
                 </div>
               );
@@ -1005,14 +983,19 @@ export default function AdminDashboard() {
            </Suspense>
          )}
 
+         {/* ══════════ PAINEL INSTAGRAM ══════════ */}
+         {vistaAtiva === 'instagram' && (
+           <Suspense fallback={<div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-primary" /></div>}>
+             <AdminInstagramPanel />
+           </Suspense>
+         )}
+
          {/* ══════════ MENÇÕES INSTAGRAM ══════════ */}
          {vistaAtiva === 'mencoes' && (
            <Suspense fallback={<div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-primary" /></div>}>
              <AdminMencoesInstagram />
            </Suspense>
          )}
- 
-
       </div>
 
       {/* ══════════ POPUP CADASTROS DO USUÁRIO ══════════ */}
@@ -1040,7 +1023,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
               <div className="text-right mr-2">
-                <p className="text-2xl font-black text-primary">{popupUserData.liderancas.length + popupUserData.eleitores.length + popupUserData.fiscais.length}</p>
+                <p className="text-2xl font-black text-primary">{popupUserData.liderancas.length + popupUserData.cabos.length + popupUserData.eleitores.length + popupUserData.fiscais.length}</p>
                 <p className="text-[9px] text-muted-foreground">cadastros</p>
               </div>
               <button onClick={() => setPopupUser(null)} className="p-1.5 rounded-lg hover:bg-muted active:scale-95 transition-all">
@@ -1053,6 +1036,11 @@ export default function AdminDashboard() {
               {popupUserData.liderancas.length > 0 && (
                 <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-primary/15 text-primary">
                   <Users size={12} className="inline mr-1" />Lideranças: {popupUserData.liderancas.length}
+                </span>
+              )}
+              {popupUserData.cabos.length > 0 && (
+                <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-pink-500/15 text-pink-600">
+                  <Users size={12} className="inline mr-1" />Cabos: {popupUserData.cabos.length}
                 </span>
               )}
               {popupUserData.eleitores.length > 0 && (
@@ -1070,6 +1058,7 @@ export default function AdminDashboard() {
             {/* Records list */}
             <div className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-2">
               {[...popupUserData.liderancas.map(r => ({ ...r, _tipo: 'lideranca' as const })),
+                ...popupUserData.cabos.map(r => ({ ...r, _tipo: 'cabo' as const })),
                 ...popupUserData.eleitores.map(r => ({ ...r, _tipo: 'eleitor' as const })),
                 ...popupUserData.fiscais.map(r => ({ ...r, _tipo: 'fiscal' as const }))]
                 .sort((a, b) => new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime())
@@ -1086,14 +1075,17 @@ export default function AdminDashboard() {
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-2">
                           <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${
-                            r._tipo === 'lideranca' ? 'bg-primary/15 text-primary' : r._tipo === 'fiscal' ? 'bg-amber-500/15 text-amber-600' : 'bg-secondary text-secondary-foreground'
-                          }`}>{r._tipo === 'lideranca' ? 'Liderança' : r._tipo === 'fiscal' ? 'Fiscal' : 'Eleitor'}</span>
+                            r._tipo === 'lideranca' ? 'bg-primary/15 text-primary' 
+                            : r._tipo === 'cabo' ? 'bg-pink-500/15 text-pink-600'
+                            : r._tipo === 'fiscal' ? 'bg-amber-500/15 text-amber-600' 
+                            : 'bg-secondary text-secondary-foreground'
+                          }`}>{r._tipo === 'lideranca' ? 'Liderança' : r._tipo === 'cabo' ? 'Cabo' : r._tipo === 'fiscal' ? 'Fiscal' : 'Eleitor'}</span>
                           <p className="text-sm font-semibold text-foreground">{p.nome || '—'}</p>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <span className="text-[10px] text-muted-foreground">{new Date(r.criado_em).toLocaleDateString('pt-BR')}</span>
                           <button
-                            onClick={() => handleDeleteCadastro(r.id, r._tipo === 'eleitor' ? 'eleitor' : r._tipo)}
+                            onClick={() => handleDeleteCadastro(r.id, r._tipo === 'eleitor' ? 'eleitor' : (r._tipo === 'cabo' ? 'lideranca' : r._tipo))}
                             disabled={deletingId === r.id}
                             className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
                             title="Apagar registro"
@@ -1103,26 +1095,14 @@ export default function AdminDashboard() {
                         </div>
                       </div>
 
-                      {/* Contato */}
                       <div className="grid grid-cols-2 gap-1">
                         <Field label="CPF" value={p.cpf} />
                         <Field label="WhatsApp" value={p.whatsapp} />
-                        <Field label="Telefone" value={p.telefone} />
                         <Field label="E-mail" value={p.email} />
                         <Field label="Instagram" value={p.instagram || p.facebook} />
                       </div>
 
-                      {/* Dados Eleitorais */}
-                      <div className="grid grid-cols-2 gap-1">
-                        <Field label="Título" value={p.titulo_eleitor} />
-                        <Field label="Zona / Seção" value={`${p.zona_eleitoral || '—'} / ${p.secao_eleitoral || '—'}`} />
-                        <Field label="Município / UF" value={`${p.municipio_eleitoral || '—'} / ${p.uf_eleitoral || '—'}`} />
-                        <Field label="Colégio" value={p.colegio_eleitoral} />
-                        <Field label="End. Colégio" value={p.endereco_colegio} />
-                      </div>
-
-                      {/* Dados específicos */}
-                      {r._tipo === 'lideranca' && (
+                      {(r._tipo === 'lideranca' || r._tipo === 'cabo') && (
                         <div className="grid grid-cols-2 gap-1">
                           <Field label="Região" value={r.regiao_atuacao} />
                           <Field label="Comprometimento" value={r.nivel_comprometimento} />
@@ -1142,13 +1122,11 @@ export default function AdminDashboard() {
                           <Field label="Colégio" value={r.colegio_eleitoral} />
                         </div>
                       )}
-
-                      {/* Observações */}
                       {r.observacoes && <Field label="Observações" value={r.observacoes} />}
                     </div>
                   );
                 })}
-              {popupUserData.liderancas.length === 0 && popupUserData.eleitores.length === 0 && popupUserData.fiscais.length === 0 && (
+              {popupUserData.liderancas.length === 0 && popupUserData.cabos.length === 0 && popupUserData.eleitores.length === 0 && popupUserData.fiscais.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-8">Nenhum cadastro no período selecionado</p>
               )}
             </div>

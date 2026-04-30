@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
- import { Loader2, Search, ChevronRight, ArrowLeft, Phone, MessageCircle, Trash2, ExternalLink, Download, WifiOff, Network, Users } from 'lucide-react';
+ import { Loader2, Search, ChevronRight, ArrowLeft, Phone, MessageCircle, Trash2, ExternalLink, Download, WifiOff, Network, Users, Eye } from 'lucide-react';
 import { exportAllCadastros } from '@/lib/exportXlsx';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -132,8 +132,14 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
     if (!form.cpf || form.cpf.length !== 11) { toast({ title: 'Informe o CPF', variant: 'destructive' }); return; }
     if (form.cpf.length === 11 && !validateCPF(form.cpf)) { toast({ title: 'CPF inválido', variant: 'destructive' }); return; }
     if (!form.whatsapp.trim()) { toast({ title: 'Informe o WhatsApp', variant: 'destructive' }); return; }
-    if (!form.instagram.trim()) { toast({ title: 'Informe a rede social', variant: 'destructive' }); return; }
-    if (igStatus !== 'ok') { toast({ title: 'Instagram não confirmado', description: 'Aguarde a verificação ou corrija o @ informado.', variant: 'destructive' }); return; }
+    if (igStatus === 'invalido') { toast({ title: 'Instagram inválido', description: 'O formato do @ informado não é aceito pelo Instagram.', variant: 'destructive' }); return; }
+    if (igStatus === 'nao_existe') { toast({ title: 'Instagram não existe', description: 'Esta conta não foi encontrada no Instagram.', variant: 'destructive' }); return; }
+    if (igStatus === 'checking') { toast({ title: 'Aguarde', description: 'Estamos validando o Instagram...', variant: 'default' }); return; }
+    
+    // Se estiver 'inconclusivo', avisamos mas permitimos salvar para não travar o usuário
+    if (igStatus === 'inconclusivo') {
+      toast({ title: 'Atenção', description: 'Não conseguimos confirmar a existência desta conta agora. Verifique se o @ está correto.', variant: 'default' });
+    }
     if (!form.titulo_eleitor.trim()) { toast({ title: 'Informe o título de eleitor', variant: 'destructive' }); return; }
     if (!form.zona_eleitoral.trim()) { toast({ title: 'Informe a zona eleitoral', variant: 'destructive' }); return; }
     if (!form.secao_eleitoral.trim()) { toast({ title: 'Informe a seção eleitoral', variant: 'destructive' }); return; }
@@ -142,12 +148,16 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
     if (!form.regiao_atuacao.trim()) { toast({ title: 'Informe a região de atuação', variant: 'destructive' }); return; }
     if (!form.vai_votar) { toast({ title: 'Informe se vai votar', variant: 'destructive' }); return; }
 
-    // Coordenadores: bloquear CPF duplicado
-    if (tipoUsuario === 'coordenador' && form.cpf && form.cpf.length === 11) {
-      const { data: cpfExiste } = await supabase.from('pessoas').select('id').eq('cpf', form.cpf).limit(1);
-      if (cpfExiste && cpfExiste.length > 0) {
+    // Bloquear CPF duplicado globalmente
+    if (form.cpf && form.cpf.length === 11) {
+      const { data: cpfExiste, error: errorCheck } = await supabase.from('pessoas').select('id').eq('cpf', form.cpf).maybeSingle();
+      if (cpfExiste) {
         toast({ title: 'CPF já cadastrado', description: 'Este CPF já existe no sistema.', variant: 'destructive' });
+        setSaving(false);
         return;
+      }
+      if (errorCheck) {
+        console.error('Erro ao validar CPF:', errorCheck);
       }
     }
 
@@ -350,8 +360,20 @@ export default function TabEleitores({ refreshKey, onSaved, viewOnly }: Props) {
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">Instagram <span className="text-primary">*</span></label>
             <div className="relative">
-              <input type="text" value={form.instagram} onChange={e => update('instagram', e.target.value)} placeholder="@usuario" className={inputCls + ' pr-9'} />
-              <div className="absolute right-2 top-1/2 -translate-y-1/2"><InstagramStatusIcon status={igStatus} /></div>
+              <input type="text" value={form.instagram} onChange={e => update('instagram', e.target.value)} placeholder="@usuario" className={inputCls + ' pr-16'} />
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                {form.instagram.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => window.open(`https://instagram.com/${form.instagram.replace(/^@/, '')}`, '_blank')}
+                    className="p-1 rounded-md hover:bg-muted text-muted-foreground transition-colors"
+                    title="Ver no Instagram"
+                  >
+                    <Eye size={14} />
+                  </button>
+                )}
+                <InstagramStatusIcon status={igStatus} />
+              </div>
             </div>
             {instagramHelpText(igStatus) && (
               <p className={`text-[10px] ${igStatus === 'ok' ? 'text-green-600' : igStatus === 'inconclusivo' ? 'text-amber-600' : 'text-destructive'}`}>{instagramHelpText(igStatus)}</p>

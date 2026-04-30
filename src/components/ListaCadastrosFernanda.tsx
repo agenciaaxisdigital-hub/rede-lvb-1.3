@@ -107,6 +107,11 @@ export default function ListaCadastrosFernanda() {
   };
 
   const filtrados = cadastros.filter(c => {
+    // Esconder cadastros de "Usuários Desconhecidos" (outras aplicações)
+    if (c.cadastrado_por && !autores[c.cadastrado_por]) {
+      return false;
+    }
+
     const q = busca.toLowerCase().trim();
     if (!q) return true;
     return c.nome.toLowerCase().includes(q)
@@ -139,9 +144,23 @@ export default function ListaCadastrosFernanda() {
           {busca ? 'Nenhum cadastro encontrado' : 'Nenhum cadastro da Fernanda ainda.'}
         </div>
       ) : (
-        <div className="space-y-2">
-          {filtrados.map(c => (
-            <div key={c.id} className="bg-card border border-border rounded-xl p-3">
+        <div className="space-y-4">
+          {Object.entries(
+            filtrados.reduce((acc, c) => {
+              const authorId = c.cadastrado_por || 'sem_autor';
+              if (!acc[authorId]) acc[authorId] = [];
+              acc[authorId].push(c);
+              return acc;
+            }, {} as Record<string, CadastroFernanda[]>)
+          ).map(([authorId, lista]) => {
+            const authorName = authorId === 'sem_autor' ? 'Sem Autor Atribuído' : (autores[authorId] || 'Usuário Desconhecido');
+            return (
+              <div key={authorId} className="space-y-2">
+                <h3 className="font-bold text-sm bg-muted/50 px-3 py-1.5 rounded-lg border border-border">
+                  {authorName} <span className="text-muted-foreground text-xs font-normal">({lista.length})</span>
+                </h3>
+                {lista.map(c => (
+                  <div key={c.id} className="bg-card border border-border rounded-xl p-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
@@ -195,7 +214,9 @@ export default function ListaCadastrosFernanda() {
                 </div>
               </div>
             </div>
-          ))}
+            ))}
+          </div>
+          )})}
         </div>
       )}
 

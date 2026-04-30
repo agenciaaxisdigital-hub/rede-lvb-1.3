@@ -35,140 +35,146 @@ function formatoValido(user: string): boolean {
   return true;
 }
 
-async function checarExistencia(user: string): Promise<{ exists: boolean; via: string } | null> {
-  // 1) Endpoint web_profile_info — o mais confiável, cobre contas pessoais e business
+function timedFetch(url: string, opts: RequestInit, ms = 8000): Promise<Response> {
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(id));
+}
+
+// Extrai conteúdo de meta tag OG independente da ordem dos atributos
+function getOgContent(html: string, prop: string): string {
+  return (
+    html.match(new RegExp(`<meta[^>]+property=["']${prop}["'][^>]+content=["']([^"']+)["']`, 'i'))?.[1] ||
+    html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+property=["']${prop}["']`, 'i'))?.[1] ||
+    ''
+  );
+}
+
+/**
+ * Interpreta o HTML da página de perfil do Instagram.
+ * Retorna:
+ *   true  → perfil confirmado como existente
+ *   false → confirmado como inexistente
+ *   null  → inconclusivo para este método (login wall, sem dados suficientes)
+ */
+function parseHtml(html: string, user: string): boolean | null {
+  // ── Não existe ────────────────────────────────────────────────────────
+  const titleTag = html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1] || '';
+  if (/page\s+not\s+found\s*[•·]\s*instagram/i.test(titleTag)) return false;
+  if (/sorry,?\s+this\s+page\s+isn.t\s+available/i.test(html)) return false;
+  if (/esta\s+página\s+não\s+está\s+disponível/i.test(html)) return false;
+  if (/"pageNotFound"\s*:\s*true/i.test(html)) return false;
+  if (/"loginPage"\s*:\s*true/i.test(html)) return null; // login wall — tentar próximo método
+
+  // ── Existe ────────────────────────────────────────────────────────────
+  const ogTitle = getOgContent(html, 'og:title');
+  const ogDesc  = getOgContent(html, 'og:description');
+
+  // OG title contém @username
+  if (new RegExp(`@${user}\\b`, 'i').test(ogTitle + ' ' + ogDesc)) return true;
+
+  // <title> no formato "username | Instagram" ou "username • Instagram"
+  if (new RegExp(`^${user}\\s*[|•·]`, 'i').test(titleTag.trim())) return true;
+
+  // OG description com contadores de seguidores
+  if (/followers.*following.*posts|seguidores.*seguindo.*publicações/i.test(ogDesc)) return true;
+
+  // JSON-LD com ProfilePage ou Person
+  const ldJson = html.match(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/i)?.[1];
+  if (ldJson) {
+    try {
+      const ld = JSON.parse(ldJson);
+      const type = (Array.isArray(ld) ? ld[0] : ld)?.['@type'];
+      if (type === 'ProfilePage' || type === 'Person') return true;
+    } catch { /* html malformado */ }
+  }
+
+  // Username no JSON inline (shared_data)
+  if (new RegExp(`"username"\\s*:\\s*"${user}"`, 'i').test(html)) return true;
+
+  return null; // sem dados suficientes neste método
+}
+
+type DetectResult = { exists: boolean; via: string } | null;
+
+async function tryHttp(label: string, url: string, headers: Record<string, string>, user: string): Promise<DetectResult> {
   try {
-    const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
-    const home = await fetch('https://www.instagram.com/', {
-      headers: {
-        'User-Agent': userAgent,
-        'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
-      },
-    });
-    const cookie = home.headers.get('set-cookie') || '';
-    const csrf = cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
-    const wres = await fetch(
-      `https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(user)}`,
+    const r = await timedFetch(url, { headers, redirect: 'follow' });
+    console.log(`[${label}] status=${r.status} user=${user}`);
+    if (r.status === 404) return { exists: false, via: `${label}-404` };
+    if (r.ok) {
+      const html = await r.text();
+      const result = parseHtml(html, user);
+      if (result !== null) return { exists: result, via: `${label}-parse` };
+    }
+  } catch (e) {
+    console.error(`[${label}] error`, (e as Error).message);
+  }
+  return null;
+}
+
+async function tryMobileApi(user: string): Promise<DetectResult> {
+  try {
+    const r = await timedFetch(
+      `https://i.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(user)}`,
       {
         headers: {
-          'User-Agent': userAgent,
-          'Accept': '*/*',
+          'User-Agent': 'Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; pt_BR; 458229258)',
           'X-IG-App-ID': '936619743392459',
-          'X-CSRFToken': csrf,
-          'X-Requested-With': 'XMLHttpRequest',
-          'Cookie': cookie,
-          'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
-          'Sec-Fetch-Site': 'same-origin',
-          'Referer': `https://www.instagram.com/${encodeURIComponent(user)}/`,
+          'Accept': 'application/json',
+          'Accept-Language': 'pt-BR',
         },
+        redirect: 'follow',
       },
     );
-    console.log('web_profile_info status', user, wres.status);
-    if (wres.status === 404) return { exists: false, via: 'web-profile-404' };
-    if (wres.ok) {
-      const json: any = await wres.json().catch(() => ({}));
-      const u = json?.data?.user;
-      if (u && String(u.username || '').toLowerCase() === user) {
-        return { exists: true, via: 'web-profile' };
-      }
-      if (json && json.data && json.data.user === null) {
-        return { exists: false, via: 'web-profile-null' };
-      }
+    console.log(`[mobile] status=${r.status} user=${user}`);
+    if (r.status === 404) return { exists: false, via: 'mobile-404' };
+    if (r.ok) {
+      const j: any = await r.json().catch(() => ({}));
+      if (j?.data?.user === null) return { exists: false, via: 'mobile-null' };
+      if (j?.data?.user && String(j.data.user.username || '').toLowerCase() === user)
+        return { exists: true, via: 'mobile-api' };
     }
-    // Outros status (401/429/403) → cai no fallback
   } catch (e) {
-    console.error('web_profile_info error', e);
+    console.error('[mobile] error', (e as Error).message);
   }
+  return null;
+}
 
-  // 2) Tenta a Graph API oficial da Meta (Instagram Business Discovery)
-  const token = Deno.env.get('INSTAGRAM_ACCESS_TOKEN');
-  const igUserId = Deno.env.get('INSTAGRAM_BUSINESS_ID') || '17841478297498593';
-  if (token) {
-    try {
-      const url = `https://graph.facebook.com/v21.0/${igUserId}?fields=business_discovery.username(${encodeURIComponent(user)}){username}&access_token=${encodeURIComponent(token)}`;
-      const res = await fetch(url);
-      const json: any = await res.json().catch(() => ({}));
-      console.log('graph-api response', user, res.status, JSON.stringify(json));
-      if (res.ok && json?.business_discovery?.username) {
-        return { exists: true, via: 'graph-api' };
-      }
-      // Códigos típicos quando o usuário NÃO existe (não é conta business pública)
-      const code = json?.error?.code;
-      const sub = json?.error?.error_subcode;
-      const msg = String(json?.error?.message || '');
-      // Mensagens típicas: "Unsupported get request" / "does not exist" / código 100 subcode 33
-      if (
-        sub === 2207013 ||
-        sub === 33 ||
-        code === 110 ||
-        (code === 100 && /does not exist|cannot be loaded|business account/i.test(msg)) ||
-        /does not exist|not found|cannot be found/i.test(msg)
-      ) {
-        return { exists: false, via: 'graph-api' };
-      }
-      // Outros erros (rate limit, token inválido, permissão) → cai no fallback
-    } catch (e) {
-      console.error('graph-api fetch error', e);
-    }
-  }
+async function checarExistencia(user: string): Promise<DetectResult> {
+  const url = `https://www.instagram.com/${encodeURIComponent(user)}/`;
 
-  // 3) Fallback público: página web normal. O endpoint JSON do Instagram
-  // costuma retornar 401/429 sem sessão; a página HTML ainda diferencia
-  // perfil real (og:url/og:title/@usuario/profilePage_ID) de perfil inexistente.
-  const userAgents = [
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
-    'WhatsApp/2.24.20.0',
-    'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
-    'Twitterbot/1.0',
-  ];
+  // Rodada 1: facebookexternalhit + mobile API em paralelo (mais confiáveis)
+  const [r1, r2] = await Promise.all([
+    tryHttp('fb', url, {
+      'User-Agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+      'Accept': 'text/html,application/xhtml+xml',
+      'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+    }, user),
+    tryMobileApi(user),
+  ]);
+  if (r1) return r1;
+  if (r2) return r2;
 
-  for (const ua of userAgents) {
-    try {
-      const res = await fetch(`https://www.instagram.com/${encodeURIComponent(user)}/`, {
-        method: 'GET',
-        headers: {
-          'User-Agent': ua,
-          'Accept': 'text/html,application/xhtml+xml',
-          'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
-        },
-        redirect: 'manual',
-      });
-      if (res.status === 404) return { exists: false, via: 'bot-404' };
-      if (res.status !== 200) {
-        try { await res.text(); } catch (_) { /* noop */ }
-        continue;
-      }
-      const html = await res.text();
-      if (/Sorry, this page isn'?t available/i.test(html)) return { exists: false, via: 'bot-text' };
-      if (/A página não está disponível/i.test(html)) return { exists: false, via: 'bot-text' };
+  // Rodada 2: Googlebot + Chrome UA em paralelo (fallback)
+  const [r3, r4] = await Promise.all([
+    tryHttp('gbot', url, {
+      'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+      'Accept': 'text/html',
+      'Accept-Language': 'pt-BR,pt;q=0.9',
+    }, user),
+    tryHttp('chrome', url, {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml',
+      'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+      'Sec-Fetch-Site': 'none',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-User': '?1',
+    }, user),
+  ]);
+  if (r3) return r3;
+  if (r4) return r4;
 
-      const ogTitle = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)?.[1] || '';
-      const ogDesc = html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i)?.[1] || '';
-      const ogUrl = html.match(/<meta[^>]+property=["']og:url["'][^>]+content=["']([^"']+)["']/i)?.[1] || '';
-      const handlePattern = new RegExp(`@${user}\\b`, 'i');
-
-      if (
-        handlePattern.test(ogTitle) ||
-        handlePattern.test(ogDesc) ||
-        new RegExp(`instagram\\.com/${user}/?$`, 'i').test(ogUrl) ||
-        /profilePage_\d+/.test(html)
-      ) {
-        return { exists: true, via: 'html-profile' };
-      }
-      if (/Followers,.*Following,.*Posts/i.test(ogDesc) || /Seguidores.*Seguindo.*Publica/i.test(ogDesc)) {
-        return { exists: true, via: 'html-counts' };
-      }
-      if (!ogTitle && !ogDesc && !ogUrl && !/profilePage_\d+/.test(html)) {
-        return { exists: false, via: 'html-no-profile' };
-      }
-      if (ogTitle && /^Instagram$/i.test(ogTitle.trim()) && !ogDesc) {
-        return { exists: false, via: 'html-generic' };
-      }
-      // sem og útil — tenta próximo UA
-    } catch (_e) {
-      // próximo UA
-    }
-  }
   return null;
 }
 
@@ -192,7 +198,6 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-
     if (!formatoValido(user)) {
       return new Response(JSON.stringify({ ok: false, status: 'formato_invalido', usuario: user }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -210,14 +215,6 @@ Deno.serve(async (req) => {
     const result = await checarExistencia(user);
     if (!result) {
       return new Response(JSON.stringify({ ok: true, exists: null, status: 'inconclusivo', usuario: user }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-    // Segurança contra falsos positivos: só aceita confirmação positiva quando
-    // vier de endpoint de perfil/Graph API com username exato. Scraping genérico
-    // nunca deve aprovar qualquer coisa.
-    if (result.exists && !['web-profile', 'graph-api', 'html-profile'].includes(result.via)) {
-      return new Response(JSON.stringify({ ok: true, exists: null, status: 'inconclusivo', usuario: user, via: result.via }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, Instagram, Hash, AtSign, ExternalLink, ChevronDown, ChevronUp, RefreshCw, Check, X, Pencil, AlertCircle } from 'lucide-react';
+import { Loader2, Instagram, Hash, AtSign, ExternalLink, ChevronDown, ChevronUp, RefreshCw, Check, X, Pencil, AlertCircle, Camera, LayoutGrid, Film } from 'lucide-react';
 
 interface Mencao {
   id: string;
@@ -11,6 +11,7 @@ interface Mencao {
   hashtag: string | null;
   texto: string | null;
   permalink: string | null;
+  media_type: string | null;
   criado_em: string;
 }
 
@@ -20,6 +21,7 @@ interface UsuarioRow {
   tipo: string;
   instagram: string | null;
   ativo: boolean | null;
+  segue_conta: boolean | null;
 }
 
 interface UsuarioMencoes {
@@ -47,23 +49,34 @@ export default function AdminMencoesInstagram() {
   const [filtro, setFiltro] = useState<'todos' | 'postaram' | 'sem_post' | 'sem_handle'>('todos');
   const [busca, setBusca] = useState('');
   const [polling, setPolling] = useState(false);
+  const [pagina, setPagina] = useState(1);
+  const ITENS_POR_PAGINA = 30;
 
   const carregar = async () => {
     setLoading(true);
     setErro(null);
     try {
-      const [mRes, uRes] = await Promise.all([
-        (supabase as any)
-          .from('instagram_mencoes')
-          .select('id, tipo, autor_username, conta_monitorada, hashtag, texto, permalink, criado_em')
-          .order('criado_em', { ascending: false })
-          .limit(2000),
-        (supabase as any)
+      const mRes = await (supabase as any)
+        .from('instagram_mencoes')
+        .select('id, tipo, autor_username, conta_monitorada, hashtag, texto, permalink, media_type, criado_em')
+        .order('criado_em', { ascending: false })
+        .limit(2000);
+      let uRes = await (supabase as any)
+        .from('hierarquia_usuarios')
+        .select('id, nome, tipo, instagram, ativo, segue_conta')
+        .neq('tipo', 'super_admin')
+        .order('nome');
+
+      // Fallback: se a coluna segue_conta não existir ainda (migração pendente)
+      if (uRes.error && (uRes.error.code === '42703' || uRes.error.message?.includes('segue_conta'))) {
+        console.warn('Coluna segue_conta não encontrada, usando query de fallback.');
+        uRes = await (supabase as any)
           .from('hierarquia_usuarios')
           .select('id, nome, tipo, instagram, ativo')
           .neq('tipo', 'super_admin')
-          .order('nome'),
-      ]);
+          .order('nome');
+      }
+
       if (mRes.error) throw mRes.error;
       if (uRes.error) throw uRes.error;
       setData((mRes.data || []) as Mencao[]);
@@ -119,6 +132,8 @@ export default function AdminMencoesInstagram() {
   const stats = useMemo(() => {
     const comHandle = usuariosComMencoes.filter((u) => u.handle);
     const postaram = comHandle.filter((u) => u.total > 0);
+    const stories = data.filter(m => m.tipo === 'story_mention' || m.media_type === 'STORY').length;
+    const feed = data.filter(m => m.tipo === 'hashtag' || (m.tipo !== 'story_mention' && m.media_type !== 'STORY')).length;
     return {
       total: usuariosComMencoes.length,
       comHandle: comHandle.length,
@@ -126,6 +141,8 @@ export default function AdminMencoesInstagram() {
       postaram: postaram.length,
       naoPostaram: comHandle.length - postaram.length,
       totalPosts: data.length,
+      stories,
+      feed,
     };
   }, [usuariosComMencoes, data]);
 
@@ -149,6 +166,10 @@ export default function AdminMencoesInstagram() {
     });
   }, [usuariosComMencoes, filtro, busca]);
 
+  useEffect(() => {
+    setPagina(1);
+  }, [filtro, busca]);
+
   const iniciarEdicao = (u: UsuarioRow) => {
     setEditingId(u.id);
     setEditValue(u.instagram || '');
@@ -171,6 +192,20 @@ export default function AdminMencoesInstagram() {
       toast({ title: 'Erro ao salvar', description: e?.message, variant: 'destructive' });
     } finally {
       setSavingEdit(false);
+    }
+  };
+
+  const toggleSegueConta = async (id: string, currentVal: boolean | null) => {
+    try {
+      const newVal = !currentVal;
+      const { error } = await (supabase as any)
+        .from('hierarquia_usuarios')
+        .update({ segue_conta: newVal })
+        .eq('id', id);
+      if (error) throw error;
+      setUsuarios(prev => prev.map(u => u.id === id ? { ...u, segue_conta: newVal } : u));
+    } catch (e: any) {
+      toast({ title: 'Erro ao atualizar status de seguidor', description: e?.message, variant: 'destructive' });
     }
   };
 
@@ -238,6 +273,16 @@ export default function AdminMencoesInstagram() {
             <p className="text-muted-foreground">posts captados</p>
           </div>
         </div>
+        {stats.totalPosts > 0 && (
+          <div className="mt-2 flex gap-2 text-[10px]">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 font-semibold">
+              <Camera size={9} /> {stats.stories} stories
+            </span>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold">
+              <LayoutGrid size={9} /> {stats.feed} feed/hashtag
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Filtros */}
@@ -287,7 +332,7 @@ export default function AdminMencoesInstagram() {
       )}
 
       <div className="space-y-2">
-        {lista.map((g) => {
+        {lista.slice((pagina - 1) * ITENS_POR_PAGINA, pagina * ITENS_POR_PAGINA).map((g) => {
           const isOpen = expanded === g.usuario.id;
           const semHandle = !g.handle;
           const naoPostou = g.handle && g.total === 0;
@@ -351,6 +396,18 @@ export default function AdminMencoesInstagram() {
                       )}
                     </button>
                   )}
+                  <div className="mt-1.5">
+                    <button
+                      onClick={() => toggleSegueConta(g.usuario.id, g.usuario.segue_conta)}
+                      className={`text-[9px] px-1.5 py-0.5 rounded font-semibold border transition-colors ${
+                        g.usuario.segue_conta 
+                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' 
+                          : 'bg-muted text-muted-foreground border-border hover:bg-muted/80'
+                      }`}
+                    >
+                      {g.usuario.segue_conta ? '✓ Segue a conta' : 'Não segue a conta'}
+                    </button>
+                  </div>
                 </div>
                 <div className="text-right">
                   <p className={`text-base font-bold leading-none ${
@@ -371,36 +428,92 @@ export default function AdminMencoesInstagram() {
               </div>
 
               {isOpen && g.posts.length > 0 && (
-                <div className="border-t border-border divide-y divide-border bg-card/50">
-                  {g.posts.map((m) => (
-                    <div key={m.id} className="px-3 py-2.5 text-xs space-y-1">
-                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                        {m.hashtag ? <Hash size={11} /> : <AtSign size={11} />}
-                        <span className="uppercase tracking-wider font-semibold">{m.tipo}</span>
-                        <span>•</span>
-                        <span>{new Date(m.criado_em).toLocaleString('pt-BR')}</span>
-                      </div>
-                      {m.texto && (
-                        <p className="text-foreground whitespace-pre-wrap break-words">{m.texto}</p>
-                      )}
-                      {m.permalink && (
-                        <a
-                          href={m.permalink}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-primary text-[11px] font-semibold hover:underline"
-                        >
-                          Ver post <ExternalLink size={11} />
-                        </a>
-                      )}
-                    </div>
-                  ))}
+                <div className="border-t border-border bg-card/50 px-4 py-3">
+                  <div className="relative border-l border-border ml-2 space-y-4 pb-1">
+                    {g.posts.map((m) => {
+                      const isStory = m.tipo === 'story_mention' || m.media_type === 'STORY';
+                      const isHashtag = m.tipo === 'hashtag' || !!m.hashtag;
+                      const isVideo = m.media_type === 'VIDEO' || m.media_type === 'REELS';
+                      return (
+                        <div key={m.id} className="relative pl-5 text-xs space-y-1.5">
+                          <div className="absolute w-2 h-2 rounded-full bg-primary/40 -left-[4.5px] top-1.5 ring-4 ring-card"></div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {/* Badge tipo de conteúdo */}
+                            {isStory ? (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-600 dark:text-purple-400 text-[10px] font-bold uppercase">
+                                <Camera size={9} /> Story
+                              </span>
+                            ) : isVideo ? (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-600 dark:text-blue-400 text-[10px] font-bold uppercase">
+                                <Film size={9} /> Vídeo
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold uppercase">
+                                <LayoutGrid size={9} /> Feed
+                              </span>
+                            )}
+                            {/* Badge origem */}
+                            {isHashtag ? (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[10px] font-semibold">
+                                <Hash size={9} /> #{m.hashtag || 'hashtag'}
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[10px] font-semibold">
+                                <AtSign size={9} /> menção
+                              </span>
+                            )}
+                            <span className="text-[10px] text-muted-foreground ml-auto">
+                              {new Date(m.criado_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          {m.texto && (
+                            <p className="text-foreground/80 text-[11px] leading-relaxed line-clamp-3 whitespace-pre-wrap break-words">{m.texto}</p>
+                          )}
+                          {!m.texto && isStory && (
+                            <p className="text-muted-foreground text-[11px] italic">Story sem legenda</p>
+                          )}
+                          {m.permalink ? (
+                            <a href={m.permalink} target="_blank" rel="noreferrer"
+                              className="inline-flex items-center gap-1 text-primary text-[11px] font-semibold hover:underline">
+                              Ver post <ExternalLink size={10} />
+                            </a>
+                          ) : isStory ? (
+                            <span className="text-[10px] text-muted-foreground italic">Link expirado (stories duram 24h)</span>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
           );
         })}
       </div>
+
+      {lista.length > ITENS_POR_PAGINA && (
+        <div className="flex items-center justify-between mt-4">
+          <p className="text-[11px] text-muted-foreground">
+            Mostrando {(pagina - 1) * ITENS_POR_PAGINA + 1} até {Math.min(pagina * ITENS_POR_PAGINA, lista.length)} de {lista.length}
+          </p>
+          <div className="flex items-center gap-1">
+            <button
+              disabled={pagina === 1}
+              onClick={() => setPagina(p => p - 1)}
+              className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-card border border-border disabled:opacity-50 hover:bg-muted"
+            >
+              Anterior
+            </button>
+            <button
+              disabled={pagina >= Math.ceil(lista.length / ITENS_POR_PAGINA)}
+              onClick={() => setPagina(p => p + 1)}
+              className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-card border border-border disabled:opacity-50 hover:bg-muted"
+            >
+              Próxima
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

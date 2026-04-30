@@ -14,6 +14,7 @@ import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useInstagramCheck, checkTelefone } from '@/hooks/useInstagramCheck';
 import { InstagramStatusIcon, TelefoneStatusIcon, instagramHelpText, telefoneHelpText } from '@/components/CampoStatusIcon';
+import { addToOfflineQueue } from '@/lib/offlineQueue';
 
 interface CadastroFernanda {
   id: string;
@@ -58,8 +59,15 @@ export default function TabCadastrosFernanda() {
 
   const carregar = useCallback(async () => {
     setLoading(true);
+    let query = supabase.from('cadastros_fernanda' as any).select('*').order('criado_em', { ascending: false });
+    
+    // Se não for admin, filtra para mostrar APENAS os cadastros do próprio usuário (ou os que ele é responsável)
+    if (!isAdmin && usuario?.id) {
+      query = query.eq('cadastrado_por', usuario.id);
+    }
+
     const [cRes, uRes] = await Promise.all([
-      supabase.from('cadastros_fernanda' as any).select('*').order('criado_em', { ascending: false }),
+      query,
       supabase.from('hierarquia_usuarios').select('id, nome, tipo').order('nome')
     ]);
     
@@ -137,6 +145,10 @@ export default function TabCadastrosFernanda() {
   const handleSalvar = async () => {
     if (!form.nome.trim()) { toast({ title: 'Informe o nome', variant: 'destructive' }); return; }
     if (!form.telefone.trim()) { toast({ title: 'Informe o telefone', variant: 'destructive' }); return; }
+    if (form.instagram.trim()) {
+      if (igStatus === 'checking') { toast({ title: 'Verificando Instagram…', description: 'Aguarde a validação terminar.', variant: 'destructive' }); return; }
+      if (igStatus === 'invalido' || igStatus === 'nao_existe') { toast({ title: 'Instagram inválido', description: 'O @ informado não existe ou está incorreto.', variant: 'destructive' }); return; }
+    }
     setSaving(true);
     const payload = {
       nome: form.nome.trim(),
@@ -145,18 +157,60 @@ export default function TabCadastrosFernanda() {
       instagram: form.instagram.trim() || null,
       cadastrado_por: form.responsavel_id || usuario?.id || null,
     };
+    
     if (form.id) {
+      // Editar (sempre tenta online)
       const { data, error } = await supabase.from('cadastros_fernanda' as any).update(payload).eq('id', form.id).select().single();
       setSaving(false);
       if (error) { toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' }); return; }
       setCadastros(prev => prev.map(c => c.id === form.id ? (data as unknown as CadastroFernanda) : c));
       toast({ title: '✅ Cadastro atualizado' });
     } else {
-      const { data, error } = await supabase.from('cadastros_fernanda' as any).insert(payload).select().single();
+      // Criar Novo
+      if (!navigator.onLine) {
+        try {
+          await addToOfflineQueue({
+            type: 'fernanda',
+            pessoa: {},
+            registro: payload,
+          });
+          toast({ title: '📥 Salvo offline!', description: 'Será sincronizado automaticamente quando houver internet.' });
+          setSaving(false);
+          setForm(EMPTY);
+          setMode('list');
+          return;
+        } catch (err: any) {
+          setSaving(false);
+          toast({ title: 'Erro ao salvar offline', description: err.message, variant: 'destructive' });
+          return;
+        }
+      }
+
+      try {
+        const { data, error } = await supabase.from('cadastros_fernanda' as any).insert(payload).select().single();
+        if (error) throw error;
+        setCadastros(prev => [(data as unknown as CadastroFernanda), ...prev]);
+        toast({ title: '✅ Cadastro salvo' });
+      } catch (err: any) {
+        if (!navigator.onLine || err?.message?.includes('fetch') || err?.message?.includes('network')) {
+          console.warn('[TabCadastrosFernanda] Network error, salvando offline', err);
+          try {
+            await addToOfflineQueue({
+              type: 'fernanda',
+              pessoa: {},
+              registro: payload,
+            });
+            toast({ title: '📥 Salvo offline!', description: 'Sua conexão falhou. Será enviado quando a internet voltar.' });
+          } catch (offlineErr: any) {
+            toast({ title: 'Erro crítico', description: 'Não foi possível salvar.', variant: 'destructive' });
+          }
+        } else {
+          toast({ title: 'Erro ao salvar', description: err.message, variant: 'destructive' });
+          setSaving(false);
+          return;
+        }
+      }
       setSaving(false);
-      if (error) { toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' }); return; }
-      setCadastros(prev => [(data as unknown as CadastroFernanda), ...prev]);
-      toast({ title: '✅ Cadastro salvo' });
     }
     setForm(EMPTY);
     setMode('list');

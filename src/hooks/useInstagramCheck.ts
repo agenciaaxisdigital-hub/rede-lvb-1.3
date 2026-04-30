@@ -32,6 +32,7 @@ export function useInstagramCheck(value: string): InstagramStatus {
     if (!formatoValido(user)) { setStatus('invalido'); return; }
     setStatus('checking');
     const myId = ++reqIdRef.current;
+
     const t = window.setTimeout(async () => {
       try {
         const { data, error } = await supabase.functions.invoke('verificar-instagram', {

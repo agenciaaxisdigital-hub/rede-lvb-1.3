@@ -5,16 +5,62 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Configuração do piloto
-const CONTA_MONITORADA = 'agenciaaxisdigital';
-const HASHTAG_ALVO = 'chamaadoutora';
-
-// IG_USER_ID = id numérico da conta business "agenciaaxisdigital" (Instagram Graph API)
-// IG_ACCESS_TOKEN = token de longa duração da página vinculada
+const CONTA_MONITORADA = Deno.env.get('IG_CONTA_ALVO') || 'agenciaaxisdigital';
+const HASHTAG_ALVO = Deno.env.get('IG_HASHTAG_ALVO') || 'chamaadoutora';
 const IG_USER_ID = Deno.env.get('IG_USER_ID') || '';
-// Aceita tanto IG_ACCESS_TOKEN (novo) quanto INSTAGRAM_ACCESS_TOKEN (legado)
 const IG_ACCESS_TOKEN = (Deno.env.get('IG_ACCESS_TOKEN') || Deno.env.get('INSTAGRAM_ACCESS_TOKEN') || '').trim();
+const IG_APP_ID = Deno.env.get('IG_APP_ID') || '';
+const IG_APP_SECRET = Deno.env.get('IG_APP_SECRET') || '';
 const GRAPH = 'https://graph.facebook.com/v21.0';
+
+/**
+ * Verifica se o token expira em menos de 10 dias e renova automaticamente.
+ * Salva o novo token nos secrets do Supabase via Management API.
+ */
+async function renovarTokenSeNecessario(): Promise<string> {
+  if (!IG_APP_ID || !IG_APP_SECRET || !IG_ACCESS_TOKEN) return IG_ACCESS_TOKEN;
+  try {
+    const debugRes = await fetch(
+      `${GRAPH}/debug_token?input_token=${IG_ACCESS_TOKEN}&access_token=${IG_ACCESS_TOKEN}`
+    );
+    const debug = await debugRes.json();
+    const expiresAt: number = debug?.data?.expires_at ?? 0;
+    if (!expiresAt) return IG_ACCESS_TOKEN;
+
+    const diasRestantes = (expiresAt - Date.now() / 1000) / 86400;
+    console.log(`[token] expira em ${Math.round(diasRestantes)} dias`);
+
+    if (diasRestantes > 10) return IG_ACCESS_TOKEN;
+
+    // Renova para 60 dias
+    const refreshRes = await fetch(
+      `${GRAPH}/oauth/access_token?grant_type=fb_exchange_token&client_id=${IG_APP_ID}&client_secret=${IG_APP_SECRET}&fb_exchange_token=${IG_ACCESS_TOKEN}`
+    );
+    const refreshData = await refreshRes.json();
+    if (!refreshData.access_token) {
+      console.error('[token] falha ao renovar:', refreshData);
+      return IG_ACCESS_TOKEN;
+    }
+
+    // Atualiza o secret no Supabase
+    const supabaseRef = Deno.env.get('SUPABASE_URL')?.match(/https:\/\/([^.]+)/)?.[1];
+    if (supabaseRef) {
+      await fetch(`https://api.supabase.com/v1/projects/${supabaseRef}/secrets`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+        },
+        body: JSON.stringify([{ name: 'IG_ACCESS_TOKEN', value: refreshData.access_token }]),
+      });
+    }
+    console.log('[token] renovado com sucesso, expira em ~60 dias');
+    return refreshData.access_token;
+  } catch (e) {
+    console.error('[token] erro ao verificar/renovar:', e);
+    return IG_ACCESS_TOKEN;
+  }
+}
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -44,20 +90,18 @@ async function fetchJson(url: string): Promise<any> {
 }
 
 /** Hashtag search: encontra posts recentes com a hashtag */
-async function buscarHashtag(): Promise<Mencao[]> {
-  if (!IG_USER_ID || !IG_ACCESS_TOKEN) return [];
-  // 1) resolver hashtag_id
+async function buscarHashtag(token: string): Promise<Mencao[]> {
+  if (!IG_USER_ID || !token) return [];
   const search = await fetchJson(
-    `${GRAPH}/ig_hashtag_search?user_id=${IG_USER_ID}&q=${encodeURIComponent(HASHTAG_ALVO)}&access_token=${IG_ACCESS_TOKEN}`
+    `${GRAPH}/ig_hashtag_search?user_id=${IG_USER_ID}&q=${encodeURIComponent(HASHTAG_ALVO)}&access_token=${token}`
   );
   const hashtagId = search?.data?.[0]?.id;
   if (!hashtagId) return [];
 
   const fields = 'id,caption,media_type,permalink,timestamp,username,media_url';
-  // Combina recent_media (últimas 24h) + top_media para capturar tudo
   const [recent, top] = await Promise.all([
-    fetchJson(`${GRAPH}/${hashtagId}/recent_media?user_id=${IG_USER_ID}&fields=${fields}&limit=50&access_token=${IG_ACCESS_TOKEN}`).catch(() => ({ data: [] })),
-    fetchJson(`${GRAPH}/${hashtagId}/top_media?user_id=${IG_USER_ID}&fields=${fields}&limit=50&access_token=${IG_ACCESS_TOKEN}`).catch(() => ({ data: [] })),
+    fetchJson(`${GRAPH}/${hashtagId}/recent_media?user_id=${IG_USER_ID}&fields=${fields}&limit=50&access_token=${token}`).catch(() => ({ data: [] })),
+    fetchJson(`${GRAPH}/${hashtagId}/top_media?user_id=${IG_USER_ID}&fields=${fields}&limit=50&access_token=${token}`).catch(() => ({ data: [] })),
   ]);
   const seen = new Set<string>();
   const items: any[] = [];
@@ -78,17 +122,16 @@ async function buscarHashtag(): Promise<Mencao[]> {
   }));
 }
 
-/** Mentioned media: posts em que a conta foi marcada (@) */
-async function buscarMencoes(): Promise<Mencao[]> {
-  if (!IG_USER_ID || !IG_ACCESS_TOKEN) return [];
+/** /tags — posts onde a conta foi fisicamente marcada na foto/vídeo */
+async function buscarMencoes(token: string): Promise<Mencao[]> {
+  if (!IG_USER_ID || !token) return [];
   const fields = 'id,caption,media_type,permalink,timestamp,username';
-  // tagged endpoint: media em que @conta foi mencionada/marcada
   const tagged = await fetchJson(
-    `${GRAPH}/${IG_USER_ID}/tags?fields=${fields}&access_token=${IG_ACCESS_TOKEN}`
+    `${GRAPH}/${IG_USER_ID}/tags?fields=${fields}&access_token=${token}`
   ).catch(() => ({ data: [] }));
   const items: any[] = tagged?.data || [];
   return items.map((m) => ({
-    tipo: 'mention',
+    tipo: m.media_type === 'STORY' ? 'story_mention' : 'mention',
     autor_username: m.username || null,
     autor_id: null,
     conta_monitorada: CONTA_MONITORADA,
@@ -99,6 +142,43 @@ async function buscarMencoes(): Promise<Mencao[]> {
     media_type: m.media_type || null,
     raw: m,
   }));
+}
+
+/** /mentions — posts e stories que mencionaram @conta no texto/caption */
+async function buscarMencoesCaption(token: string): Promise<Mencao[]> {
+  if (!IG_USER_ID || !token) return [];
+  const mentions = await fetchJson(
+    `${GRAPH}/${IG_USER_ID}/mentions?fields=id,timestamp&limit=50&access_token=${token}`
+  ).catch(() => ({ data: [] }));
+
+  const items: any[] = mentions?.data || [];
+  if (items.length === 0) return [];
+
+  const results = await Promise.all(
+    items.map(async (m): Promise<Mencao | null> => {
+      try {
+        const media = await fetchJson(
+          `${GRAPH}/${IG_USER_ID}/mentioned_media?media_id=${m.id}&fields=id,caption,media_type,permalink,timestamp,username&access_token=${token}`
+        );
+        return {
+          tipo: media.media_type === 'STORY' ? 'story_mention' : 'mention',
+          autor_username: media.username || null,
+          autor_id: null,
+          conta_monitorada: CONTA_MONITORADA,
+          hashtag: null,
+          texto: media.caption || null,
+          permalink: media.permalink || null,
+          media_id: media.id || m.id,
+          media_type: media.media_type || null,
+          raw: { ...media, mention_timestamp: m.timestamp },
+        };
+      } catch (e) {
+        console.error('[mentions/caption] media_id=' + m.id, (e as Error).message);
+        return null;
+      }
+    })
+  );
+  return results.filter(Boolean) as Mencao[];
 }
 
 async function inserirSemDuplicar(mencoes: Mencao[]): Promise<number> {
@@ -141,22 +221,30 @@ Deno.serve(async (req) => {
     if (!status.config_ok) {
       throw new Error('Faltam secrets IG_USER_ID e/ou IG_ACCESS_TOKEN');
     }
+
+    // Renova token automaticamente se faltar menos de 10 dias
+    const tokenAtivo = await renovarTokenSeNecessario();
+
     // Debug: testa hashtag_search isolado
     try {
       const search = await fetchJson(
-        `${GRAPH}/ig_hashtag_search?user_id=${IG_USER_ID}&q=${encodeURIComponent(HASHTAG_ALVO)}&access_token=${IG_ACCESS_TOKEN}`
+        `${GRAPH}/ig_hashtag_search?user_id=${IG_USER_ID}&q=${encodeURIComponent(HASHTAG_ALVO)}&access_token=${tokenAtivo}`
       );
       status.debug.hashtag_id = search?.data?.[0]?.id || null;
       status.debug.hashtag_search_raw = search;
     } catch (e: any) {
       status.debug.hashtag_search_error = e?.message;
     }
-    const [hashtags, mencoes] = await Promise.all([
-      buscarHashtag().catch((e) => { console.error('hashtag err', e); status.debug.hashtag_error = e?.message; return []; }),
-      buscarMencoes().catch((e) => { console.error('mention err', e); status.debug.mencoes_error = e?.message; return []; }),
+    const [hashtags, mencoesTag, mencoesCaption] = await Promise.all([
+      buscarHashtag(tokenAtivo).catch((e) => { console.error('hashtag err', e); status.debug.hashtag_error = e?.message; return []; }),
+      buscarMencoes(tokenAtivo).catch((e) => { console.error('tag err', e); status.debug.tag_error = e?.message; return []; }),
+      buscarMencoesCaption(tokenAtivo).catch((e) => { console.error('caption err', e); status.debug.caption_error = e?.message; return []; }),
     ]);
+    const mencoes = [...mencoesTag, ...mencoesCaption];
     status.hashtag_encontradas = hashtags.length;
     status.mencoes_encontradas = mencoes.length;
+    status.debug.stories = mencoes.filter(m => m.tipo === 'story_mention').length;
+    status.debug.feed_mentions = mencoes.filter(m => m.tipo === 'mention').length;
     status.novas_inseridas = await inserirSemDuplicar([...hashtags, ...mencoes]);
   } catch (e: any) {
     status.ok = false;

@@ -25,7 +25,7 @@ interface ExportRow {
 }
 
 export interface ExportFilters {
-  tipo?: 'lideranca' | 'eleitor' | 'fiscal';
+  tipo?: 'lideranca' | 'eleitor' | 'fiscal' | 'cabo_eleitoral';
   cadastradoPorId?: string;
   cadastradoPorNome?: string;
 }
@@ -42,7 +42,7 @@ function formatDate(d: string | null): string {
   return new Date(d).toLocaleDateString('pt-BR');
 }
 
-export async function exportAllCadastros(tipo?: 'lideranca' | 'eleitor', cadastradoPorId?: string) {
+export async function exportAllCadastros(tipo?: 'lideranca' | 'eleitor' | 'cabo_eleitoral', cadastradoPorId?: string) {
   return exportCadastrosFiltered({ tipo, cadastradoPorId });
 }
 
@@ -54,12 +54,33 @@ export async function exportCadastrosFiltered(filters: ExportFilters = {}) {
 
   const rows: ExportRow[] = [];
 
+  // Helper to fetch all data in batches
+  async function fetchAllBatches(table: string) {
+    let allData: any[] = [];
+    let from = 0;
+    const step = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      let q = supabase.from(table).select('*, pessoas(*)').range(from, from + step - 1);
+      if (filters.cadastradoPorId) q = q.eq('cadastrado_por', filters.cadastradoPorId);
+      
+      const { data, error } = await q;
+      if (error) { console.error(`Error fetching ${table}:`, error); break; }
+      if (!data || data.length === 0) { hasMore = false; }
+      else {
+        allData = [...allData, ...data];
+        if (data.length < step) hasMore = false;
+        from += step;
+      }
+    }
+    return allData;
+  }
+
   // Lideranças
   if (!filters.tipo || filters.tipo === 'lideranca') {
-    let q = supabase.from('liderancas').select('*, pessoas(*)');
-    if (filters.cadastradoPorId) q = q.eq('cadastrado_por', filters.cadastradoPorId);
-    const { data } = await q;
-    data?.forEach((l: any) => {
+    const data = await fetchAllBatches('liderancas');
+    data.filter((l: any) => l.tipo_lideranca !== 'Cabo Eleitoral').forEach((l: any) => {
       const p = l.pessoas || {};
       rows.push({
         tipo: 'Liderança', nome: p.nome || '', cpf: p.cpf || '', telefone: p.telefone || '',
@@ -75,12 +96,29 @@ export async function exportCadastrosFiltered(filters: ExportFilters = {}) {
     });
   }
 
+  // Cabos Eleitorais
+  if (!filters.tipo || filters.tipo === 'cabo_eleitoral') {
+    const data = await fetchAllBatches('liderancas');
+    data.filter((l: any) => l.tipo_lideranca === 'Cabo Eleitoral').forEach((l: any) => {
+      const p = l.pessoas || {};
+      rows.push({
+        tipo: 'Cabo Eleitoral', nome: p.nome || '', cpf: p.cpf || '', telefone: p.telefone || '',
+        whatsapp: p.whatsapp || '', email: p.email || '', instagram: p.instagram || '', facebook: p.facebook || '',
+        titulo_eleitor: p.titulo_eleitor || '', zona_eleitoral: p.zona_eleitoral || '',
+        secao_eleitoral: p.secao_eleitoral || '', municipio_eleitoral: p.municipio_eleitoral || '',
+        uf_eleitoral: p.uf_eleitoral || '', colegio_eleitoral: p.colegio_eleitoral || '',
+        endereco_colegio: p.endereco_colegio || '', situacao_titulo: p.situacao_titulo || '',
+        status: l.status || '', cadastrado_por_nome: agentesMap[l.cadastrado_por] || '',
+        criado_em: formatDate(l.criado_em), origem: l.origem_captacao || '',
+        extras: [l.tipo_lideranca, l.nivel, l.regiao_atuacao, l.observacoes].filter(Boolean).join(' | '),
+      });
+    });
+  }
+
   // Eleitores
   if (!filters.tipo || filters.tipo === 'eleitor') {
-    let q = supabase.from('possiveis_eleitores').select('*, pessoas(*)');
-    if (filters.cadastradoPorId) q = q.eq('cadastrado_por', filters.cadastradoPorId);
-    const { data } = await q;
-    data?.forEach((e: any) => {
+    const data = await fetchAllBatches('possiveis_eleitores');
+    data.forEach((e: any) => {
       const p = e.pessoas || {};
       rows.push({
         tipo: 'Eleitor', nome: p.nome || '', cpf: p.cpf || '', telefone: p.telefone || '',
@@ -98,10 +136,8 @@ export async function exportCadastrosFiltered(filters: ExportFilters = {}) {
 
   // Fiscais
   if (!filters.tipo || filters.tipo === 'fiscal') {
-    let q = (supabase as any).from('fiscais').select('*, pessoas(*)');
-    if (filters.cadastradoPorId) q = q.eq('cadastrado_por', filters.cadastradoPorId);
-    const { data } = await q;
-    data?.forEach((f: any) => {
+    const data = await fetchAllBatches('fiscais');
+    data.forEach((f: any) => {
       const p = f.pessoas || {};
       rows.push({
         tipo: 'Fiscal', nome: p.nome || '', cpf: p.cpf || '', telefone: p.telefone || '',
@@ -153,7 +189,7 @@ export async function exportCadastrosFiltered(filters: ExportFilters = {}) {
   const wb = XLSX.utils.book_new();
   let sheetName = 'Cadastros';
   const parts: string[] = [];
-  if (filters.tipo) parts.push(filters.tipo === 'lideranca' ? 'Lideranças' : filters.tipo === 'eleitor' ? 'Eleitores' : 'Fiscais');
+  if (filters.tipo) parts.push(filters.tipo === 'lideranca' ? 'Lideranças' : filters.tipo === 'cabo_eleitoral' ? 'Cabos' : filters.tipo === 'eleitor' ? 'Eleitores' : 'Fiscais');
   if (filters.cadastradoPorNome) parts.push(filters.cadastradoPorNome.split(' ')[0]);
   if (parts.length) sheetName = parts.join(' - ').slice(0, 31);
 

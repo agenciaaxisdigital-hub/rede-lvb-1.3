@@ -1,7 +1,5 @@
- import { useNavigate } from 'react-router-dom';
- import { useScrollRestore } from '@/hooks/useScrollRestore';
-   const { scrollRef, onScroll } = useScrollRestore('main');
- 
+import { useNavigate } from 'react-router-dom';
+import { useScrollRestore } from '@/hooks/useScrollRestore';
 import { useAuth } from '@/contexts/AuthContext';
 import { LogOut, ClipboardList } from 'lucide-react';
 import TabCadastrosFernanda from '@/components/TabCadastrosFernanda';
@@ -11,6 +9,7 @@ import LinkCaptacaoCard from '@/components/LinkCaptacaoCard';
 export default function HomeFernanda() {
   const { usuario, signOut } = useAuth();
   const navigate = useNavigate();
+  const { scrollRef, onScroll } = useScrollRestore('main');
 
   const handleSair = async () => {
     await signOut();

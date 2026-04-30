@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Users, UserCircle, BarChart3, Target, List, Search, WifiOff, ClipboardList, Link2 } from 'lucide-react';
+import { Users, UserCircle, BarChart3, Target, List, Search, WifiOff, ClipboardList, Link2, UserPlus, Settings2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { getPendingCount } from '@/lib/offlineQueue';
 import { onSyncStatusChange } from '@/services/offlineSync';
 
-export type TabId = 'liderancas' | 'fiscais' | 'eleitores' | 'cadastros' | 'fernanda' | 'afiliados' | 'perfil';
+export type TabId = 'liderancas' | 'cabos' | 'fiscais' | 'eleitores' | 'cadastros' | 'fernanda' | 'afiliados' | 'perfil';
 
 interface Props {
   active: TabId;
@@ -14,6 +14,7 @@ interface Props {
 }
 
 const ALL_TABS: { id: TabId; icon: typeof Users; label: string; module?: string }[] = [
+  { id: 'cabos', icon: UserPlus, label: 'Cabos Eleitorais', module: 'cadastrar_liderancas' },
   { id: 'liderancas', icon: Users, label: 'Lideranças', module: 'cadastrar_liderancas' },
   { id: 'fiscais', icon: Search, label: 'Fiscais', module: 'cadastrar_fiscais' },
   { id: 'eleitores', icon: Target, label: 'Eleitores', module: 'cadastrar_eleitores' },
@@ -24,7 +25,7 @@ const ALL_TABS: { id: TabId; icon: typeof Users; label: string; module?: string 
 ];
 
 export default function BottomNav({ active, onChange }: Props) {
-  const { isAdmin, tipoUsuario, usuario } = useAuth();
+  const { isAdmin, tipoUsuario, usuario, isSuplente, isLideranca } = useAuth();
   const navigate = useNavigate();
   const [modulos, setModulos] = useState<Set<string>>(new Set());
   const [loaded, setLoaded] = useState(false);
@@ -68,6 +69,8 @@ export default function BottomNav({ active, onChange }: Props) {
   const isSuperAdmin = tipoUsuario === 'super_admin';
   const isAdminOrCoord = tipoUsuario === 'super_admin' || tipoUsuario === 'coordenador';
 
+  const isSuplementeOrLideranca = isSuplente || isLideranca;
+
   const tabs = ALL_TABS.filter(tab => {
     // Perfil always visible
     if (tab.id === 'perfil') return true;
@@ -80,6 +83,9 @@ export default function BottomNav({ active, onChange }: Props) {
 
     // Cadastros (meus cadastros) - visible to everyone
     if (tab.id === 'cadastros') return true;
+
+    // Suplentes e Lideranças sempre enxergam Cabos Eleitorais e Lideranças
+    if ((tab.id === 'cabos' || tab.id === 'liderancas') && isSuplementeOrLideranca) return true;
 
     // Module-based tabs (strict check against usuario_modulos)
     if (tab.module) {
@@ -106,16 +112,26 @@ export default function BottomNav({ active, onChange }: Props) {
         {tabs.map(({ id, icon: Icon, label }) => {
           const isActive = active === id;
 
-          // Insert Painel button right before Perfil — only for admin/coord
+          // Insert Painel + Gestão buttons right before Perfil — only for admin/coord
           const painelBtn = id === 'perfil' && isAdmin ? (
-            <button
-              key="painel"
-              onClick={() => navigate('/admin')}
-              className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl transition-all active:scale-90 text-muted-foreground shrink-0"
-            >
-              <BarChart3 size={20} strokeWidth={1.5} />
-              <span className="text-[9px] font-medium">Painel</span>
-            </button>
+            <>
+              <button
+                key="gestao"
+                onClick={() => navigate('/gestao')}
+                className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl transition-all active:scale-90 text-muted-foreground shrink-0"
+              >
+                <Settings2 size={20} strokeWidth={1.5} />
+                <span className="text-[9px] font-medium">Gestão</span>
+              </button>
+              <button
+                key="painel"
+                onClick={() => navigate('/admin')}
+                className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl transition-all active:scale-90 text-muted-foreground shrink-0"
+              >
+                <BarChart3 size={20} strokeWidth={1.5} />
+                <span className="text-[9px] font-medium">Painel</span>
+              </button>
+            </>
           ) : null;
 
           return (

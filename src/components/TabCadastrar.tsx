@@ -108,7 +108,8 @@ export default function TabCadastrar({ onSaved, responsavelId }: Props) {
     if (form.cpf.length === 11 && !validateCPF(form.cpf)) { toast({ title: 'CPF inválido', variant: 'destructive' }); return; }
     if (!form.whatsapp.trim()) { toast({ title: 'Informe o WhatsApp', variant: 'destructive' }); return; }
     if (!form.instagram.trim()) { toast({ title: 'Informe o Instagram', variant: 'destructive' }); return; }
-    if (igStatus !== 'ok') { toast({ title: 'Instagram não confirmado', description: 'Aguarde a verificação ou corrija o @ informado.', variant: 'destructive' }); return; }
+    if (igStatus === 'checking') { toast({ title: 'Verificando Instagram…', description: 'Aguarde a validação terminar.', variant: 'destructive' }); return; }
+    if (igStatus === 'invalido' || igStatus === 'nao_existe') { toast({ title: 'Instagram inválido', description: 'O @ informado não existe ou está incorreto.', variant: 'destructive' }); return; }
     if (!form.titulo_eleitor.trim()) { toast({ title: 'Informe o título de eleitor', variant: 'destructive' }); return; }
     if (!form.zona_eleitoral.trim()) { toast({ title: 'Informe a zona eleitoral', variant: 'destructive' }); return; }
     if (!form.secao_eleitoral.trim()) { toast({ title: 'Informe a seção eleitoral', variant: 'destructive' }); return; }

@@ -21,6 +21,10 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "@typescript-eslint/no-unused-vars": "off",
+      // Empty catch blocks are intentional throughout (offline fallbacks, localStorage)
+      "no-empty": ["error", { "allowEmptyCatch": true }],
+      // Supabase joined queries require `any` casts — warn only, don't error
+      "@typescript-eslint/no-explicit-any": "warn",
     },
   },
 );

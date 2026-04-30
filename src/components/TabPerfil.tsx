@@ -6,13 +6,13 @@ import { useNavigate } from 'react-router-dom';
 import {
   LogOut, Shield, User, UserPlus, Loader2, Crown, Users, Eye, Copy, X, Network,
   Pencil, Trash2, Settings, Search, ArrowLeft, KeyRound, EyeOff, ChevronDown,
-  MapPin, Building2, Plus, ClipboardList
+  MapPin, Building2, Plus, ClipboardList, Instagram
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import ModulosUsuario from '@/components/ModulosUsuario';
 import { PRESETS_TIPO, MODULOS as MODULOS_FULL } from '@/components/ModulosUsuario';
 import SecaoAfiliados from '@/components/SecaoAfiliados';
-import LinkCaptacaoCard from '@/components/LinkCaptacaoCard';
+import MeusObjetivos from '@/components/MeusObjetivos';
 
 const tipoLabels: Record<string, string> = {
   super_admin: 'Super Admin',
@@ -196,6 +196,7 @@ export default function TabPerfil() {
   const [createCidade, setCreateCidade] = useState('');
   const [cargoTagPerfil, setCargoTagPerfil] = useState('');
   const [createSuperiorId, setCreateSuperiorId] = useState('');
+  const [createInstagram, setCreateInstagram] = useState('');
 
   // Edit
   const [editUser, setEditUser] = useState<UsuarioItem | null>(null);
@@ -318,6 +319,7 @@ export default function TabPerfil() {
     setCreateCidade(municipios.length === 1 ? municipios[0].id : '');
     setCargoTagPerfil('');
     setCreateSuperiorId('');
+    setCreateInstagram('');
   };
   // Effect to update modules based on role (presets)
   useEffect(() => {
@@ -383,6 +385,14 @@ export default function TabPerfil() {
       const { data, error } = await supabase.functions.invoke('criar-usuario', { body });
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(typeof data.error === 'string' ? data.error : JSON.stringify(data.error));
+
+      // Save instagram if provided
+      if (data?.hierarquia_id && createInstagram.trim()) {
+        await (supabase as any)
+          .from('hierarquia_usuarios')
+          .update({ instagram: createInstagram.replace(/^@/, '').trim() })
+          .eq('id', data.hierarquia_id);
+      }
 
       // Save modules
       if (data?.hierarquia_id && selectedModulos.size > 0) {
@@ -497,7 +507,7 @@ export default function TabPerfil() {
   const toggleModulo = (id: string) => {
     setSelectedModulos(prev => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) { next.delete(id); } else { next.add(id); }
       return next;
     });
   };
@@ -718,6 +728,21 @@ export default function TabPerfil() {
                 <p className="text-[10px] text-muted-foreground">Esse usuário entra direto na tela exclusiva de Cadastros Fernanda.</p>
               </div>
             )}
+
+            {/* Instagram */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                <Instagram size={12} /> Instagram (opcional, sem @)
+              </label>
+              <input
+                type="text"
+                value={createInstagram}
+                onChange={e => setCreateInstagram(e.target.value.replace(/^@/, ''))}
+                placeholder="usuario_instagram"
+                className={inputCls}
+              />
+              <p className="text-[10px] text-muted-foreground">Usado para rastrear postagens nas metas</p>
+            </div>
 
             {/* Senha */}
             <div className="space-y-1">
@@ -992,6 +1017,24 @@ export default function TabPerfil() {
 
       {/* Self password change */}
       <SelfPasswordChange />
+
+      {/* Meus Objetivos (Metas) */}
+      <MeusObjetivos />
+
+      {/* Gestão App — acesso para todos */}
+      <button
+        onClick={() => navigate('/gestao')}
+        className="w-full section-card flex items-center gap-3 text-left active:scale-[0.98] transition-all"
+      >
+        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+          <Settings size={18} className="text-primary" />
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-foreground">Gestão App</p>
+          <p className="text-[11px] text-muted-foreground">Metas, avisos e perfil dos usuários</p>
+        </div>
+        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full gradient-primary text-white">Novo</span>
+      </button>
 
       {/* Afiliados - Admin only */}
       {isAdmin && <SecaoAfiliados />}

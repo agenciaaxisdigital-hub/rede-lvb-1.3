@@ -178,8 +178,11 @@ export default function CadastroPublicoAfiliado() {
     if (exigeInstagram && !instagramInformado) {
       toast({ title: 'Informe a rede social', variant: 'destructive' }); return;
     }
-    if (instagramInformado && igStatusCap !== 'ok') {
-      toast({ title: 'Instagram não confirmado', description: 'Aguarde a verificação ou corrija o @ informado.', variant: 'destructive' }); return;
+    if (instagramInformado && igStatusCap === 'checking') {
+      toast({ title: 'Verificando Instagram…', description: 'Aguarde a validação terminar.', variant: 'destructive' }); return;
+    }
+    if (instagramInformado && (igStatusCap === 'invalido' || igStatusCap === 'nao_existe')) {
+      toast({ title: 'Instagram inválido', description: 'O @ informado não existe ou está incorreto.', variant: 'destructive' }); return;
     }
     const exigeEleitoral = tipoParam === 'lideranca' || tipoParam === 'fiscal' || tipoParam === 'eleitor';
     if (exigeEleitoral) {
@@ -253,6 +256,10 @@ export default function CadastroPublicoAfiliado() {
     }
     if (!tituloEleitor.trim() || !zonaEleitoral.trim() || !secaoEleitoral.trim() || !municipioEleitoral.trim() || !colegioEleitoral.trim()) {
       toast({ title: 'Preencha os dados eleitorais (Título, Zona, Seção, Município e Colégio)', variant: 'destructive' }); return;
+    }
+    if (instagram.trim()) {
+      if (igStatusSarelli === 'checking') { toast({ title: 'Verificando Instagram…', description: 'Aguarde a validação terminar.', variant: 'destructive' }); return; }
+      if (igStatusSarelli === 'invalido' || igStatusSarelli === 'nao_existe') { toast({ title: 'Instagram inválido', description: 'O @ informado não existe ou está incorreto.', variant: 'destructive' }); return; }
     }
 
     setSaving(true);

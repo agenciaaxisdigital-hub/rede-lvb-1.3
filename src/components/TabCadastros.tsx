@@ -11,12 +11,12 @@ import { toast } from '@/hooks/use-toast';
 import SkeletonLista from '@/components/SkeletonLista';
 import ListaCadastrosFernanda from '@/components/ListaCadastrosFernanda';
 
-type TipoFiltro = 'todos' | 'lideranca' | 'fiscal' | 'eleitor';
+type TipoFiltro = 'todos' | 'lideranca' | 'cabo' | 'fiscal' | 'eleitor';
 type FonteFiltro = 'rede' | 'fernanda';
 
 interface CadastroUnificado {
   id: string;
-  tipo: 'lideranca' | 'fiscal' | 'eleitor';
+  tipo: 'lideranca' | 'cabo' | 'fiscal' | 'eleitor';
   nome: string;
   cpf: string | null;
   telefone: string | null;
@@ -55,6 +55,7 @@ interface CadastroUnificado {
 
 const tipoConfig = {
   lideranca: { label: 'Liderança', icon: Users, color: 'bg-purple-500/10 text-purple-600', dot: 'bg-purple-500' },
+  cabo: { label: 'Cabo', icon: Users, color: 'bg-pink-500/10 text-pink-600', dot: 'bg-pink-500' },
   fiscal: { label: 'Fiscal', icon: Search, color: 'bg-orange-500/10 text-orange-600', dot: 'bg-orange-500' },
   eleitor: { label: 'Eleitor', icon: Target, color: 'bg-blue-500/10 text-blue-600', dot: 'bg-blue-500' },
 };
@@ -123,8 +124,9 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
     const results: CadastroUnificado[] = [];
     if (lidData) {
       for (const l of lidData as any[]) {
+        const isCabo = l.tipo_lideranca === 'Cabo Eleitoral';
         results.push({
-          ...mapBase(l), id: l.id, tipo: 'lideranca',
+          ...mapBase(l), id: l.id, tipo: isCabo ? 'cabo' : 'lideranca',
           status: l.status, regiao: l.regiao_atuacao || l.zona_atuacao || null,
           tipo_lideranca: l.tipo_lideranca || null,
           nivel: l.nivel || null,
@@ -166,9 +168,10 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
   const stats = useMemo(() => {
     const total = cadastros.length;
     const liderancas = cadastros.filter(c => c.tipo === 'lideranca').length;
+    const cabos = cadastros.filter(c => c.tipo === 'cabo').length;
     const fiscais = cadastros.filter(c => c.tipo === 'fiscal').length;
     const eleitores = cadastros.filter(c => c.tipo === 'eleitor').length;
-    return { total, liderancas, fiscais, eleitores };
+    return { total, liderancas, cabos, fiscais, eleitores };
   }, [cadastros]);
 
   const tagsDisponiveis = useMemo(() => {
@@ -192,12 +195,16 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
       );
     }
     return list;
-  }, [cadastros, tipoFiltro, searchQuery]);
+  }, [cadastros, tipoFiltro, filtroTag, searchQuery]);
 
   const handleExport = async () => {
     setExporting(true);
     try {
-      const tipo = tipoFiltro === 'todos' ? undefined : (tipoFiltro as 'lideranca' | 'eleitor');
+      const tipo = tipoFiltro === 'todos'
+        ? undefined
+        : tipoFiltro === 'cabo'
+          ? 'cabo_eleitoral'
+          : tipoFiltro;
       const count = await exportAllCadastros(tipo);
       toast({ title: `✅ ${count} registros exportados!` });
     } catch (err: any) {
@@ -217,7 +224,12 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
     const key = `${c.tipo}-${c.id}`;
     setDeletingId(key);
     try {
-      const table = c.tipo === 'lideranca' ? 'liderancas' : c.tipo === 'fiscal' ? 'fiscais' : 'possiveis_eleitores';
+      const table =
+        c.tipo === 'lideranca' || c.tipo === 'cabo'
+          ? 'liderancas'
+          : c.tipo === 'fiscal'
+            ? 'fiscais'
+            : 'possiveis_eleitores';
       const { error } = await supabase.from(table).delete().eq('id', c.id);
       if (error) throw error;
 
@@ -264,27 +276,28 @@ export default function TabCadastros({ refreshKey, onSaved }: Props) {
       ) : (
       <>
       {/* Stats grid */}
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-5 gap-1.5">
         {[
           { label: 'Total', value: stats.total, active: tipoFiltro === 'todos', onClick: () => setTipoFiltro('todos'), dotClass: 'bg-foreground' },
-          { label: 'Lideranças', value: stats.liderancas, active: tipoFiltro === 'lideranca', onClick: () => setTipoFiltro(tipoFiltro === 'lideranca' ? 'todos' : 'lideranca'), dotClass: 'bg-purple-500' },
+          { label: 'Lids', value: stats.liderancas, active: tipoFiltro === 'lideranca', onClick: () => setTipoFiltro(tipoFiltro === 'lideranca' ? 'todos' : 'lideranca'), dotClass: 'bg-purple-500' },
+          { label: 'Cabos', value: stats.cabos, active: tipoFiltro === 'cabo', onClick: () => setTipoFiltro(tipoFiltro === 'cabo' ? 'todos' : 'cabo'), dotClass: 'bg-pink-500' },
           { label: 'Fiscais', value: stats.fiscais, active: tipoFiltro === 'fiscal', onClick: () => setTipoFiltro(tipoFiltro === 'fiscal' ? 'todos' : 'fiscal'), dotClass: 'bg-orange-500' },
-          { label: 'Eleitores', value: stats.eleitores, active: tipoFiltro === 'eleitor', onClick: () => setTipoFiltro(tipoFiltro === 'eleitor' ? 'todos' : 'eleitor'), dotClass: 'bg-blue-500' },
+          { label: 'Eleit.', value: stats.eleitores, active: tipoFiltro === 'eleitor', onClick: () => setTipoFiltro(tipoFiltro === 'eleitor' ? 'todos' : 'eleitor'), dotClass: 'bg-blue-500' },
         ].map(s => (
           <button
             key={s.label}
             onClick={s.onClick}
-            className={`flex flex-col items-center py-2.5 rounded-xl border transition-all active:scale-95 ${
+            className={`flex flex-col items-center py-2 rounded-xl border transition-all active:scale-95 ${
               s.active
                 ? 'border-primary/30 bg-primary/5 shadow-sm'
                 : 'border-border bg-card'
             }`}
           >
             <div className="flex items-center gap-1">
-              <div className={`w-2 h-2 rounded-full ${s.dotClass}`} />
-              <span className="text-lg font-bold text-foreground">{s.value}</span>
+              <div className={`w-1.5 h-1.5 rounded-full ${s.dotClass}`} />
+              <span className="text-base font-bold text-foreground">{s.value}</span>
             </div>
-            <span className="text-[9px] text-muted-foreground font-medium">{s.label}</span>
+            <span className="text-[8px] text-muted-foreground font-medium uppercase tracking-tight">{s.label}</span>
           </button>
         ))}
       </div>

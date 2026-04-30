@@ -1,5 +1,5 @@
- import { useState, useRef, useCallback, lazy, Suspense, useEffect } from 'react';
- import { useScrollRestore } from '@/hooks/useScrollRestore';
+import { useState, useCallback, lazy, Suspense, useEffect } from 'react';
+import { useScrollRestore } from '@/hooks/useScrollRestore';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCidade } from '@/contexts/CidadeContext';
 import { useEvento } from '@/contexts/EventoContext';
@@ -11,8 +11,10 @@ import FloatingSupportButton from '@/components/FloatingSupportButton';
 import SeletorEvento from '@/components/SeletorEvento';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { supabase } from '@/integrations/supabase/client';
+import NotificationBell from '@/components/NotificationBell';
 
 const TabLiderancas = lazy(() => import('@/components/TabLiderancas'));
+const TabCabos = lazy(() => import('@/components/TabCabos'));
 const TabFiscais = lazy(() => import('@/components/TabFiscais'));
 const TabEleitores = lazy(() => import('@/components/TabEleitores'));
 const TabCadastros = lazy(() => import('@/components/TabCadastros'));
@@ -21,7 +23,7 @@ const AdminCadastrosAfiliados = lazy(() => import('@/components/AdminCadastrosAf
 const TabPerfil = lazy(() => import('@/components/TabPerfil'));
 
 const TAB_STORAGE_KEY = 'home-active-tab';
-const VALID_TABS: TabId[] = ['liderancas', 'fiscais', 'eleitores', 'cadastros', 'fernanda', 'afiliados', 'perfil'];
+const VALID_TABS: TabId[] = ['liderancas', 'cabos', 'fiscais', 'eleitores', 'cadastros', 'fernanda', 'afiliados', 'perfil'];
 
 function getInitialTab(): TabId {
   try {
@@ -34,7 +36,7 @@ function getInitialTab(): TabId {
 }
 
 export default function Home() {
-   const { isAdmin, tipoUsuario, usuario, isLideranca, isSuplente } = useAuth();
+  const { isAdmin, tipoUsuario, usuario, isSuplente, isLideranca } = useAuth();
   useRealtimeSync();
   useLocationTracking();
   const { municipios } = useCidade();
@@ -79,6 +81,15 @@ export default function Home() {
          }
 
          if (activeTab === 'liderancas' && !hasMaster && !modulos.has('cadastrar_liderancas')) {
+           // Suplentes e lideranças sempre podem acessar a aba Lideranças
+           if (isSuplente || isLideranca) return;
+           handleTabChange('cadastros');
+           return;
+         }
+
+         if (activeTab === 'cabos' && !hasMaster && !modulos.has('cadastrar_liderancas')) {
+           // Suplentes e lideranças sempre podem acessar a aba Cabos
+           if (isSuplente || isLideranca) return;
            handleTabChange('cadastros');
            return;
          }
@@ -102,6 +113,7 @@ export default function Home() {
 
   const titles: Record<TabId, string> = {
     liderancas: 'Cadastro de Lideranças',
+    cabos: 'Cadastro de Cabos Eleitorais',
     fiscais: 'Cadastro de Fiscais',
     eleitores: 'Cadastro de Eleitores',
     cadastros: isAdmin ? 'Todos os Cadastros' : 'Meus Cadastros',
@@ -113,14 +125,14 @@ export default function Home() {
   return (
     <div className="h-full flex flex-col overflow-hidden">
       <div className="h-[1.5px] gradient-header shrink-0" />
-
       <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-xl border-b border-border shrink-0">
         <div className="max-w-[672px] mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-bold text-foreground">{titles[activeTab] || ''}</h1>
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <h1 className="text-xl font-bold text-foreground truncate">{titles[activeTab] || ''}</h1>
               <p className="text-[10px] text-muted-foreground mt-0.5">Rede política – Dra. Fernanda Sarelli</p>
             </div>
+            <NotificationBell />
           </div>
           {showCitySelector && activeTab !== 'perfil' && (
             <div className="mt-2">
@@ -139,6 +151,7 @@ export default function Home() {
         <div className="max-w-[672px] mx-auto px-4 py-4">
           <Suspense fallback={<div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-primary" /></div>}>
             {visitedTabs.has('liderancas') && activeTab === 'liderancas' && <TabLiderancas refreshKey={refreshKey} onSaved={handleSaved} />}
+            {visitedTabs.has('cabos') && activeTab === 'cabos' && <TabCabos refreshKey={refreshKey} onSaved={handleSaved} />}
             {visitedTabs.has('fiscais') && activeTab === 'fiscais' && <TabFiscais refreshKey={refreshKey} onSaved={handleSaved} />}
             {visitedTabs.has('eleitores') && activeTab === 'eleitores' && <TabEleitores refreshKey={refreshKey} onSaved={handleSaved} />}
             {visitedTabs.has('cadastros') && activeTab === 'cadastros' && <TabCadastros refreshKey={refreshKey} onSaved={handleSaved} />}

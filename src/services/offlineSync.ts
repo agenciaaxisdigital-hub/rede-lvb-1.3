@@ -92,6 +92,17 @@ async function syncSingleRegistration(item: OfflineRegistration) {
     return; // Already synced — safe to remove from queue
   }
 
+  // Se for do tipo 'fernanda', o registro vai direto para a tabela cadastros_fernanda, sem tabela pessoas.
+  if (item.type === 'fernanda') {
+    const registroFernanda = {
+      ...item.registro,
+      observacoes: `[opId:${item.operationId}]`
+    };
+    const { error } = await (supabase as any).from('cadastros_fernanda').insert(registroFernanda);
+    if (error) throw error;
+    return;
+  }
+
   let pessoaId: string;
 
   if (item.pessoaExistenteId) {
@@ -146,7 +157,8 @@ async function syncSingleRegistration(item: OfflineRegistration) {
 }
 
 async function checkOperationIdExists(item: OfflineRegistration): Promise<boolean> {
-  const table = item.type === 'lideranca' ? 'liderancas'
+  const table = item.type === 'fernanda' ? 'cadastros_fernanda'
+    : item.type === 'lideranca' ? 'liderancas'
     : item.type === 'fiscal' ? 'fiscais'
     : 'possiveis_eleitores';
 

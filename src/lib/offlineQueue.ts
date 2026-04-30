@@ -7,7 +7,7 @@ import Dexie, { type Table } from 'dexie';
 export interface OfflineRegistration {
   id?: number;
   operationId: string; // UUID for idempotency
-  type: 'lideranca' | 'fiscal' | 'eleitor';
+  type: 'lideranca' | 'fiscal' | 'eleitor' | 'fernanda';
   pessoa: Record<string, any>;
   registro: Record<string, any>;
   pessoaExistenteId?: string | null;

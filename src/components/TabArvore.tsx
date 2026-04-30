@@ -48,7 +48,8 @@ export default function TabArvore({ usuarios, liderancas, eleitores, fiscais }: 
       if (counts[userId]) return counts[userId];
       
       // Direct registrations
-      let lids = liderancas.filter(l => l.cadastrado_por === userId).length;
+      let lids = liderancas.filter(l => l.cadastrado_por === userId && l.tipo_lideranca !== 'Cabo Eleitoral').length;
+      let cabos = liderancas.filter(l => l.cadastrado_por === userId && l.tipo_lideranca === 'Cabo Eleitoral').length;
       let eleits = eleitores.filter(e => e.cadastrado_por === userId).length;
       let fiscs = fiscais.filter(f => f.cadastrado_por === userId).length;
       
@@ -57,11 +58,12 @@ export default function TabArvore({ usuarios, liderancas, eleitores, fiscais }: 
       children.forEach(child => {
         const childCounts = calculate(child.id);
         lids += childCounts.lids;
+        cabos += childCounts.cabos;
         eleits += childCounts.eleits;
         fiscs += childCounts.fiscs;
       });
       
-      const res = { lids, eleits, fiscs, total: lids + eleits + fiscs };
+      const res = { lids, cabos, eleits, fiscs, total: lids + cabos + eleits + fiscs };
       counts[userId] = res;
       return res;
     };
@@ -70,13 +72,14 @@ export default function TabArvore({ usuarios, liderancas, eleitores, fiscais }: 
     return counts;
   }, [usuarios, liderancas, eleitores, fiscais]);
 
-  const getCounts = (userId: string) => recursiveCounts[userId] || { lids: 0, eleits: 0, fiscs: 0, total: 0 };
+  const getCounts = (userId: string) => recursiveCounts[userId] || { lids: 0, cabos: 0, eleits: 0, fiscs: 0, total: 0 };
 
   const getUserRegistrations = (userId: string) => {
-    const lids = liderancas.filter(l => l.cadastrado_por === userId).map(l => ({ ...l, tipo: 'lideranca' }));
+    const lids = liderancas.filter(l => l.cadastrado_por === userId && l.tipo_lideranca !== 'Cabo Eleitoral').map(l => ({ ...l, tipo: 'lideranca' }));
+    const cabos = liderancas.filter(l => l.cadastrado_por === userId && l.tipo_lideranca === 'Cabo Eleitoral').map(l => ({ ...l, tipo: 'cabo' }));
     const eleits = eleitores.filter(e => e.cadastrado_por === userId).map(e => ({ ...e, tipo: 'eleitor' }));
     const fiscs = fiscais.filter(f => f.cadastrado_por === userId).map(f => ({ ...f, tipo: 'fiscal' }));
-    return [...lids, ...eleits, ...fiscs].sort((a, b) => new Date(b.criado_em || 0).getTime() - new Date(a.criado_em || 0).getTime());
+    return [...lids, ...cabos, ...eleits, ...fiscs].sort((a, b) => new Date(b.criado_em || 0).getTime() - new Date(a.criado_em || 0).getTime());
   };
 
   const toggle = (id: string) => setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
@@ -115,6 +118,7 @@ export default function TabArvore({ usuarios, liderancas, eleitores, fiscais }: 
 
     // Direct counts (only this user, not descendants)
     const directLids = registrations.filter((r: any) => r.tipo === 'lideranca');
+    const directCabos = registrations.filter((r: any) => r.tipo === 'cabo');
     const directFiscs = registrations.filter((r: any) => r.tipo === 'fiscal');
     const directEleits = registrations.filter((r: any) => r.tipo === 'eleitor');
     const directTotal = registrations.length;
@@ -170,7 +174,7 @@ export default function TabArvore({ usuarios, liderancas, eleitores, fiscais }: 
           </div>
 
           {/* Resumo por tipo: cadastros diretos + total na rede */}
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-4 gap-1.5">
             <div className="rounded-xl bg-purple-500/10 border border-purple-500/20 p-2 text-center">
               <div className="flex items-center justify-center gap-1 text-purple-700">
                 <Users size={12} />
@@ -179,6 +183,16 @@ export default function TabArvore({ usuarios, liderancas, eleitores, fiscais }: 
               <p className="text-base font-black text-purple-700 leading-tight mt-0.5">{directLids.length}</p>
               {counts.lids !== directLids.length && (
                 <p className="text-[8px] text-purple-600/70 font-bold">+{counts.lids - directLids.length} rede</p>
+              )}
+            </div>
+            <div className="rounded-xl bg-pink-500/10 border border-pink-500/20 p-2 text-center">
+              <div className="flex items-center justify-center gap-1 text-pink-700">
+                <Users size={12} />
+                <span className="text-[8px] font-black uppercase tracking-wider">Cabos</span>
+              </div>
+              <p className="text-base font-black text-pink-700 leading-tight mt-0.5">{directCabos.length}</p>
+              {counts.cabos !== directCabos.length && (
+                <p className="text-[8px] text-pink-600/70 font-bold">+{counts.cabos - directCabos.length} rede</p>
               )}
             </div>
             <div className="rounded-xl bg-orange-500/10 border border-orange-500/20 p-2 text-center">
@@ -237,6 +251,9 @@ export default function TabArvore({ usuarios, liderancas, eleitores, fiscais }: 
                 {directLids.length > 0 && (
                   <RegGroup title="Lideranças" count={directLids.length} icon={Users} color="purple" regs={directLids} expandedRegs={expandedRegs} toggleReg={toggleReg} setSelectedForEdit={setSelectedForEdit} setIsEditDialogOpen={setIsEditDialogOpen} />
                 )}
+                {directCabos.length > 0 && (
+                  <RegGroup title="Cabos" count={directCabos.length} icon={Users} color="pink" regs={directCabos} expandedRegs={expandedRegs} toggleReg={toggleReg} setSelectedForEdit={setSelectedForEdit} setIsEditDialogOpen={setIsEditDialogOpen} />
+                )}
                 {directFiscs.length > 0 && (
                   <RegGroup title="Fiscais" count={directFiscs.length} icon={Shield} color="orange" regs={directFiscs} expandedRegs={expandedRegs} toggleReg={toggleReg} setSelectedForEdit={setSelectedForEdit} setIsEditDialogOpen={setIsEditDialogOpen} />
                 )}
@@ -270,6 +287,7 @@ export default function TabArvore({ usuarios, liderancas, eleitores, fiscais }: 
     const [open, setOpen] = useState(false);
     const colorMap: Record<string, { bg: string, text: string, border: string }> = {
       purple: { bg: 'bg-purple-500/10', text: 'text-purple-700', border: 'border-purple-500/30' },
+      pink: { bg: 'bg-pink-500/10', text: 'text-pink-700', border: 'border-pink-500/30' },
       orange: { bg: 'bg-orange-500/10', text: 'text-orange-700', border: 'border-orange-500/30' },
       blue: { bg: 'bg-blue-500/10', text: 'text-blue-700', border: 'border-blue-500/30' },
     };
@@ -288,8 +306,8 @@ export default function TabArvore({ usuarios, liderancas, eleitores, fiscais }: 
           <div className="space-y-2 p-2 pt-0 animate-in fade-in slide-in-from-top-1">
             {regs.map((reg: any) => {
               const isRegExpanded = expandedRegs[reg.id];
-              const regTypeColor = reg.tipo === 'lideranca' ? 'text-purple-600' : reg.tipo === 'fiscal' ? 'text-orange-600' : 'text-blue-600';
-              const regTypeBg = reg.tipo === 'lideranca' ? 'bg-purple-500/10' : reg.tipo === 'fiscal' ? 'bg-orange-500/10' : 'bg-blue-500/10';
+              const regTypeColor = reg.tipo === 'lideranca' ? 'text-purple-600' : reg.tipo === 'cabo' ? 'text-pink-600' : reg.tipo === 'fiscal' ? 'text-orange-600' : 'text-blue-600';
+              const regTypeBg = reg.tipo === 'lideranca' ? 'bg-purple-500/10' : reg.tipo === 'cabo' ? 'bg-pink-500/10' : reg.tipo === 'fiscal' ? 'bg-orange-500/10' : 'bg-blue-500/10';
               const p = reg.pessoas;
 
               return (
@@ -297,7 +315,7 @@ export default function TabArvore({ usuarios, liderancas, eleitores, fiscais }: 
                   <div className={`bg-background border border-border/50 rounded-xl p-3 transition-all group hover:border-primary/30 ${isRegExpanded ? 'ring-1 ring-primary/20' : ''}`}>
                     <div className="flex items-center gap-3">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${regTypeBg} ${regTypeColor}`}>
-                        {reg.tipo === 'lideranca' ? <Users size={20} /> : reg.tipo === 'fiscal' ? <Shield size={20} /> : <Target size={20} />}
+                        {reg.tipo === 'lideranca' || reg.tipo === 'cabo' ? <Users size={20} /> : reg.tipo === 'fiscal' ? <Shield size={20} /> : <Target size={20} />}
                       </div>
                       <div className="flex-1 min-w-0 cursor-pointer" onClick={() => toggleReg(reg.id)}>
                         <p className="text-sm font-bold text-foreground truncate">{p?.nome || '—'}</p>

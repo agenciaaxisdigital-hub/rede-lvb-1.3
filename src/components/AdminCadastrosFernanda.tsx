@@ -23,6 +23,7 @@ interface FormState {
 
 export default function AdminCadastrosFernanda() {
   const [cadastros, setCadastros] = useState<CadastroFernanda[]>([]);
+  const [autores, setAutores] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
   const [editing, setEditing] = useState<FormState | null>(null);
@@ -36,8 +37,18 @@ export default function AdminCadastrosFernanda() {
       .order('criado_em', { ascending: false });
     if (error) {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' });
-    } else {
-      setCadastros((data || []) as unknown as CadastroFernanda[]);
+      setLoading(false);
+      return;
+    }
+    const lista = (data || []) as unknown as CadastroFernanda[];
+    setCadastros(lista);
+
+    const ids = Array.from(new Set(lista.map(c => c.cadastrado_por).filter(Boolean) as string[]));
+    if (ids.length > 0) {
+      const { data: users } = await supabase.from('hierarquia_usuarios').select('id, nome').in('id', ids);
+      const map: Record<string, string> = {};
+      (users || []).forEach((u: any) => { map[u.id] = u.nome; });
+      setAutores(map);
     }
     setLoading(false);
   }, []);
@@ -90,14 +101,18 @@ export default function AdminCadastrosFernanda() {
   };
 
   const handleExportar = () => {
-    const headers = ['Nome', 'Telefone', 'Cidade', 'Instagram', 'Cadastrado em'];
-    const rows = filtrados.map(c => [
-      c.nome,
-      c.telefone,
-      c.cidade ?? '',
-      c.instagram ?? '',
-      new Date(c.criado_em).toLocaleString('pt-BR'),
-    ]);
+    const headers = ['Nome', 'Telefone', 'Cidade', 'Instagram', 'Cadastrado em', 'Cadastrado por'];
+    const rows = filtrados.map(c => {
+      const authorName = c.cadastrado_por ? (autores[c.cadastrado_por] || 'Usuário Desconhecido') : 'Sem Autor Atribuído';
+      return [
+        c.nome,
+        c.telefone,
+        c.cidade ?? '',
+        c.instagram ?? '',
+        new Date(c.criado_em).toLocaleString('pt-BR'),
+        authorName
+      ];
+    });
     const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -109,6 +124,11 @@ export default function AdminCadastrosFernanda() {
   };
 
   const filtrados = cadastros.filter(c => {
+    // Esconder cadastros de "Usuários Desconhecidos" (outras aplicações)
+    if (c.cadastrado_por && !autores[c.cadastrado_por]) {
+      return false;
+    }
+
     const q = busca.toLowerCase().trim();
     if (!q) return true;
     return c.nome.toLowerCase().includes(q)
@@ -215,9 +235,23 @@ export default function AdminCadastrosFernanda() {
       ) : filtrados.length === 0 ? (
         <div className="text-center py-10 text-muted-foreground text-sm">Nenhum cadastro encontrado.</div>
       ) : (
-        <div className="space-y-2">
-          {filtrados.map(c => (
-            <div key={c.id} className="bg-card border border-border rounded-xl p-3">
+        <div className="space-y-4">
+          {Object.entries(
+            filtrados.reduce((acc, c) => {
+              const authorId = c.cadastrado_por || 'sem_autor';
+              if (!acc[authorId]) acc[authorId] = [];
+              acc[authorId].push(c);
+              return acc;
+            }, {} as Record<string, CadastroFernanda[]>)
+          ).map(([authorId, lista]) => {
+            const authorName = authorId === 'sem_autor' ? 'Sem Autor Atribuído' : (autores[authorId] || 'Usuário Desconhecido');
+            return (
+              <div key={authorId} className="space-y-2">
+                <h3 className="font-bold text-sm bg-muted/50 px-3 py-1.5 rounded-lg border border-border">
+                  {authorName} <span className="text-muted-foreground text-xs font-normal">({lista.length})</span>
+                </h3>
+                {lista.map(c => (
+                  <div key={c.id} className="bg-card border border-border rounded-xl p-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
@@ -262,7 +296,9 @@ export default function AdminCadastrosFernanda() {
                 </div>
               </div>
             </div>
-          ))}
+            ))}
+          </div>
+          )})}
         </div>
       )}
     </div>

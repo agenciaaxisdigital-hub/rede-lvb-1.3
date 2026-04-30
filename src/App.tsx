@@ -24,6 +24,7 @@ const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const HomeFernanda = lazy(() => import("./pages/HomeFernanda"));
 const HomeAfiliado = lazy(() => import("./pages/HomeAfiliado"));
 const CadastroPublicoAfiliado = lazy(() => import("./pages/CadastroPublicoAfiliado"));
+const GestaoApp = lazy(() => import("./pages/GestaoApp"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -55,13 +56,14 @@ function PrivateRoute({ children, allowFernanda = false, allowAfiliado = false }
   }
   return <>{children}</>;
 }
-
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { user, loading, usuario } = useAuth();
   if (loading) return <LoadingScreen message="Carregando..." />;
-  // user is set but usuario still loading (initializeUser in progress)
-  if (user && !usuario) return <LoadingScreen message="Carregando perfil..." showProgress />;
+  
+  // Se tem usuário E perfil, vai para a home (já está logado)
   if (user && usuario) return <Navigate to="/" replace />;
+  
+  // Caso contrário (sem user ou sem perfil), permite ver a página de Login
   return <>{children}</>;
 }
 
@@ -77,6 +79,7 @@ function AppRoutes() {
         <Route path="/admin" element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
         <Route path="/fernanda" element={<PrivateRoute allowFernanda><HomeFernanda /></PrivateRoute>} />
         <Route path="/afiliado" element={<PrivateRoute allowAfiliado><HomeAfiliado /></PrivateRoute>} />
+        <Route path="/gestao" element={<PrivateRoute><GestaoApp /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>
