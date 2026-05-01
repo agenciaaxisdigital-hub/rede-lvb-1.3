@@ -118,11 +118,7 @@ export default function TabCadastrosAfiliado() {
   }, [usuario?.nome]);
 
   const linkPublico = useMemo(
-    () => {
-      if (!linkToken) return null;
-      const tokenCurto = linkToken.slice(0, 8);
-      return `${window.location.origin}/r/${slugNome}-${tokenCurto}?t=afiliado`;
-    },
+    () => linkToken ? `${window.location.origin}/r/${slugNome}-${linkToken}?t=afiliado` : null,
     [linkToken, slugNome]
   );
 

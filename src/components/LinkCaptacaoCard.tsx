@@ -118,9 +118,7 @@ export default function LinkCaptacaoCard({ initialVariant = 'lideranca', lockVar
   const linkPublico = useMemo(
     () => {
       if (!linkToken) return null;
-      // Link curto: /r/nome-xxxxxxxx (8 primeiros chars do token)
-      const tokenCurto = linkToken.slice(0, 8);
-      const base = `${window.location.origin}/r/${slugNome}-${tokenCurto}`;
+      const base = `${window.location.origin}/r/${slugNome}-${linkToken}`;
       return `${base}?t=${variante}`;
     },
     [linkToken, slugNome, variante]

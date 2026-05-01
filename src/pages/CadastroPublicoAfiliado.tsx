@@ -104,24 +104,26 @@ export default function CadastroPublicoAfiliado() {
 
   useEffect(() => { document.title = 'Cadastro de Afiliado'; }, []);
 
-  // Detectar tipo do link ao montar — busca direta na tabela (sem edge function)
+  // Detectar tipo do link ao montar — edge function roda com service_role (bypass RLS)
   useEffect(() => {
     if (!token) { setModo('invalido'); return; }
     (async () => {
       try {
-        // Suporta token curto (8 chars) ou token completo
-        const { data, error } = await (supabase as any)
-          .from('hierarquia_usuarios')
-          .select('id, nome, ativo, link_token')
-          .ilike('link_token', `${token}%`)
-          .maybeSingle();
-        if (error || !data) { setModo('invalido'); return; }
-        setAfiliadoNome(data.nome || '');
-        setTokenCompleto(data.link_token || '');
+        const url = `${SUPABASE_URL}/functions/v1/captacao-afiliado?token=${encodeURIComponent(token)}`;
+        const r = await fetch(url, {
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          },
+        });
+        const j = await r.json();
+        if (!r.ok || j?.error) { setModo('invalido'); return; }
+        setAfiliadoNome(j.afiliado_nome || '');
+        setTokenCompleto(token);
         if (tipoParam === 'afiliado') {
           setModo('criar_acesso');
         } else {
-          setModo(data.ativo !== false ? 'captacao' : 'criar_acesso');
+          setModo(j.is_ativo !== false ? 'captacao' : 'criar_acesso');
         }
       } catch {
         setModo('invalido');
