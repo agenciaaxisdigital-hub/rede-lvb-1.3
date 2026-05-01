@@ -55,18 +55,23 @@ export default function TabCadastrosAfiliado() {
   const [linkToken, setLinkToken] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
+    if (!usuario?.id) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from('cadastros_afiliados' as any)
+    let query = (supabase as any)
+      .from('cadastros_afiliados')
       .select('*')
       .order('criado_em', { ascending: false });
+    if (!isAdmin) {
+      query = query.eq('afiliado_id', usuario.id);
+    }
+    const { data, error } = await query;
     if (error) {
       toast({ title: 'Erro ao carregar', description: error.message, variant: 'destructive' });
     } else {
       setCadastros((data || []) as unknown as CadastroAfil[]);
     }
     setLoading(false);
-  }, []);
+  }, [usuario?.id, isAdmin]);
 
   useEffect(() => { carregar(); }, [carregar]);
 
@@ -113,7 +118,11 @@ export default function TabCadastrosAfiliado() {
   }, [usuario?.nome]);
 
   const linkPublico = useMemo(
-    () => linkToken ? `${window.location.origin}/c/${slugNome}/${linkToken}` : null,
+    () => {
+      if (!linkToken) return null;
+      const tokenCurto = linkToken.slice(0, 8);
+      return `${window.location.origin}/r/${slugNome}-${tokenCurto}?t=afiliado`;
+    },
     [linkToken, slugNome]
   );
 

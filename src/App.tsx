@@ -117,19 +117,16 @@ function PwaSilentUpdater() {
   } = useRegisterSW({
     onRegisteredSW(_swUrl, registration) {
       if (registration) {
-        // Check for updates every 30 seconds (balanced: fast OTA without battery drain)
-        setInterval(async () => {
+        const tryUpdate = async () => {
           try {
             await registration.update();
             updateCheckFailures.current = 0;
           } catch (err) {
             updateCheckFailures.current++;
-            // If SW update checks fail 5+ times, SW may be corrupt
             if (updateCheckFailures.current >= 5) {
               console.warn('[SW] Multiple update check failures — attempting SW recovery');
               try {
                 await registration.unregister();
-                // Clear caches to prevent stale content
                 if ('caches' in window) {
                   const names = await caches.keys();
                   await Promise.all(names.map(n => caches.delete(n)));
@@ -141,7 +138,16 @@ function PwaSilentUpdater() {
               }
             }
           }
-        }, 30_000);
+        };
+
+        // Verifica ao abrir o celular / voltar do background (instantâneo)
+        const handleVisibility = () => {
+          if (document.visibilityState === 'visible') tryUpdate();
+        };
+        document.addEventListener('visibilitychange', handleVisibility);
+
+        // Fallback: verifica a cada 30 segundos enquanto o app está aberto
+        setInterval(tryUpdate, 30_000);
       }
     },
     onRegisterError(error) {

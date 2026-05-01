@@ -6,6 +6,9 @@ import { Loader2, CheckCircle2, ClipboardList, Eye, EyeOff, KeyRound, LogIn, Map
 import { useInstagramCheck, checkTelefone } from '@/hooks/useInstagramCheck';
 import { InstagramStatusIcon, TelefoneStatusIcon, instagramHelpText, telefoneHelpText } from '@/components/CampoStatusIcon';
 
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+
 export default function CadastroPublicoAfiliado() {
   const params = useParams<{ token?: string; slugComToken?: string }>();
   // Suporta 3 formatos de URL:
@@ -44,17 +47,13 @@ export default function CadastroPublicoAfiliado() {
   // ou 'criar_acesso' (registro pendente do próprio afiliado, fluxo completo)
   const [modo, setModo] = useState<'detectando' | 'captacao' | 'criar_acesso' | 'invalido'>('detectando');
   const [afiliadoNome, setAfiliadoNome] = useState<string>('');
+  const [tokenCompleto, setTokenCompleto] = useState<string>('');
 
   // Captação (público)
   const [capNome, setCapNome] = useState('');
   const [capCpf, setCapCpf] = useState('');
-  const [capEmail, setCapEmail] = useState('');
   const [capTelefone, setCapTelefone] = useState('');
   const [capData, setCapData] = useState('');
-  const [capCep, setCapCep] = useState('');
-  const [capCidadeCep, setCapCidadeCep] = useState('');
-  const [capUfCep, setCapUfCep] = useState('');
-  const [capBuscandoCep, setCapBuscandoCep] = useState(false);
   const [capRede, setCapRede] = useState('');
   const [capInstagram, setCapInstagram] = useState('');
   const capInstagramAlvo = tipoParam === 'fernanda' ? capInstagram : capRede;
@@ -68,7 +67,6 @@ export default function CadastroPublicoAfiliado() {
   const [capMunicipioEl, setCapMunicipioEl] = useState('');
   const [capUfEl, setCapUfEl] = useState('GO');
   // Específicos
-  const [capNivelComp, setCapNivelComp] = useState('');
   const [capApoiadores, setCapApoiadores] = useState('');
   const [capBairros, setCapBairros] = useState('');
   const [capCompromisso, setCapCompromisso] = useState('');
@@ -106,29 +104,25 @@ export default function CadastroPublicoAfiliado() {
 
   useEffect(() => { document.title = 'Cadastro de Afiliado'; }, []);
 
-  // Detectar tipo do link ao montar
+  // Detectar tipo do link ao montar — busca direta na tabela (sem edge function)
   useEffect(() => {
     if (!token) { setModo('invalido'); return; }
     (async () => {
       try {
-        const { data, error } = await supabase.functions.invoke('captacao-afiliado', {
-          method: 'GET' as any,
-          body: undefined as any,
-          headers: {} as any,
-          // workaround: usar URL com query — invoke não passa query, então usar fetch direto
-        } as any);
-        // Fallback: chamar via fetch direto (invoke não suporta query params facilmente)
-        const url = `https://yvdfdmyusdhgtzfguxbj.supabase.co/functions/v1/captacao-afiliado?token=${encodeURIComponent(token)}`;
-        const r = await fetch(url, { headers: { apikey: (supabase as any).supabaseKey || '' } });
-        const j = await r.json();
-        if (!r.ok || j?.error) { setModo('invalido'); return; }
-        setAfiliadoNome(j.afiliado_nome || '');
-         // Se o tipo for afiliado, força o modo 'criar_acesso' para criar conta
-         if (tipoParam === 'afiliado') {
-           setModo('criar_acesso');
-         } else {
-           setModo(j.is_ativo ? 'captacao' : 'criar_acesso');
-         }
+        // Suporta token curto (8 chars) ou token completo
+        const { data, error } = await (supabase as any)
+          .from('hierarquia_usuarios')
+          .select('id, nome, ativo, link_token')
+          .ilike('link_token', `${token}%`)
+          .maybeSingle();
+        if (error || !data) { setModo('invalido'); return; }
+        setAfiliadoNome(data.nome || '');
+        setTokenCompleto(data.link_token || '');
+        if (tipoParam === 'afiliado') {
+          setModo('criar_acesso');
+        } else {
+          setModo(data.ativo !== false ? 'captacao' : 'criar_acesso');
+        }
       } catch {
         setModo('invalido');
       }
@@ -149,19 +143,6 @@ export default function CadastroPublicoAfiliado() {
     } finally {
       setBuscandoCep(false);
     }
-  };
-
-  const buscarCidadePorCepCap = async (raw: string) => {
-    const cepLimpo = raw.replace(/\D/g, '');
-    if (cepLimpo.length !== 8) { setCapCidadeCep(''); setCapUfCep(''); return; }
-    setCapBuscandoCep(true);
-    try {
-      const r = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
-      const d = await r.json();
-      if (d?.erro) { setCapCidadeCep(''); setCapUfCep(''); }
-      else { setCapCidadeCep(d.localidade || ''); setCapUfCep(d.uf || ''); }
-    } catch { setCapCidadeCep(''); setCapUfCep(''); }
-    finally { setCapBuscandoCep(false); }
   };
 
   const handleSubmitCaptacao = async (e: React.FormEvent) => {
@@ -192,22 +173,18 @@ export default function CadastroPublicoAfiliado() {
     }
     setCapSaving(true);
     try {
-      const url = `https://yvdfdmyusdhgtzfguxbj.supabase.co/functions/v1/captacao-afiliado`;
+      const url = `${SUPABASE_URL}/functions/v1/captacao-afiliado`;
       const r = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', apikey: (supabase as any).supabaseKey || '' },
+        headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY },
         body: JSON.stringify({
-          token,
+          token: tokenCompleto || token,
           tipo: tipoParam || 'afiliado',
           nome: capNome.trim(),
           cpf: capCpf.trim() || null,
-          email: capEmail.trim() || null,
           telefone: capTelefone.trim(),
           whatsapp: capTelefone.trim(),
           data_nascimento: capData || null,
-          cep: capCep.trim() || null,
-          cidade: capCidadeCep || null,
-          uf: capUfCep || null,
           instagram: instagramInformado || null,
           rede_social: capRede.trim() || null,
           titulo_eleitor: capTitulo.trim() || null,
@@ -216,7 +193,6 @@ export default function CadastroPublicoAfiliado() {
           municipio_eleitoral: capMunicipioEl.trim() || null,
           uf_eleitoral: capUfEl.trim() || null,
           colegio_eleitoral: capColegio.trim() || null,
-          nivel_comprometimento: capNivelComp.trim() || null,
           apoiadores_estimados: capApoiadores ? Number(capApoiadores) : null,
           bairros_influencia: capBairros.trim() || null,
           compromisso_voto: capCompromisso.trim() || null,
@@ -415,28 +391,6 @@ export default function CadastroPublicoAfiliado() {
                 <input type="date" value={capData} onChange={e => setCapData(e.target.value)} className={inputCls} />
               </div>
               <div>
-                <label className={labelCls}>CEP</label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={capCep}
-                    onChange={e => setCapCep(e.target.value)}
-                    onBlur={e => buscarCidadePorCepCap(e.target.value)}
-                    className={inputCls}
-                    maxLength={20}
-                    placeholder="00000-000"
-                  />
-                  {capBuscandoCep && (
-                    <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-muted-foreground" />
-                  )}
-                </div>
-                {capCidadeCep && (
-                  <span className="inline-flex items-center gap-1 mt-2 px-2 py-1 rounded-full bg-primary/10 text-primary text-[11px] font-semibold">
-                    <MapPin size={11} /> {capCidadeCep}{capUfCep ? ` - ${capUfCep}` : ''}
-                  </span>
-                )}
-              </div>
-              <div>
                 <label className={labelCls}>Instagram{tipoParam !== 'fernanda' && tipoParam !== 'afiliado' ? ' *' : ''}</label>
                 <div className="relative">
                   <input type="text" value={capRede} onChange={e => setCapRede(e.target.value)} className={inputCls + (tipoParam !== 'fernanda' ? ' pr-9' : '')} maxLength={200} placeholder="@usuario" />
@@ -461,17 +415,11 @@ export default function CadastroPublicoAfiliado() {
                   )}
                 </div>
               )}
-              {/* CPF e e-mail (lideranca/fiscal/eleitor) */}
+              {/* CPF (lideranca/fiscal/eleitor) */}
               {(tipoParam === 'lideranca' || tipoParam === 'fiscal' || tipoParam === 'eleitor') && (
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className={labelCls}>CPF</label>
-                    <input type="text" value={capCpf} onChange={e => setCapCpf(e.target.value)} className={inputCls} maxLength={14} placeholder="000.000.000-00" />
-                  </div>
-                  <div>
-                    <label className={labelCls}>E-mail</label>
-                    <input type="email" value={capEmail} onChange={e => setCapEmail(e.target.value)} className={inputCls} maxLength={200} placeholder="opcional" />
-                  </div>
+                <div>
+                  <label className={labelCls}>CPF</label>
+                  <input type="text" value={capCpf} onChange={e => setCapCpf(e.target.value)} className={inputCls} maxLength={14} placeholder="000.000.000-00" />
                 </div>
               )}
             </div>
@@ -519,15 +467,6 @@ export default function CadastroPublicoAfiliado() {
                 <h2 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5 pb-1 border-b border-border">
                   👑 Liderança
                 </h2>
-                <div>
-                  <label className={labelCls}>Nível de comprometimento</label>
-                  <select value={capNivelComp} onChange={e => setCapNivelComp(e.target.value)} className={inputCls}>
-                    <option value="">Selecione</option>
-                    <option value="Alto">Alto</option>
-                    <option value="Médio">Médio</option>
-                    <option value="Baixo">Baixo</option>
-                  </select>
-                </div>
                 <div>
                   <label className={labelCls}>Apoiadores estimados</label>
                   <input type="number" min={0} value={capApoiadores} onChange={e => setCapApoiadores(e.target.value)} className={inputCls} placeholder="Ex: 50" />
