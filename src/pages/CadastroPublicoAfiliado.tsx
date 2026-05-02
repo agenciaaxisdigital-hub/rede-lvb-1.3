@@ -48,6 +48,7 @@ export default function CadastroPublicoAfiliado() {
   const [modo, setModo] = useState<'detectando' | 'captacao' | 'criar_acesso' | 'invalido'>('detectando');
   const [afiliadoNome, setAfiliadoNome] = useState<string>('');
   const [tokenCompleto, setTokenCompleto] = useState<string>('');
+  const [afiliadoId, setAfiliadoId] = useState<string>('');
 
   // Captação (público)
   const [capNome, setCapNome] = useState('');
@@ -120,6 +121,7 @@ export default function CadastroPublicoAfiliado() {
         const j = await r.json();
         if (!r.ok || j?.error) { setModo('invalido'); return; }
         setAfiliadoNome(j.afiliado_nome || '');
+        setAfiliadoId(j.afiliado_id || j.id || '');
         setTokenCompleto(token);
         if (tipoParam === 'afiliado') {
           setModo('criar_acesso');
@@ -176,6 +178,25 @@ export default function CadastroPublicoAfiliado() {
     }
     setCapSaving(true);
     try {
+      // Tentativa 1: insert direto (mais confiável, bypassa edge function com bugs)
+      if (afiliadoId) {
+        const { error: insertErr } = await (supabase as any)
+          .from('cadastros_afiliados')
+          .insert({
+            afiliado_id: afiliadoId,
+            nome: capNome.trim(),
+            telefone: capTelefone.trim(),
+            rede_social: instagramInformado || capRede.trim() || null,
+            data_nascimento: capData || null,
+            origem: 'link_publico',
+          });
+        if (!insertErr) {
+          setCapSuccess(true);
+          return;
+        }
+      }
+
+      // Fallback: edge function (caso insert direto falhe por RLS)
       const url = `${SUPABASE_URL}/functions/v1/captacao-afiliado`;
       const r = await fetch(url, {
         method: 'POST',
