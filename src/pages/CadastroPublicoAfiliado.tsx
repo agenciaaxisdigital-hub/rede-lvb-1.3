@@ -121,8 +121,21 @@ export default function CadastroPublicoAfiliado() {
         const j = await r.json();
         if (!r.ok || j?.error) { setModo('invalido'); return; }
         setAfiliadoNome(j.afiliado_nome || '');
-        setAfiliadoId(j.afiliado_id || j.id || '');
         setTokenCompleto(token);
+
+        // Captura afiliado_id — tenta do GET response primeiro, depois query direta
+        const idDoGet = j.afiliado_id || j.id || '';
+        if (idDoGet) {
+          setAfiliadoId(idDoGet);
+        } else {
+          // Tenta buscar diretamente (funciona se RLS permitir leitura anon)
+          const { data: row } = await (supabase as any)
+            .from('hierarquia_usuarios')
+            .select('id')
+            .eq('link_token', token)
+            .maybeSingle();
+          if (row?.id) setAfiliadoId(row.id);
+        }
         if (tipoParam === 'afiliado') {
           setModo('criar_acesso');
         } else {
