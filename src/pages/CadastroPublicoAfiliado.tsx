@@ -119,7 +119,25 @@ export default function CadastroPublicoAfiliado() {
           },
         });
         const j = await r.json();
-        if (!r.ok || j?.error) { setModo('invalido'); return; }
+        if (!r.ok || j?.error) {
+          // Fallback para links antigos com token truncado (8 chars) — busca por prefixo
+          if (token.length <= 8) {
+            const { data: row } = await (supabase as any)
+              .from('hierarquia_usuarios')
+              .select('id, nome')
+              .ilike('link_token', `${token}%`)
+              .maybeSingle();
+            if (row?.id) {
+              setAfiliadoId(row.id);
+              setAfiliadoNome(row.nome || '');
+              setTokenCompleto(token);
+              setModo(tipoParam === 'afiliado' ? 'criar_acesso' : 'captacao');
+              return;
+            }
+          }
+          setModo('invalido');
+          return;
+        }
         setAfiliadoNome(j.afiliado_nome || '');
         setTokenCompleto(token);
 
