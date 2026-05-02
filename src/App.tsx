@@ -163,8 +163,14 @@ function PwaSilentUpdater() {
   useEffect(() => {
     if (needRefresh) {
       console.log('[SW] New version available, updating silently...');
-      // Wait for pending offline items to finish syncing before reload
       const tryUpdate = async () => {
+        // Não recarrega se o usuário está preenchendo um formulário público de cadastro
+        const path = window.location.pathname;
+        const isPublicForm = path.startsWith('/r/') || path.startsWith('/c/') || path.startsWith('/cadastro/');
+        if (isPublicForm) {
+          updateBlockedRef.current = true;
+          return;
+        }
         const pending = await getPendingCount();
         if (pending > 0) {
           console.log(`[SW] ${pending} offline items pending, deferring update...`);

@@ -72,6 +72,7 @@ export default function CadastroPublicoAfiliado() {
   const [capCompromisso, setCapCompromisso] = useState('');
   const [capObs, setCapObs] = useState('');
   const [capSaving, setCapSaving] = useState(false);
+  const [capSuccess, setCapSuccess] = useState(false);
 
   // Pessoais
   const [nome, setNome] = useState('');
@@ -129,7 +130,7 @@ export default function CadastroPublicoAfiliado() {
         setModo('invalido');
       }
     })();
-  }, [token]);
+  }, [token, tipoParam]);
 
   const buscarCidadePorCep = async (raw: string) => {
     const cepLimpo = raw.replace(/\D/g, '');
@@ -210,11 +211,7 @@ export default function CadastroPublicoAfiliado() {
         const msg = typeof j?.error === 'string' ? j.error : 'Erro ao enviar cadastro';
         throw new Error(msg);
       }
-      toast({ title: '✅ Cadastro enviado!', description: 'Você será redirecionada(o) ao Instagram.' });
-      // Pequeno delay para o usuário ver o toast
-      setTimeout(() => {
-        window.location.href = j.redirect_url || 'https://www.instagram.com/drafernandasarelli/';
-      }, 800);
+      setCapSuccess(true);
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
       setCapSaving(false);
@@ -248,7 +245,7 @@ export default function CadastroPublicoAfiliado() {
     try {
       const { data, error } = await supabase.functions.invoke('cadastro-afiliado-publico', {
         body: {
-          token,
+          token: tokenCompleto || token,
           nome: nome.trim(),
           cpf: cpf.trim() || null,
           telefone: whatsapp.trim(),
@@ -326,6 +323,31 @@ export default function CadastroPublicoAfiliado() {
         <div className="text-center space-y-3 max-w-sm">
           <h1 className="text-xl font-bold text-foreground">Link inválido ou expirado</h1>
           <p className="text-sm text-muted-foreground">Solicite um novo link à pessoa que te enviou.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── MODO CAPTAÇÃO: tela de sucesso ───
+  if (modo === 'captacao' && capSuccess) {
+    return (
+      <div className="fixed inset-0 flex flex-col items-center justify-center px-6 bg-gradient-to-br from-primary/10 to-background">
+        <div className="w-full max-w-sm text-center space-y-5 my-auto">
+          <div className="w-20 h-20 rounded-full bg-primary/15 flex items-center justify-center mx-auto">
+            <CheckCircle2 size={48} className="text-primary" />
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-2xl font-bold text-foreground">Cadastro enviado!</h1>
+            <p className="text-sm text-muted-foreground">Obrigado por se cadastrar na rede da Dra. Fernanda Sarelli.</p>
+          </div>
+          <a
+            href="https://www.instagram.com/drafernandasarelli/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full h-12 rounded-2xl gradient-primary text-white text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.97]"
+          >
+            <Heart size={16} fill="currentColor" /> Seguir no Instagram
+          </a>
         </div>
       </div>
     );
