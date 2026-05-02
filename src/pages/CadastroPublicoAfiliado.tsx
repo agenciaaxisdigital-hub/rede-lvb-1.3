@@ -178,7 +178,11 @@ export default function CadastroPublicoAfiliado() {
       const url = `${SUPABASE_URL}/functions/v1/captacao-afiliado`;
       const r = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY },
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        },
         body: JSON.stringify({
           token: tokenCompleto || token,
           tipo: tipoParam || 'afiliado',
