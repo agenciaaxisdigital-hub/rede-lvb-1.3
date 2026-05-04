@@ -138,10 +138,12 @@ Deno.serve(async (req) => {
         : (p.cep?.trim() ? `CEP: ${p.cep.trim()}` : null),
     };
     let rp = await supabaseAdmin.from('pessoas').insert(pessoaBase).select('id').maybeSingle();
-    // CPF duplicado — tenta sem CPF
-    if (rp.error?.code === '23505' && pessoaBase.cpf) {
+    if (rp.error?.code === '23505')
       rp = await supabaseAdmin.from('pessoas').insert({ ...pessoaBase, cpf: null }).select('id').maybeSingle();
-    }
+    if (rp.error?.code === '23505')
+      rp = await supabaseAdmin.from('pessoas').insert({ ...pessoaBase, cpf: null, titulo_eleitor: null }).select('id').maybeSingle();
+    if (rp.error?.code === '23505')
+      rp = await supabaseAdmin.from('pessoas').insert({ ...pessoaBase, cpf: null, titulo_eleitor: null, email: null }).select('id').maybeSingle();
     const { data: pessoaIns, error: pessoaErr } = rp;
 
     if (pessoaErr) {

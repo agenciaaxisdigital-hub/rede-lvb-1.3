@@ -74,6 +74,7 @@ export default function CadastroPublicoAfiliado() {
   const [capObs, setCapObs] = useState('');
   const [capSaving, setCapSaving] = useState(false);
   const [capSuccess, setCapSuccess] = useState(false);
+  const [capErrors, setCapErrors] = useState<Record<string, string>>({});
 
   // Pessoais
   const [nome, setNome] = useState('');
@@ -101,6 +102,7 @@ export default function CadastroPublicoAfiliado() {
 
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState<{ login: string } | null>(null);
+  const [mainErrors, setMainErrors] = useState<Record<string, string>>({});
 
   useEffect(() => { document.title = 'Cadastro de Afiliado'; }, []);
 
@@ -182,26 +184,25 @@ export default function CadastroPublicoAfiliado() {
   const handleSubmitCaptacao = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token) return;
-    if (!capNome.trim() || capNome.trim().length < 2) {
-      toast({ title: 'Informe seu nome completo', variant: 'destructive' }); return;
-    }
+    const erros: Record<string, string> = {};
+    if (!capNome.trim() || capNome.trim().length < 2) erros.nome = 'Nome obrigatório (mín. 2 caracteres)';
     const capTelDigits = capTelefone.replace(/\D/g, '');
-    if (!capTelefone.trim() || capTelDigits.length < 10) {
-      toast({ title: 'Informe um telefone com DDD (mínimo 10 dígitos)', variant: 'destructive' }); return;
-    }
+    if (!capTelefone.trim() || capTelDigits.length < 10) erros.telefone = 'Telefone com DDD obrigatório (mín. 10 dígitos)';
     if (capCpf.trim()) {
       const cpfDigits = capCpf.replace(/\D/g, '');
-      if (cpfDigits.length === 11 && !validateCPF(cpfDigits)) {
-        toast({ title: 'CPF inválido', description: 'Verifique os números informados.', variant: 'destructive' }); return;
-      }
+      if (cpfDigits.length === 11 && !validateCPF(cpfDigits)) erros.cpf = 'CPF inválido — verifique os números';
     }
     const instagramInformado = capInstagramAlvo.trim();
     const exigeEleitoral = tipoParam === 'lideranca' || tipoParam === 'fiscal' || tipoParam === 'eleitor';
     if (exigeEleitoral) {
-      if (!capTitulo.trim() || !capZona.trim() || !capSecao.trim() || !capMunicipioEl.trim() || !capColegio.trim()) {
-        toast({ title: 'Preencha todos os dados eleitorais (Título, Zona, Seção, Município e Colégio)', variant: 'destructive' }); return;
-      }
+      if (!capTitulo.trim()) erros.titulo = 'Título de eleitor obrigatório';
+      if (!capZona.trim()) erros.zona = 'Zona eleitoral obrigatória';
+      if (!capSecao.trim()) erros.secao = 'Seção eleitoral obrigatória';
+      if (!capMunicipioEl.trim()) erros.municipio = 'Município eleitoral obrigatório';
+      if (!capColegio.trim()) erros.colegio = 'Colégio eleitoral obrigatório';
     }
+    if (Object.keys(erros).length > 0) { setCapErrors(erros); return; }
+    setCapErrors({});
     setCapSaving(true);
     try {
       const url = `${SUPABASE_URL}/functions/v1/captacao-afiliado`;
@@ -249,28 +250,23 @@ export default function CadastroPublicoAfiliado() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token) return;
-    if (!nome.trim() || nome.trim().length < 2) {
-      toast({ title: 'Informe seu nome completo', variant: 'destructive' }); return;
-    }
+    const erros: Record<string, string> = {};
+    if (!nome.trim() || nome.trim().length < 2) erros.nome = 'Nome obrigatório (mín. 2 caracteres)';
     const waDigits = whatsapp.replace(/\D/g, '');
-    if (!whatsapp.trim() || waDigits.length < 10) {
-      toast({ title: 'Informe um WhatsApp com DDD (mínimo 10 dígitos)', variant: 'destructive' }); return;
-    }
+    if (!whatsapp.trim() || waDigits.length < 10) erros.whatsapp = 'WhatsApp com DDD obrigatório (mín. 10 dígitos)';
     if (cpf.trim()) {
       const cpfDigits = cpf.replace(/\D/g, '');
-      if (cpfDigits.length === 11 && !validateCPF(cpfDigits)) {
-        toast({ title: 'CPF inválido', description: 'Verifique os números informados.', variant: 'destructive' }); return;
-      }
+      if (cpfDigits.length === 11 && !validateCPF(cpfDigits)) erros.cpf = 'CPF inválido — verifique os números';
     }
-    if (!usuarioLogin.trim() || usuarioLogin.trim().length < 3) {
-      toast({ title: 'Defina um nome de usuário (mín. 3 letras)', variant: 'destructive' }); return;
-    }
-    if (!senha.trim() || senha.length < 6) {
-      toast({ title: 'A senha precisa ter no mínimo 6 caracteres', variant: 'destructive' }); return;
-    }
-    if (!tituloEleitor.trim() || !zonaEleitoral.trim() || !secaoEleitoral.trim() || !municipioEleitoral.trim() || !colegioEleitoral.trim()) {
-      toast({ title: 'Preencha os dados eleitorais (Título, Zona, Seção, Município e Colégio)', variant: 'destructive' }); return;
-    }
+    if (!usuarioLogin.trim() || usuarioLogin.trim().length < 3) erros.usuarioLogin = 'Usuário obrigatório (mín. 3 caracteres)';
+    if (!senha.trim() || senha.length < 6) erros.senha = 'Senha obrigatória (mín. 6 caracteres)';
+    if (!tituloEleitor.trim()) erros.titulo = 'Título de eleitor obrigatório';
+    if (!zonaEleitoral.trim()) erros.zona = 'Zona eleitoral obrigatória';
+    if (!secaoEleitoral.trim()) erros.secao = 'Seção eleitoral obrigatória';
+    if (!municipioEleitoral.trim()) erros.municipio = 'Município eleitoral obrigatório';
+    if (!colegioEleitoral.trim()) erros.colegio = 'Colégio eleitoral obrigatório';
+    if (Object.keys(erros).length > 0) { setMainErrors(erros); return; }
+    setMainErrors({});
 
     setSaving(true);
     try {
@@ -435,15 +431,16 @@ export default function CadastroPublicoAfiliado() {
               </h2>
               <div>
                 <label className={labelCls}>Nome *</label>
-                <input type="text" value={capNome} onChange={e => setCapNome(e.target.value)} className={inputCls} required maxLength={120} />
+                <input type="text" value={capNome} onChange={e => { setCapNome(e.target.value); setCapErrors(p => ({ ...p, nome: '' })); }} className={inputCls + (capErrors.nome ? ' border-destructive' : '')} maxLength={120} />
+                {capErrors.nome && <p className="text-[10px] text-destructive mt-1">{capErrors.nome}</p>}
               </div>
               <div>
                 <label className={labelCls}>Telefone *</label>
                 <div className="relative">
-                  <input type="tel" value={capTelefone} onChange={e => setCapTelefone(e.target.value)} className={inputCls + ' pr-9'} required maxLength={40} placeholder="(00) 00000-0000" />
+                  <input type="tel" value={capTelefone} onChange={e => { setCapTelefone(e.target.value); setCapErrors(p => ({ ...p, telefone: '' })); }} className={inputCls + ' pr-9' + (capErrors.telefone ? ' border-destructive' : '')} maxLength={40} placeholder="(00) 00000-0000" />
                   <div className="absolute right-2 top-1/2 -translate-y-1/2"><TelefoneStatusIcon status={telStatusCap} /></div>
                 </div>
-                {telefoneHelpText(telStatusCap) && <p className="text-[10px] text-destructive mt-1">{telefoneHelpText(telStatusCap)}</p>}
+                {capErrors.telefone ? <p className="text-[10px] text-destructive mt-1">{capErrors.telefone}</p> : telefoneHelpText(telStatusCap) && <p className="text-[10px] text-destructive mt-1">{telefoneHelpText(telStatusCap)}</p>}
               </div>
               <div>
                 <label className={labelCls}>Data de nascimento</label>
@@ -464,7 +461,8 @@ export default function CadastroPublicoAfiliado() {
               {(tipoParam === 'lideranca' || tipoParam === 'fiscal' || tipoParam === 'eleitor') && (
                 <div>
                   <label className={labelCls}>CPF</label>
-                  <input type="text" value={capCpf} onChange={e => setCapCpf(e.target.value)} className={inputCls} maxLength={14} placeholder="000.000.000-00" />
+                  <input type="text" value={capCpf} onChange={e => { setCapCpf(e.target.value); setCapErrors(p => ({ ...p, cpf: '' })); }} className={inputCls + (capErrors.cpf ? ' border-destructive' : '')} maxLength={14} placeholder="000.000.000-00" />
+                  {capErrors.cpf && <p className="text-[10px] text-destructive mt-1">{capErrors.cpf}</p>}
                 </div>
               )}
             </div>
@@ -477,22 +475,26 @@ export default function CadastroPublicoAfiliado() {
                 </h2>
                 <div>
                   <label className={labelCls}>Título de eleitor *</label>
-                  <input type="text" value={capTitulo} onChange={e => setCapTitulo(e.target.value)} className={inputCls} maxLength={40} placeholder="Número do título" />
+                  <input type="text" value={capTitulo} onChange={e => { setCapTitulo(e.target.value); setCapErrors(p => ({ ...p, titulo: '' })); }} className={inputCls + (capErrors.titulo ? ' border-destructive' : '')} maxLength={40} placeholder="Número do título" />
+                  {capErrors.titulo && <p className="text-[10px] text-destructive mt-1">{capErrors.titulo}</p>}
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className={labelCls}>Zona *</label>
-                    <input type="text" value={capZona} onChange={e => setCapZona(e.target.value)} className={inputCls} maxLength={20} placeholder="045" />
+                    <input type="text" value={capZona} onChange={e => { setCapZona(e.target.value); setCapErrors(p => ({ ...p, zona: '' })); }} className={inputCls + (capErrors.zona ? ' border-destructive' : '')} maxLength={20} placeholder="045" />
+                    {capErrors.zona && <p className="text-[10px] text-destructive mt-1">{capErrors.zona}</p>}
                   </div>
                   <div>
                     <label className={labelCls}>Seção *</label>
-                    <input type="text" value={capSecao} onChange={e => setCapSecao(e.target.value)} className={inputCls} maxLength={20} placeholder="0123" />
+                    <input type="text" value={capSecao} onChange={e => { setCapSecao(e.target.value); setCapErrors(p => ({ ...p, secao: '' })); }} className={inputCls + (capErrors.secao ? ' border-destructive' : '')} maxLength={20} placeholder="0123" />
+                    {capErrors.secao && <p className="text-[10px] text-destructive mt-1">{capErrors.secao}</p>}
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   <div className="col-span-2">
                     <label className={labelCls}>Município *</label>
-                    <input type="text" value={capMunicipioEl} onChange={e => setCapMunicipioEl(e.target.value)} className={inputCls} maxLength={120} placeholder="Cidade" />
+                    <input type="text" value={capMunicipioEl} onChange={e => { setCapMunicipioEl(e.target.value); setCapErrors(p => ({ ...p, municipio: '' })); }} className={inputCls + (capErrors.municipio ? ' border-destructive' : '')} maxLength={120} placeholder="Cidade" />
+                    {capErrors.municipio && <p className="text-[10px] text-destructive mt-1">{capErrors.municipio}</p>}
                   </div>
                   <div>
                     <label className={labelCls}>UF</label>
@@ -501,7 +503,8 @@ export default function CadastroPublicoAfiliado() {
                 </div>
                 <div>
                   <label className={labelCls}>Colégio eleitoral *</label>
-                  <input type="text" value={capColegio} onChange={e => setCapColegio(e.target.value)} className={inputCls} maxLength={200} placeholder="Nome da escola / local" />
+                  <input type="text" value={capColegio} onChange={e => { setCapColegio(e.target.value); setCapErrors(p => ({ ...p, colegio: '' })); }} className={inputCls + (capErrors.colegio ? ' border-destructive' : '')} maxLength={200} placeholder="Nome da escola / local" />
+                  {capErrors.colegio && <p className="text-[10px] text-destructive mt-1">{capErrors.colegio}</p>}
                 </div>
               </div>
             )}
@@ -585,12 +588,14 @@ export default function CadastroPublicoAfiliado() {
             <h2 className="section-title">👤 Dados pessoais</h2>
             <div>
               <label className={labelCls}>Nome completo *</label>
-              <input type="text" value={nome} onChange={e => setNome(e.target.value)} className={inputCls} required maxLength={120} />
+              <input type="text" value={nome} onChange={e => { setNome(e.target.value); setMainErrors(p => ({ ...p, nome: '' })); }} className={inputCls + (mainErrors.nome ? ' border-destructive' : '')} maxLength={120} />
+              {mainErrors.nome && <p className="text-[10px] text-destructive mt-1">{mainErrors.nome}</p>}
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className={labelCls}>CPF</label>
-                <input type="text" value={cpf} onChange={e => setCpf(e.target.value)} className={inputCls} maxLength={14} placeholder="000.000.000-00" />
+                <input type="text" value={cpf} onChange={e => { setCpf(e.target.value); setMainErrors(p => ({ ...p, cpf: '' })); }} className={inputCls + (mainErrors.cpf ? ' border-destructive' : '')} maxLength={14} placeholder="000.000.000-00" />
+                {mainErrors.cpf && <p className="text-[10px] text-destructive mt-1">{mainErrors.cpf}</p>}
               </div>
               <div>
                 <label className={labelCls}>Data nasc.</label>
@@ -600,10 +605,10 @@ export default function CadastroPublicoAfiliado() {
             <div>
               <label className={labelCls}>WhatsApp *</label>
               <div className="relative">
-                <input type="tel" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} className={inputCls + ' pr-9'} required maxLength={40} placeholder="(00) 00000-0000" />
+                <input type="tel" value={whatsapp} onChange={e => { setWhatsapp(e.target.value); setMainErrors(p => ({ ...p, whatsapp: '' })); }} className={inputCls + ' pr-9' + (mainErrors.whatsapp ? ' border-destructive' : '')} maxLength={40} placeholder="(00) 00000-0000" />
                 <div className="absolute right-2 top-1/2 -translate-y-1/2"><TelefoneStatusIcon status={telStatusSarelli} /></div>
               </div>
-              {telefoneHelpText(telStatusSarelli) && <p className="text-[10px] text-destructive mt-1">{telefoneHelpText(telStatusSarelli)}</p>}
+              {mainErrors.whatsapp ? <p className="text-[10px] text-destructive mt-1">{mainErrors.whatsapp}</p> : telefoneHelpText(telStatusSarelli) && <p className="text-[10px] text-destructive mt-1">{telefoneHelpText(telStatusSarelli)}</p>}
               <p className="text-[10px] text-muted-foreground mt-1">Usado também como telefone de contato.</p>
             </div>
             <div>
@@ -643,22 +648,26 @@ export default function CadastroPublicoAfiliado() {
             <h2 className="section-title">🗳️ Dados eleitorais</h2>
             <div>
               <label className={labelCls}>Título de eleitor *</label>
-              <input type="text" value={tituloEleitor} onChange={e => setTituloEleitor(e.target.value)} className={inputCls} maxLength={40} required placeholder="Número do título" />
+              <input type="text" value={tituloEleitor} onChange={e => { setTituloEleitor(e.target.value); setMainErrors(p => ({ ...p, titulo: '' })); }} className={inputCls + (mainErrors.titulo ? ' border-destructive' : '')} maxLength={40} placeholder="Número do título" />
+              {mainErrors.titulo && <p className="text-[10px] text-destructive mt-1">{mainErrors.titulo}</p>}
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className={labelCls}>Zona *</label>
-                <input type="text" value={zonaEleitoral} onChange={e => setZonaEleitoral(e.target.value)} className={inputCls} maxLength={20} required placeholder="045" />
+                <input type="text" value={zonaEleitoral} onChange={e => { setZonaEleitoral(e.target.value); setMainErrors(p => ({ ...p, zona: '' })); }} className={inputCls + (mainErrors.zona ? ' border-destructive' : '')} maxLength={20} placeholder="045" />
+                {mainErrors.zona && <p className="text-[10px] text-destructive mt-1">{mainErrors.zona}</p>}
               </div>
               <div>
                 <label className={labelCls}>Seção *</label>
-                <input type="text" value={secaoEleitoral} onChange={e => setSecaoEleitoral(e.target.value)} className={inputCls} maxLength={20} required placeholder="0123" />
+                <input type="text" value={secaoEleitoral} onChange={e => { setSecaoEleitoral(e.target.value); setMainErrors(p => ({ ...p, secao: '' })); }} className={inputCls + (mainErrors.secao ? ' border-destructive' : '')} maxLength={20} placeholder="0123" />
+                {mainErrors.secao && <p className="text-[10px] text-destructive mt-1">{mainErrors.secao}</p>}
               </div>
             </div>
             <div className="grid grid-cols-3 gap-2">
               <div className="col-span-2">
                 <label className={labelCls}>Município *</label>
-                <input type="text" value={municipioEleitoral} onChange={e => setMunicipioEleitoral(e.target.value)} className={inputCls} maxLength={120} required placeholder="Cidade" />
+                <input type="text" value={municipioEleitoral} onChange={e => { setMunicipioEleitoral(e.target.value); setMainErrors(p => ({ ...p, municipio: '' })); }} className={inputCls + (mainErrors.municipio ? ' border-destructive' : '')} maxLength={120} placeholder="Cidade" />
+                {mainErrors.municipio && <p className="text-[10px] text-destructive mt-1">{mainErrors.municipio}</p>}
               </div>
               <div>
                 <label className={labelCls}>UF</label>
@@ -667,7 +676,8 @@ export default function CadastroPublicoAfiliado() {
             </div>
             <div>
               <label className={labelCls}>Colégio eleitoral *</label>
-              <input type="text" value={colegioEleitoral} onChange={e => setColegioEleitoral(e.target.value)} className={inputCls} maxLength={200} required placeholder="Nome da escola / local" />
+              <input type="text" value={colegioEleitoral} onChange={e => { setColegioEleitoral(e.target.value); setMainErrors(p => ({ ...p, colegio: '' })); }} className={inputCls + (mainErrors.colegio ? ' border-destructive' : '')} maxLength={200} placeholder="Nome da escola / local" />
+              {mainErrors.colegio && <p className="text-[10px] text-destructive mt-1">{mainErrors.colegio}</p>}
             </div>
           </div>
 
@@ -679,14 +689,12 @@ export default function CadastroPublicoAfiliado() {
               <input
                 type="text"
                 value={usuarioLogin}
-                onChange={e => setUsuarioLogin(e.target.value.toLowerCase().replace(/[^a-z0-9.]/g, ''))}
-                className={inputCls}
-                required
-                minLength={3}
+                onChange={e => { setUsuarioLogin(e.target.value.toLowerCase().replace(/[^a-z0-9.]/g, '')); setMainErrors(p => ({ ...p, usuarioLogin: '' })); }}
+                className={inputCls + (mainErrors.usuarioLogin ? ' border-destructive' : '')}
                 maxLength={60}
                 placeholder="ex: maria.silva"
               />
-              <p className="text-[10px] text-muted-foreground mt-1">Apenas letras minúsculas, números e ponto.</p>
+              {mainErrors.usuarioLogin ? <p className="text-[10px] text-destructive mt-1">{mainErrors.usuarioLogin}</p> : <p className="text-[10px] text-muted-foreground mt-1">Apenas letras minúsculas, números e ponto.</p>}
             </div>
             <div>
               <label className={labelCls}>Senha *</label>
@@ -694,10 +702,8 @@ export default function CadastroPublicoAfiliado() {
                 <input
                   type={showSenha ? 'text' : 'password'}
                   value={senha}
-                  onChange={e => setSenha(e.target.value)}
-                  className={inputCls}
-                  required
-                  minLength={6}
+                  onChange={e => { setSenha(e.target.value); setMainErrors(p => ({ ...p, senha: '' })); }}
+                  className={inputCls + (mainErrors.senha ? ' border-destructive' : '')}
                   maxLength={72}
                   placeholder="Mínimo 6 caracteres"
                 />
@@ -709,6 +715,7 @@ export default function CadastroPublicoAfiliado() {
                   {showSenha ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+              {mainErrors.senha && <p className="text-[10px] text-destructive mt-1">{mainErrors.senha}</p>}
             </div>
           </div>
 
