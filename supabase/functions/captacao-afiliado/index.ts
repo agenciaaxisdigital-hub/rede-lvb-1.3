@@ -166,28 +166,30 @@ Deno.serve(async (req) => {
       p.endereco?.trim() ? `End.: ${p.endereco.trim()}` : null,
     ].filter(Boolean).join(' | ') || null;
 
-    const { data: pessoa, error: pessoaErr } = await supabaseAdmin
-      .from('pessoas')
-      .insert({
-        nome: p.nome.trim(),
-        cpf: p.cpf?.trim() || null,
-        telefone: whatsappFinal,
-        whatsapp: whatsappFinal,
-        email: p.email?.trim() || null,
-        data_nascimento: p.data_nascimento || null,
-        instagram: instagramFinal || null,
-        facebook: p.facebook?.trim() || null,
-        titulo_eleitor: p.titulo_eleitor?.trim() || null,
-        zona_eleitoral: p.zona_eleitoral?.trim() || null,
-        secao_eleitoral: p.secao_eleitoral?.trim() || null,
-        municipio_eleitoral: p.municipio_eleitoral?.trim() || p.cidade?.trim() || null,
-        uf_eleitoral: p.uf_eleitoral?.trim() || p.uf?.trim() || null,
-        colegio_eleitoral: p.colegio_eleitoral?.trim() || null,
-        observacoes_gerais: observacoes,
-        origem: `link_publico_${tipoDestino}`,
-      })
-      .select('id')
-      .maybeSingle();
+    const pessoaBase: Record<string, any> = {
+      nome: p.nome.trim(),
+      cpf: p.cpf?.trim() || null,
+      telefone: whatsappFinal,
+      whatsapp: whatsappFinal,
+      email: p.email?.trim() || null,
+      data_nascimento: p.data_nascimento || null,
+      instagram: instagramFinal || null,
+      facebook: p.facebook?.trim() || null,
+      titulo_eleitor: p.titulo_eleitor?.trim() || null,
+      zona_eleitoral: p.zona_eleitoral?.trim() || null,
+      secao_eleitoral: p.secao_eleitoral?.trim() || null,
+      municipio_eleitoral: p.municipio_eleitoral?.trim() || p.cidade?.trim() || null,
+      uf_eleitoral: p.uf_eleitoral?.trim() || p.uf?.trim() || null,
+      colegio_eleitoral: p.colegio_eleitoral?.trim() || null,
+      observacoes_gerais: observacoes,
+      origem: `link_publico_${tipoDestino}`,
+    };
+    let rp = await supabaseAdmin.from('pessoas').insert(pessoaBase).select('id').maybeSingle();
+    // CPF duplicado — tenta sem CPF
+    if (rp.error?.code === '23505' && pessoaBase.cpf) {
+      rp = await supabaseAdmin.from('pessoas').insert({ ...pessoaBase, cpf: null }).select('id').maybeSingle();
+    }
+    const { data: pessoa, error: pessoaErr } = rp;
 
     if (pessoaErr || !pessoa?.id) {
       console.error('pessoas insert error:', pessoaErr);

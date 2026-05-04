@@ -118,33 +118,34 @@ Deno.serve(async (req) => {
     const authUserId = authData.user.id;
 
     // 3) Criar registro em pessoas com TODOS os dados
-    const { data: pessoaIns, error: pessoaErr } = await supabaseAdmin
-      .from('pessoas')
-      .insert({
-        nome: p.nome.trim(),
-        cpf: p.cpf?.trim() || null,
-        telefone: whatsappFinal,
-        whatsapp: whatsappFinal,
-        email: p.email?.trim() || null,
-        data_nascimento: p.data_nascimento || null,
-        instagram: p.instagram?.trim() || null,
-        titulo_eleitor: p.titulo_eleitor.trim(),
-        zona_eleitoral: p.zona_eleitoral.trim(),
-        secao_eleitoral: p.secao_eleitoral.trim(),
-        municipio_eleitoral: p.municipio_eleitoral.trim(),
-        uf_eleitoral: p.uf_eleitoral?.trim() || null,
-        colegio_eleitoral: p.colegio_eleitoral.trim(),
-        origem: 'afiliado_link',
-        observacoes_gerais: p.cidade_cep?.trim()
-          ? `Cidade (CEP): ${p.cidade_cep.trim()}${p.cep?.trim() ? ` - CEP ${p.cep.trim()}` : ''}`
-          : (p.cep?.trim() ? `CEP: ${p.cep.trim()}` : null),
-      })
-      .select('id')
-      .maybeSingle();
+    const pessoaBase: Record<string, any> = {
+      nome: p.nome.trim(),
+      cpf: p.cpf?.trim() || null,
+      telefone: whatsappFinal,
+      whatsapp: whatsappFinal,
+      email: p.email?.trim() || null,
+      data_nascimento: p.data_nascimento || null,
+      instagram: p.instagram?.trim() || null,
+      titulo_eleitor: p.titulo_eleitor.trim(),
+      zona_eleitoral: p.zona_eleitoral.trim(),
+      secao_eleitoral: p.secao_eleitoral.trim(),
+      municipio_eleitoral: p.municipio_eleitoral.trim(),
+      uf_eleitoral: p.uf_eleitoral?.trim() || null,
+      colegio_eleitoral: p.colegio_eleitoral.trim(),
+      origem: 'afiliado_link',
+      observacoes_gerais: p.cidade_cep?.trim()
+        ? `Cidade (CEP): ${p.cidade_cep.trim()}${p.cep?.trim() ? ` - CEP ${p.cep.trim()}` : ''}`
+        : (p.cep?.trim() ? `CEP: ${p.cep.trim()}` : null),
+    };
+    let rp = await supabaseAdmin.from('pessoas').insert(pessoaBase).select('id').maybeSingle();
+    // CPF duplicado — tenta sem CPF
+    if (rp.error?.code === '23505' && pessoaBase.cpf) {
+      rp = await supabaseAdmin.from('pessoas').insert({ ...pessoaBase, cpf: null }).select('id').maybeSingle();
+    }
+    const { data: pessoaIns, error: pessoaErr } = rp;
 
     if (pessoaErr) {
       console.error('Pessoa insert error:', pessoaErr);
-      // rollback auth
       await supabaseAdmin.auth.admin.deleteUser(authUserId);
       return new Response(JSON.stringify({ error: 'Erro ao salvar dados pessoais' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },

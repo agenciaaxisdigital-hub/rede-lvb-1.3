@@ -3,8 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Loader2, CheckCircle2, ClipboardList, Eye, EyeOff, KeyRound, LogIn, MapPin, Heart, Sparkles, UserCheck } from 'lucide-react';
-import { useInstagramCheck, checkTelefone } from '@/hooks/useInstagramCheck';
-import { InstagramStatusIcon, TelefoneStatusIcon, instagramHelpText, telefoneHelpText } from '@/components/CampoStatusIcon';
+import { checkTelefone } from '@/hooks/useInstagramCheck';
+import { TelefoneStatusIcon, telefoneHelpText } from '@/components/CampoStatusIcon';
 import { validateCPF } from '@/lib/cpf';
 
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
@@ -59,7 +59,6 @@ export default function CadastroPublicoAfiliado() {
   const [capRede, setCapRede] = useState('');
   const [capInstagram, setCapInstagram] = useState('');
   const capInstagramAlvo = tipoParam === 'fernanda' ? capInstagram : capRede;
-  const igStatusCap = useInstagramCheck(capInstagramAlvo);
   const telStatusCap = checkTelefone(capTelefone);
   // Eleitorais (lideranca/fiscal/eleitor)
   const [capTitulo, setCapTitulo] = useState('');
@@ -87,8 +86,6 @@ export default function CadastroPublicoAfiliado() {
   const [ufCep, setUfCep] = useState('');
   const [buscandoCep, setBuscandoCep] = useState(false);
   const [instagram, setInstagram] = useState('');
-  // Validações ao vivo
-  const igStatusSarelli = useInstagramCheck(instagram);
   const telStatusSarelli = checkTelefone(whatsapp);
   // Eleitorais
   const [tituloEleitor, setTituloEleitor] = useState('');
@@ -453,28 +450,14 @@ export default function CadastroPublicoAfiliado() {
                 <input type="date" value={capData} onChange={e => setCapData(e.target.value)} className={inputCls} />
               </div>
               <div>
-                <label className={labelCls}>Instagram{tipoParam !== 'fernanda' && tipoParam !== 'afiliado' ? ' *' : ''}</label>
-                <div className="relative">
-                  <input type="text" value={capRede} onChange={e => setCapRede(e.target.value)} className={inputCls + (tipoParam !== 'fernanda' ? ' pr-9' : '')} maxLength={200} placeholder="@usuario" />
-                  {tipoParam !== 'fernanda' && (
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2"><InstagramStatusIcon status={igStatusCap} /></div>
-                  )}
-                </div>
-                {tipoParam !== 'fernanda' && instagramHelpText(igStatusCap) && (
-                  <p className={`text-[10px] mt-1 ${igStatusCap === 'ok' ? 'text-green-600' : igStatusCap === 'inconclusivo' ? 'text-amber-600' : 'text-destructive'}`}>{instagramHelpText(igStatusCap)}</p>
-                )}
+                <label className={labelCls}>Instagram</label>
+                <input type="text" value={capRede} onChange={e => setCapRede(e.target.value)} className={inputCls} maxLength={200} placeholder="@usuario" />
               </div>
               {/* Instagram dedicado para Fernanda; demais usam rede_social acima */}
               {tipoParam === 'fernanda' && (
                 <div>
                   <label className={labelCls}>Instagram</label>
-                  <div className="relative">
-                    <input type="text" value={capInstagram} onChange={e => setCapInstagram(e.target.value)} className={inputCls + ' pr-9'} maxLength={120} placeholder="@usuario" />
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2"><InstagramStatusIcon status={igStatusCap} /></div>
-                  </div>
-                  {instagramHelpText(igStatusCap) && (
-                    <p className={`text-[10px] mt-1 ${igStatusCap === 'ok' ? 'text-green-600' : igStatusCap === 'inconclusivo' ? 'text-amber-600' : 'text-destructive'}`}>{instagramHelpText(igStatusCap)}</p>
-                  )}
+                  <input type="text" value={capInstagram} onChange={e => setCapInstagram(e.target.value)} className={inputCls} maxLength={120} placeholder="@usuario" />
                 </div>
               )}
               {/* CPF (lideranca/fiscal/eleitor) */}
@@ -651,13 +634,7 @@ export default function CadastroPublicoAfiliado() {
             </div>
             <div>
               <label className={labelCls}>Instagram</label>
-              <div className="relative">
-                <input type="text" value={instagram} onChange={e => setInstagram(e.target.value)} className={inputCls + ' pr-9'} maxLength={120} placeholder="@usuario" />
-                <div className="absolute right-2 top-1/2 -translate-y-1/2"><InstagramStatusIcon status={igStatusSarelli} /></div>
-              </div>
-              {instagramHelpText(igStatusSarelli) && (
-                <p className={`text-[10px] mt-1 ${igStatusSarelli === 'ok' ? 'text-green-600' : igStatusSarelli === 'inconclusivo' ? 'text-amber-600' : 'text-destructive'}`}>{instagramHelpText(igStatusSarelli)}</p>
-              )}
+              <input type="text" value={instagram} onChange={e => setInstagram(e.target.value)} className={inputCls} maxLength={120} placeholder="@usuario" />
             </div>
           </div>
 
