@@ -130,7 +130,9 @@ function usePaginatedData(config: {
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
     refetchOnMount: true,
+    refetchOnWindowFocus: 'always',
     refetchOnReconnect: 'always',
+    refetchInterval: 30_000,
   });
 
   useEffect(() => {
