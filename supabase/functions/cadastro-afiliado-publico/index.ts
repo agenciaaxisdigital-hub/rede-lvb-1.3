@@ -155,21 +155,23 @@ Deno.serve(async (req) => {
     }
 
      // 4) Criar registro na hierarquia vinculado ao referrer
-     const { data: novoUsuario, error: insErr } = await supabaseAdmin
-       .from('hierarquia_usuarios')
-       .insert({
-         auth_user_id: authUserId,
-         nome: p.nome.trim(),
-         tipo: 'afiliado',
-         superior_id: referrer.id,
-         suplente_id: referrer.suplente_id || null,
-         municipio_id: referrer.municipio_id || null,
-         ativo: true,
-         link_token: Math.random().toString(36).slice(2, 10),
-       })
-       .select('id')
-       .maybeSingle();
- 
+     const hierarquiaPayload: Record<string, any> = {
+       auth_user_id: authUserId,
+       nome: p.nome.trim(),
+       tipo: 'afiliado',
+       superior_id: referrer.id,
+       suplente_id: referrer.suplente_id || null,
+       municipio_id: referrer.municipio_id || null,
+       ativo: true,
+       link_token: Math.random().toString(36).slice(2, 10),
+     };
+     let rh = await supabaseAdmin.from('hierarquia_usuarios').insert(hierarquiaPayload).select('id').maybeSingle();
+     // FK inválida em suplente_id ou municipio_id — tenta sem eles
+     if (rh.error?.code === '23503') {
+       rh = await supabaseAdmin.from('hierarquia_usuarios').insert({ ...hierarquiaPayload, suplente_id: null, municipio_id: null }).select('id').maybeSingle();
+     }
+     const { data: novoUsuario, error: insErr } = rh;
+
      if (insErr) {
        console.error('Hierarquia insert error:', insErr);
        await supabaseAdmin.auth.admin.deleteUser(authUserId);

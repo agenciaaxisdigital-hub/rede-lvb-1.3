@@ -198,8 +198,17 @@ Deno.serve(async (req) => {
       return jres({ error: 'Erro ao salvar dados pessoais' }, 500);
     }
 
+    // Helper: tenta insert, se FK inválida retenta sem suplente_id/municipio_id
+    const tryInsert = async (tabela: string, payload: Record<string, any>) => {
+      let r = await supabaseAdmin.from(tabela).insert(payload);
+      if (r.error?.code === '23503') {
+        r = await supabaseAdmin.from(tabela).insert({ ...payload, suplente_id: null, municipio_id: null });
+      }
+      return r.error;
+    };
+
     if (tipoDestino === 'lideranca') {
-      const { error } = await supabaseAdmin.from('liderancas').insert({
+      const err = await tryInsert('liderancas', {
         pessoa_id: pessoa.id,
         cadastrado_por: afiliado.id,
         municipio_id: afiliado.municipio_id || null,
@@ -210,12 +219,9 @@ Deno.serve(async (req) => {
         origem_captacao: 'link_publico',
         status: 'Ativa',
       });
-      if (error) {
-        console.error('liderancas insert error:', error);
-        return jres({ error: 'Erro ao salvar liderança' }, 500);
-      }
+      if (err) { console.error('liderancas insert error:', err); return jres({ error: 'Erro ao salvar liderança' }, 500); }
     } else if (tipoDestino === 'fiscal') {
-      const { error } = await supabaseAdmin.from('fiscais').insert({
+      const err = await tryInsert('fiscais', {
         pessoa_id: pessoa.id,
         cadastrado_por: afiliado.id,
         municipio_id: afiliado.municipio_id || null,
@@ -226,12 +232,9 @@ Deno.serve(async (req) => {
         origem_captacao: 'link_publico',
         status: 'Ativo',
       });
-      if (error) {
-        console.error('fiscais insert error:', error);
-        return jres({ error: 'Erro ao salvar fiscal' }, 500);
-      }
+      if (err) { console.error('fiscais insert error:', err); return jres({ error: 'Erro ao salvar fiscal' }, 500); }
     } else if (tipoDestino === 'eleitor') {
-      const { error } = await supabaseAdmin.from('possiveis_eleitores').insert({
+      const err = await tryInsert('possiveis_eleitores', {
         pessoa_id: pessoa.id,
         cadastrado_por: afiliado.id,
         municipio_id: afiliado.municipio_id || null,
@@ -240,10 +243,7 @@ Deno.serve(async (req) => {
         observacoes: p.observacoes?.trim() || null,
         origem_captacao: 'link_publico',
       });
-      if (error) {
-        console.error('possiveis_eleitores insert error:', error);
-        return jres({ error: 'Erro ao salvar eleitor' }, 500);
-      }
+      if (err) { console.error('possiveis_eleitores insert error:', err); return jres({ error: 'Erro ao salvar eleitor' }, 500); }
     }
 
     // Log unificado: garante que o contador do referrer sempre atualiza
