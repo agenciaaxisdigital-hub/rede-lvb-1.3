@@ -223,6 +223,7 @@ Deno.serve(async (req) => {
         nivel_comprometimento: p.nivel_comprometimento?.trim() || null,
         apoiadores_estimados: p.apoiadores_estimados ?? null,
         bairros_influencia: p.bairros_influencia?.trim() || null,
+        tipo_lideranca: 'Liderança',
         origem_captacao: 'link_publico',
         status: 'Ativa',
       });
