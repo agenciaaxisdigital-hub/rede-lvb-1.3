@@ -118,7 +118,7 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
   // Use cached data from React Query
   useEffect(() => {
     if (cachedData) {
-      setData((cachedData as unknown as LiderancaRow[]).filter(l => l.tipo_lideranca !== 'Cabo Eleitoral'));
+      setData((cachedData as unknown as LiderancaRow[]).filter(l => l.tipo_lideranca !== 'Cabo Eleitoral' && l.tipo_lideranca !== 'Promotor'));
       setLoading(false);
       setTemMais(false); // cached data already has all rows
     }

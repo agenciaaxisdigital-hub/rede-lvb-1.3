@@ -484,7 +484,7 @@ export default function TabCabos({ refreshKey, onSaved, viewOnly }: Props) {
   // ===== LIST VIEW =====
   return (
     <div className="space-y-3 pb-24">
-      {!viewOnly && <LinkCaptacaoCard initialVariant="lideranca" lockVariant />}
+      {!viewOnly && <LinkCaptacaoCard initialVariant="cabo" lockVariant />}
       {!viewOnly && (
         <button data-testid="btn-cadastrar-cabo" onClick={() => { setForm({ ...emptyForm }); setMode('form'); }}
           className="w-full h-12 gradient-primary text-white font-semibold rounded-xl active:scale-[0.97] transition-all flex items-center justify-center gap-2">

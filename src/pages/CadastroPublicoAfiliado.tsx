@@ -30,10 +30,12 @@ export default function CadastroPublicoAfiliado() {
     if (typeof window === 'undefined') return null;
     const qs = new URLSearchParams(window.location.search);
     const t = qs.get('t') || qs.get('tipo');
-    return t === 'lideranca' || t === 'fiscal' || t === 'eleitor' || t === 'fernanda' || t === 'afiliado' ? t : null;
+    return t === 'lideranca' || t === 'cabo' || t === 'fiscal' || t === 'eleitor' || t === 'fernanda' || t === 'afiliado' || t === 'promotor' ? t : null;
   }, []);
   const tipoLabel = tipoParam === 'lideranca'
     ? 'Convite para Liderança'
+    : tipoParam === 'cabo'
+    ? 'Convite para Cabo Eleitoral'
     : tipoParam === 'fiscal'
     ? 'Convite para Fiscal'
     : tipoParam === 'eleitor'
@@ -42,6 +44,8 @@ export default function CadastroPublicoAfiliado() {
     ? 'Cadastro Dra. Fernanda'
     : tipoParam === 'afiliado'
     ? 'Cadastro de Afiliado'
+    : tipoParam === 'promotor'
+    ? 'Convite para Promotor'
     : null;
 
   // Detecção de modo: 'captacao' (link de afiliado ativo, formulário simples)
@@ -213,7 +217,7 @@ export default function CadastroPublicoAfiliado() {
     } else if (!validateCPF(cpfDigitsVal)) {
       erros.cpf = 'CPF inválido — verifique os números';
     }
-    const exigeEleitoral = tipoParam === 'lideranca' || tipoParam === 'fiscal' || tipoParam === 'eleitor';
+    const exigeEleitoral = tipoParam === 'lideranca' || tipoParam === 'cabo' || tipoParam === 'promotor' || tipoParam === 'fiscal' || tipoParam === 'eleitor';
     if (exigeEleitoral) {
       if (!capTitulo.trim()) erros.titulo = 'Título de eleitor obrigatório';
       if (!capZona.trim()) erros.zona = 'Zona eleitoral obrigatória';
@@ -237,7 +241,7 @@ export default function CadastroPublicoAfiliado() {
           token: tokenCompleto || token,
           tipo: tipoParam || 'afiliado',
           nome: capNome.trim(),
-          cpf: capCpf.trim() || null,
+          cpf: capCpf.replace(/\D/g, '') || null,
           telefone: capTelefone.trim(),
           whatsapp: capTelefone.trim(),
           data_nascimento: capData || null,
@@ -542,7 +546,7 @@ export default function CadastroPublicoAfiliado() {
             )}
 
             {/* Específicos por tipo */}
-            {tipoParam === 'lideranca' && (
+            {(tipoParam === 'lideranca' || tipoParam === 'cabo' || tipoParam === 'promotor') && (
               <div className="section-card space-y-3 shadow-sm">
                 <h2 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5 pb-1 border-b border-border">
                   👑 Liderança

@@ -129,7 +129,7 @@ function usePaginatedData(config: {
     enabled: config.enabled,
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
-    refetchOnMount: false,
+    refetchOnMount: true,
     refetchOnReconnect: 'always',
   });
 
@@ -265,11 +265,10 @@ export function useInvalidarCadastros() {
   }, [qc]);
 }
 
-/* ── Realtime: only for admins, with debounce ── */
+/* ── Realtime sync com debounce (todos os usuários) ── */
 export function useRealtimeSync() {
   const invalidar = useInvalidarCadastros();
-  const { tipoUsuario, municipioId } = useAuth();
-  const isAdmin = tipoUsuario === 'super_admin' || tipoUsuario === 'coordenador';
+  const { municipioId } = useAuth();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const debouncedInvalidar = useCallback(() => {
@@ -278,16 +277,11 @@ export function useRealtimeSync() {
   }, [invalidar]);
 
   useEffect(() => {
-    if (!isAdmin) {
-      console.log('[Realtime] Skipped — non-admin user');
-      return;
-    }
-
     invalidar();
 
     const channelName = municipioId
       ? `cadastros-rt-${municipioId}`
-      : 'cadastros-rt-global';
+      : `cadastros-rt-global`;
 
     console.log(`[Realtime] Subscribing: ${channelName}`);
 
@@ -303,5 +297,5 @@ export function useRealtimeSync() {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       supabase.removeChannel(channel);
     };
-  }, [isAdmin, municipioId, debouncedInvalidar, invalidar]);
+  }, [municipioId, debouncedInvalidar, invalidar]);
 }

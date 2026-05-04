@@ -10,7 +10,7 @@ const corsHeaders = {
 //   → retorna { ok, afiliado_nome, afiliado_tipo, is_ativo, link_tipo }
 // POST { token, tipo, ...campos } → grava no destino correto
 
-const tipoLink = z.enum(['lideranca', 'fiscal', 'eleitor', 'fernanda', 'afiliado']).optional().nullable();
+const tipoLink = z.enum(['lideranca', 'cabo', 'fiscal', 'eleitor', 'fernanda', 'afiliado', 'promotor']).optional().nullable();
 
 const postSchema = z.object({
   token: z.string().min(6).max(128),
@@ -114,6 +114,8 @@ Deno.serve(async (req) => {
     }
 
     const tipoDestino = p.tipo || 'lideranca';
+    // Normaliza CPF: remove pontos, traços e espaços antes de qualquer operação
+    if (p.cpf) (p as any).cpf = p.cpf.replace(/\D/g, '') || null;
     const whatsappFinal = (p.whatsapp?.trim() || p.telefone?.trim() || '').trim();
     const instagramFinal = (p.instagram?.trim() || p.rede_social?.trim() || '').trim();
 
@@ -228,6 +230,34 @@ Deno.serve(async (req) => {
         status: 'Ativa',
       });
       if (err) { console.error('liderancas insert error:', err); return jres({ error: 'Erro ao salvar liderança' }, 500); }
+    } else if (tipoDestino === 'cabo') {
+      const err = await tryInsert('liderancas', {
+        pessoa_id: pessoa.id,
+        cadastrado_por: afiliado.id,
+        municipio_id: afiliado.municipio_id || null,
+        suplente_id: afiliado.suplente_id || null,
+        nivel_comprometimento: p.nivel_comprometimento?.trim() || null,
+        apoiadores_estimados: p.apoiadores_estimados ?? null,
+        bairros_influencia: p.bairros_influencia?.trim() || null,
+        tipo_lideranca: 'Cabo Eleitoral',
+        origem_captacao: 'link_publico',
+        status: 'Ativa',
+      });
+      if (err) { console.error('liderancas(cabo) insert error:', err); return jres({ error: 'Erro ao salvar cabo eleitoral' }, 500); }
+    } else if (tipoDestino === 'promotor') {
+      const err = await tryInsert('liderancas', {
+        pessoa_id: pessoa.id,
+        cadastrado_por: afiliado.id,
+        municipio_id: afiliado.municipio_id || null,
+        suplente_id: afiliado.suplente_id || null,
+        nivel_comprometimento: p.nivel_comprometimento?.trim() || null,
+        apoiadores_estimados: p.apoiadores_estimados ?? null,
+        bairros_influencia: p.bairros_influencia?.trim() || null,
+        tipo_lideranca: 'Promotor',
+        origem_captacao: 'link_publico',
+        status: 'Ativa',
+      });
+      if (err) { console.error('liderancas(promotor) insert error:', err); return jres({ error: 'Erro ao salvar promotor' }, 500); }
     } else if (tipoDestino === 'fiscal') {
       const err = await tryInsert('fiscais', {
         pessoa_id: pessoa.id,

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef } from "react";
+import { lazy, Suspense, useEffect, useRef, useCallback } from "react";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { QueryClient } from "@tanstack/react-query";
@@ -17,6 +17,7 @@ import { createIdbPersister } from "@/lib/queryPersistence";
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
 import { getPendingCount } from "@/lib/offlineQueue";
+import { supabase } from "@/integrations/supabase/client";
 
 const Login = lazy(() => import("./pages/Login"));
 const Home = lazy(() => import("./pages/Home"));
@@ -106,10 +107,36 @@ function OfflineSyncManager() {
   return null;
 }
 
+const RT_CHANNEL = 'app-force-reload';
+
 /** PWA silent auto-update — no popup, reloads automatically */
 function PwaSilentUpdater() {
   const updateBlockedRef = useRef(false);
   const updateCheckFailures = useRef(0);
+
+  // Recebe broadcast de force-reload enviado por outro cliente
+  useEffect(() => {
+    const channel = supabase
+      .channel(RT_CHANNEL)
+      .on('broadcast', { event: 'reload' }, () => {
+        console.log('[SW] Force reload broadcast recebido');
+        hardReloadAfterCacheClear();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  const broadcastReload = useCallback(async () => {
+    try {
+      await supabase.channel(RT_CHANNEL).send({
+        type: 'broadcast',
+        event: 'reload',
+        payload: {},
+      });
+    } catch (e) {
+      console.warn('[SW] Broadcast failed:', e);
+    }
+  }, []);
 
   const {
     needRefresh: [needRefresh],
@@ -164,7 +191,6 @@ function PwaSilentUpdater() {
     if (needRefresh) {
       console.log('[SW] New version available, updating silently...');
       const tryUpdate = async () => {
-        // Não recarrega se o usuário está preenchendo um formulário público de cadastro
         const path = window.location.pathname;
         const isPublicForm = path.startsWith('/r/') || path.startsWith('/c/') || path.startsWith('/cadastro/');
         if (isPublicForm) {
@@ -178,59 +204,78 @@ function PwaSilentUpdater() {
           return;
         }
         updateBlockedRef.current = false;
+        // Avisa todos os outros clientes conectados para recarregarem também
+        broadcastReload();
         updateServiceWorker(true);
       };
       const t = setTimeout(tryUpdate, 2000);
-      // If blocked, retry every 10s
       const retryInterval = setInterval(async () => {
         if (!updateBlockedRef.current) return;
         const pending = await getPendingCount();
         if (pending === 0) {
           console.log('[SW] Offline queue clear, proceeding with update');
           updateBlockedRef.current = false;
+          broadcastReload();
           updateServiceWorker(true);
           clearInterval(retryInterval);
         }
       }, 10_000);
       return () => { clearTimeout(t); clearInterval(retryInterval); };
     }
-  }, [needRefresh, updateServiceWorker]);
+  }, [needRefresh, updateServiceWorker, broadcastReload]);
 
   return null;
+}
+
+const CHUNK_RELOAD_KEY = 'chunk-reload-at';
+
+async function hardReloadAfterCacheClear() {
+  // Guard: no máximo 1 reload por minuto para não entrar em loop
+  const last = Number(sessionStorage.getItem(CHUNK_RELOAD_KEY) || '0');
+  if (Date.now() - last < 60_000) return;
+  sessionStorage.setItem(CHUNK_RELOAD_KEY, String(Date.now()));
+
+  try {
+    // 1. Desregistra SW
+    const regs = await navigator.serviceWorker?.getRegistrations() || [];
+    await Promise.all(regs.map(r => r.unregister()));
+    // 2. Limpa todos os caches
+    if ('caches' in window) {
+      const names = await caches.keys();
+      await Promise.all(names.map(n => caches.delete(n)));
+    }
+  } catch (e) {
+    console.warn('[GlobalRecovery] Cache clear failed:', e);
+  }
+  window.location.reload();
 }
 
 /** Global unhandled error recovery — prevents permanent white screen */
 function GlobalErrorRecovery() {
   useEffect(() => {
-    let errorCount = 0;
-    const resetTimer = setInterval(() => { errorCount = 0; }, 60_000);
+    const isChunkError = (msg: string) =>
+      msg.includes('Failed to fetch dynamically imported module') ||
+      msg.includes('Loading chunk') ||
+      msg.includes('Loading CSS chunk');
 
     const handleError = (event: ErrorEvent) => {
-      errorCount++;
-      console.error('[GlobalRecovery] Unhandled error:', event.error?.message);
-      
-      // If chunk load failures (common after PWA update), reload once
-      if (event.message?.includes('Failed to fetch dynamically imported module') ||
-          event.message?.includes('Loading chunk') ||
-          event.message?.includes('Loading CSS chunk')) {
-        console.warn('[GlobalRecovery] Chunk load failure — reloading');
-        window.location.reload();
+      if (isChunkError(event.message || '')) {
+        console.warn('[GlobalRecovery] Chunk load failure — hard reload');
+        hardReloadAfterCacheClear();
       }
     };
 
     const handleRejection = (event: PromiseRejectionEvent) => {
-      const reason = event.reason?.message || String(event.reason);
-      if (reason.includes('Failed to fetch dynamically imported module') ||
-          reason.includes('Loading chunk')) {
-        console.warn('[GlobalRecovery] Async chunk failure — reloading');
-        window.location.reload();
+      const reason = event.reason?.message || String(event.reason || '');
+      if (isChunkError(reason)) {
+        console.warn('[GlobalRecovery] Async chunk failure — hard reload');
+        hardReloadAfterCacheClear();
       }
     };
 
     window.addEventListener('error', handleError);
     window.addEventListener('unhandledrejection', handleRejection);
     return () => {
-      clearInterval(resetTimer);
       window.removeEventListener('error', handleError);
       window.removeEventListener('unhandledrejection', handleRejection);
     };

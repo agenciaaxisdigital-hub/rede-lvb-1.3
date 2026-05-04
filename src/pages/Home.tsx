@@ -15,6 +15,7 @@ import NotificationBell from '@/components/NotificationBell';
 
 const TabLiderancas = lazy(() => import('@/components/TabLiderancas'));
 const TabCabos = lazy(() => import('@/components/TabCabos'));
+const TabPromotores = lazy(() => import('@/components/TabPromotores'));
 const TabFiscais = lazy(() => import('@/components/TabFiscais'));
 const TabEleitores = lazy(() => import('@/components/TabEleitores'));
 const TabCadastros = lazy(() => import('@/components/TabCadastros'));
@@ -23,7 +24,7 @@ const AdminCadastrosAfiliados = lazy(() => import('@/components/AdminCadastrosAf
 const TabPerfil = lazy(() => import('@/components/TabPerfil'));
 
 const TAB_STORAGE_KEY = 'home-active-tab';
-const VALID_TABS: TabId[] = ['liderancas', 'cabos', 'fiscais', 'eleitores', 'cadastros', 'fernanda', 'afiliados', 'perfil'];
+const VALID_TABS: TabId[] = ['liderancas', 'cabos', 'promotores', 'fiscais', 'eleitores', 'cadastros', 'fernanda', 'afiliados', 'perfil'];
 
 function getInitialTab(): TabId {
   try {
@@ -152,6 +153,7 @@ export default function Home() {
           <Suspense fallback={<div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-primary" /></div>}>
             {visitedTabs.has('liderancas') && activeTab === 'liderancas' && <TabLiderancas refreshKey={refreshKey} onSaved={handleSaved} />}
             {visitedTabs.has('cabos') && activeTab === 'cabos' && <TabCabos refreshKey={refreshKey} onSaved={handleSaved} />}
+            {visitedTabs.has('promotores') && activeTab === 'promotores' && <TabPromotores refreshKey={refreshKey} />}
             {visitedTabs.has('fiscais') && activeTab === 'fiscais' && <TabFiscais refreshKey={refreshKey} onSaved={handleSaved} />}
             {visitedTabs.has('eleitores') && activeTab === 'eleitores' && <TabEleitores refreshKey={refreshKey} onSaved={handleSaved} />}
             {visitedTabs.has('cadastros') && activeTab === 'cadastros' && <TabCadastros refreshKey={refreshKey} onSaved={handleSaved} />}
