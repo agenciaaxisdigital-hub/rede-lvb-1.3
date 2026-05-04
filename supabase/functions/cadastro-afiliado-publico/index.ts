@@ -63,8 +63,8 @@ Deno.serve(async (req) => {
     const p = parsed.data;
     const { token } = p;
     const whatsappFinal = (p.whatsapp?.trim() || p.telefone?.trim() || '').trim();
-    if (!whatsappFinal || whatsappFinal.length < 6) {
-      return new Response(JSON.stringify({ error: 'Informe um WhatsApp válido' }), {
+    if (!whatsappFinal || whatsappFinal.replace(/\D/g, '').length < 10) {
+      return new Response(JSON.stringify({ error: 'Informe um WhatsApp com DDD (mínimo 10 dígitos)' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
      // 1) Validar token → Localizar quem indicou (Referrer)
      let query = supabaseAdmin
        .from('hierarquia_usuarios')
-       .select('id, nome, tipo, ativo, auth_user_id, municipio_id');
+       .select('id, nome, tipo, ativo, auth_user_id, municipio_id, suplente_id');
      
      if (token.length >= 32) query = query.eq('link_token', token);
      else query = query.like('link_token', `${token}%`).limit(1);
@@ -159,9 +159,10 @@ Deno.serve(async (req) => {
          nome: p.nome.trim(),
          tipo: 'afiliado',
          superior_id: referrer.id,
+         suplente_id: referrer.suplente_id || null,
          municipio_id: referrer.municipio_id || null,
          ativo: true,
-         link_token: Math.random().toString(36).slice(2, 10), // Gera um token para o novo afiliado
+         link_token: Math.random().toString(36).slice(2, 10),
        })
        .select('id')
        .maybeSingle();
@@ -174,6 +175,14 @@ Deno.serve(async (req) => {
        });
      }
  
+     // Atualiza contador do referrer (não bloqueia a resposta em caso de erro)
+     await supabaseAdmin.from('cadastros_afiliados').insert({
+       afiliado_id: referrer.id,
+       nome: p.nome.trim(),
+       telefone: whatsappFinal,
+       origem: 'link_publico_afiliado_acesso',
+     }).catch((e: any) => console.warn('log cadastros_afiliados afiliado-publico:', e));
+
      return new Response(
        JSON.stringify({ ok: true, login: loginSlug, hierarquia_id: novoUsuario?.id, pessoa_id: pessoaIns?.id }),
        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

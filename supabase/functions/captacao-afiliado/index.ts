@@ -18,7 +18,7 @@ const postSchema = z.object({
   // Pessoais
   nome: z.string().trim().min(2).max(120),
   cpf: z.string().trim().max(20).optional().nullable(),
-  telefone: z.string().trim().min(6).max(40),
+  telefone: z.string().trim().min(10).max(40),
   whatsapp: z.string().trim().max(40).optional().nullable(),
   email: z.string().trim().max(200).optional().nullable(),
   data_nascimento: z.string().optional().nullable(),
@@ -53,35 +53,6 @@ function rateLimited(ip: string) {
   arr.push(now);
   recent.set(ip, arr);
   return arr.length > MAX;
-}
-
-function normalizarInstagram(input: string): string {
-  let s = (input || '').trim();
-  s = s.replace(/^https?:\/\/(www\.)?instagram\.com\//i, '');
-  s = s.replace(/^@/, '');
-  s = s.replace(/\/+$/g, '');
-  s = s.split('/')[0];
-  s = s.split('?')[0];
-  return s.toLowerCase();
-}
-
-function formatoInstagramValido(usuario: string): boolean {
-  if (!usuario || usuario.length < 1 || usuario.length > 30) return false;
-  if (!/^[a-z0-9._]+$/.test(usuario)) return false;
-  if (usuario.startsWith('.') || usuario.endsWith('.') || usuario.includes('..')) return false;
-  return true;
-}
-
-async function instagramConfirmado(usuarioRaw: string): Promise<boolean> {
-  const usuario = normalizarInstagram(usuarioRaw);
-  if (!formatoInstagramValido(usuario)) return false;
-  const res = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/verificar-instagram`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ usuario }),
-  });
-  const json: any = await res.json().catch(() => ({}));
-  return res.ok && json?.exists === true;
 }
 
 async function buscarAfiliado(supabaseAdmin: any, token: string) {
@@ -119,9 +90,10 @@ Deno.serve(async (req) => {
       if (error || !data) return jres({ error: 'Link inválido' }, 404);
       return jres({
         ok: true,
+        afiliado_id: (data as any).id,
         afiliado_nome: (data as any).nome,
         afiliado_tipo: (data as any).tipo,
-         is_ativo: true, // Sempre ativo para captação
+        is_ativo: true,
       });
     }
 
@@ -137,20 +109,13 @@ Deno.serve(async (req) => {
     // Localizar afiliado dono do link
     const { data: afRow, error: afErr } = await buscarAfiliado(supabaseAdmin, p.token);
     const afiliado: any = afRow;
-    if (afErr || !afiliado || !afiliado.auth_user_id) {
-      return jres({ error: 'Link inválido ou ainda não ativado' }, 404);
+    if (afErr || !afiliado) {
+      return jres({ error: 'Link inválido' }, 404);
     }
 
     const tipoDestino = p.tipo || 'lideranca';
     const whatsappFinal = (p.whatsapp?.trim() || p.telefone?.trim() || '').trim();
     const instagramFinal = (p.instagram?.trim() || p.rede_social?.trim() || '').trim();
-    const exigeInstagram = tipoDestino === 'lideranca' || tipoDestino === 'fiscal' || tipoDestino === 'eleitor';
-    if (exigeInstagram) {
-      if (!instagramFinal) return jres({ error: 'Informe a rede social' }, 400);
-      if (!(await instagramConfirmado(instagramFinal))) {
-        return jres({ error: 'Instagram não confirmado. Corrija o @ informado.' }, 400);
-      }
-    }
 
     // ─── FERNANDA ──────────────────────────────────────────────────────────
     if (tipoDestino === 'fernanda') {
@@ -165,6 +130,13 @@ Deno.serve(async (req) => {
         console.error('cadastros_fernanda insert error:', insErr);
         return jres({ error: 'Erro ao salvar cadastro' }, 500);
       }
+      await supabaseAdmin.from('cadastros_afiliados').insert({
+        afiliado_id: afiliado.id,
+        nome: p.nome.trim(),
+        telefone: whatsappFinal,
+        rede_social: p.instagram?.trim() || null,
+        origem: 'link_publico_fernanda',
+      }).catch((e: any) => console.warn('log cadastros_afiliados fernanda:', e));
       return jres({ ok: true, redirect_url: 'https://www.instagram.com/drafernandasarelli/' });
     }
 
@@ -177,7 +149,7 @@ Deno.serve(async (req) => {
         data_nascimento: p.data_nascimento || null,
         cep: p.cep?.trim() || null,
         rede_social: p.rede_social?.trim() || p.instagram?.trim() || null,
-        origem: 'link_publico',
+        origem: 'link_publico_afiliado',
       });
       if (insErr) {
         console.error('cadastros_afiliados insert error:', insErr);
@@ -269,6 +241,15 @@ Deno.serve(async (req) => {
         return jres({ error: 'Erro ao salvar eleitor' }, 500);
       }
     }
+
+    // Log unificado: garante que o contador do referrer sempre atualiza
+    await supabaseAdmin.from('cadastros_afiliados').insert({
+      afiliado_id: afiliado.id,
+      nome: p.nome.trim(),
+      telefone: whatsappFinal,
+      rede_social: instagramFinal || null,
+      origem: `link_publico_${tipoDestino}`,
+    }).catch((e: any) => console.warn('log cadastros_afiliados:', e));
 
     return jres({ ok: true, redirect_url: 'https://www.instagram.com/drafernandasarelli/' });
   } catch (err) {

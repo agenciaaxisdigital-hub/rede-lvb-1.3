@@ -5,6 +5,7 @@ import { toast } from '@/hooks/use-toast';
 import { Loader2, CheckCircle2, ClipboardList, Eye, EyeOff, KeyRound, LogIn, MapPin, Heart, Sparkles, UserCheck } from 'lucide-react';
 import { useInstagramCheck, checkTelefone } from '@/hooks/useInstagramCheck';
 import { InstagramStatusIcon, TelefoneStatusIcon, instagramHelpText, telefoneHelpText } from '@/components/CampoStatusIcon';
+import { validateCPF } from '@/lib/cpf';
 
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
@@ -185,22 +186,19 @@ export default function CadastroPublicoAfiliado() {
     e.preventDefault();
     if (!token) return;
     if (!capNome.trim() || capNome.trim().length < 2) {
-      toast({ title: 'Informe seu nome', variant: 'destructive' }); return;
+      toast({ title: 'Informe seu nome completo', variant: 'destructive' }); return;
     }
-    if (!capTelefone.trim() || capTelefone.replace(/\D/g, '').length < 6) {
-      toast({ title: 'Informe um telefone válido', variant: 'destructive' }); return;
+    const capTelDigits = capTelefone.replace(/\D/g, '');
+    if (!capTelefone.trim() || capTelDigits.length < 10) {
+      toast({ title: 'Informe um telefone com DDD (mínimo 10 dígitos)', variant: 'destructive' }); return;
     }
-    const exigeInstagram = tipoParam === 'lideranca' || tipoParam === 'fiscal' || tipoParam === 'eleitor';
+    if (capCpf.trim()) {
+      const cpfDigits = capCpf.replace(/\D/g, '');
+      if (cpfDigits.length === 11 && !validateCPF(cpfDigits)) {
+        toast({ title: 'CPF inválido', description: 'Verifique os números informados.', variant: 'destructive' }); return;
+      }
+    }
     const instagramInformado = capInstagramAlvo.trim();
-    if (exigeInstagram && !instagramInformado) {
-      toast({ title: 'Informe a rede social', variant: 'destructive' }); return;
-    }
-    if (instagramInformado && igStatusCap === 'checking') {
-      toast({ title: 'Verificando Instagram…', description: 'Aguarde a validação terminar.', variant: 'destructive' }); return;
-    }
-    if (instagramInformado && (igStatusCap === 'invalido' || igStatusCap === 'nao_existe')) {
-      toast({ title: 'Instagram inválido', description: 'O @ informado não existe ou está incorreto.', variant: 'destructive' }); return;
-    }
     const exigeEleitoral = tipoParam === 'lideranca' || tipoParam === 'fiscal' || tipoParam === 'eleitor';
     if (exigeEleitoral) {
       if (!capTitulo.trim() || !capZona.trim() || !capSecao.trim() || !capMunicipioEl.trim() || !capColegio.trim()) {
@@ -209,25 +207,6 @@ export default function CadastroPublicoAfiliado() {
     }
     setCapSaving(true);
     try {
-      // Tentativa 1: insert direto (mais confiável, bypassa edge function com bugs)
-      if (afiliadoId) {
-        const { error: insertErr } = await (supabase as any)
-          .from('cadastros_afiliados')
-          .insert({
-            afiliado_id: afiliadoId,
-            nome: capNome.trim(),
-            telefone: capTelefone.trim(),
-            rede_social: instagramInformado || capRede.trim() || null,
-            data_nascimento: capData || null,
-            origem: 'link_publico',
-          });
-        if (!insertErr) {
-          setCapSuccess(true);
-          return;
-        }
-      }
-
-      // Fallback: edge function (caso insert direto falhe por RLS)
       const url = `${SUPABASE_URL}/functions/v1/captacao-afiliado`;
       const r = await fetch(url, {
         method: 'POST',
@@ -276,8 +255,15 @@ export default function CadastroPublicoAfiliado() {
     if (!nome.trim() || nome.trim().length < 2) {
       toast({ title: 'Informe seu nome completo', variant: 'destructive' }); return;
     }
-    if (!whatsapp.trim() || whatsapp.replace(/\D/g,'').length < 6) {
-      toast({ title: 'Informe um WhatsApp válido', variant: 'destructive' }); return;
+    const waDigits = whatsapp.replace(/\D/g, '');
+    if (!whatsapp.trim() || waDigits.length < 10) {
+      toast({ title: 'Informe um WhatsApp com DDD (mínimo 10 dígitos)', variant: 'destructive' }); return;
+    }
+    if (cpf.trim()) {
+      const cpfDigits = cpf.replace(/\D/g, '');
+      if (cpfDigits.length === 11 && !validateCPF(cpfDigits)) {
+        toast({ title: 'CPF inválido', description: 'Verifique os números informados.', variant: 'destructive' }); return;
+      }
     }
     if (!usuarioLogin.trim() || usuarioLogin.trim().length < 3) {
       toast({ title: 'Defina um nome de usuário (mín. 3 letras)', variant: 'destructive' }); return;
@@ -287,10 +273,6 @@ export default function CadastroPublicoAfiliado() {
     }
     if (!tituloEleitor.trim() || !zonaEleitoral.trim() || !secaoEleitoral.trim() || !municipioEleitoral.trim() || !colegioEleitoral.trim()) {
       toast({ title: 'Preencha os dados eleitorais (Título, Zona, Seção, Município e Colégio)', variant: 'destructive' }); return;
-    }
-    if (instagram.trim()) {
-      if (igStatusSarelli === 'checking') { toast({ title: 'Verificando Instagram…', description: 'Aguarde a validação terminar.', variant: 'destructive' }); return; }
-      if (igStatusSarelli === 'invalido' || igStatusSarelli === 'nao_existe') { toast({ title: 'Instagram inválido', description: 'O @ informado não existe ou está incorreto.', variant: 'destructive' }); return; }
     }
 
     setSaving(true);
