@@ -130,13 +130,15 @@ Deno.serve(async (req) => {
         console.error('cadastros_fernanda insert error:', insErr);
         return jres({ error: 'Erro ao salvar cadastro' }, 500);
       }
-      await supabaseAdmin.from('cadastros_afiliados').insert({
-        afiliado_id: afiliado.id,
-        nome: p.nome.trim(),
-        telefone: whatsappFinal,
-        rede_social: p.instagram?.trim() || null,
-        origem: 'link_publico_fernanda',
-      }).catch((e: any) => console.warn('log cadastros_afiliados fernanda:', e));
+      try {
+        await supabaseAdmin.from('cadastros_afiliados').insert({
+          afiliado_id: afiliado.id,
+          nome: p.nome.trim(),
+          telefone: whatsappFinal,
+          rede_social: p.instagram?.trim() || null,
+          origem: 'link_publico_fernanda',
+        });
+      } catch (e) { console.warn('log cadastros_afiliados fernanda:', e); }
       return jres({ ok: true, redirect_url: 'https://www.instagram.com/drafernandasarelli/' });
     }
 
@@ -253,13 +255,15 @@ Deno.serve(async (req) => {
     }
 
     // Log unificado: garante que o contador do referrer sempre atualiza
-    await supabaseAdmin.from('cadastros_afiliados').insert({
-      afiliado_id: afiliado.id,
-      nome: p.nome.trim(),
-      telefone: whatsappFinal,
-      rede_social: instagramFinal || null,
-      origem: `link_publico_${tipoDestino}`,
-    }).catch((e: any) => console.warn('log cadastros_afiliados:', e));
+    try {
+      await supabaseAdmin.from('cadastros_afiliados').insert({
+        afiliado_id: afiliado.id,
+        nome: p.nome.trim(),
+        telefone: whatsappFinal,
+        rede_social: instagramFinal || null,
+        origem: `link_publico_${tipoDestino}`,
+      });
+    } catch (e) { console.warn('log cadastros_afiliados:', e); }
 
     return jres({ ok: true, redirect_url: 'https://www.instagram.com/drafernandasarelli/' });
   } catch (err: any) {

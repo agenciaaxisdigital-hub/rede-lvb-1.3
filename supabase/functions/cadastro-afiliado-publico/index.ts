@@ -181,12 +181,14 @@ Deno.serve(async (req) => {
      }
  
      // Atualiza contador do referrer (não bloqueia a resposta em caso de erro)
-     await supabaseAdmin.from('cadastros_afiliados').insert({
-       afiliado_id: referrer.id,
-       nome: p.nome.trim(),
-       telefone: whatsappFinal,
-       origem: 'link_publico_afiliado_acesso',
-     }).catch((e: any) => console.warn('log cadastros_afiliados afiliado-publico:', e));
+     try {
+       await supabaseAdmin.from('cadastros_afiliados').insert({
+         afiliado_id: referrer.id,
+         nome: p.nome.trim(),
+         telefone: whatsappFinal,
+         origem: 'link_publico_afiliado_acesso',
+       });
+     } catch (e) { console.warn('log cadastros_afiliados afiliado-publico:', e); }
 
      return new Response(
        JSON.stringify({ ok: true, login: loginSlug, hierarquia_id: novoUsuario?.id, pessoa_id: pessoaIns?.id }),
