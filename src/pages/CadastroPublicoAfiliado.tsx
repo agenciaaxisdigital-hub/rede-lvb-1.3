@@ -75,6 +75,7 @@ export default function CadastroPublicoAfiliado() {
   const [capSaving, setCapSaving] = useState(false);
   const [capSuccess, setCapSuccess] = useState(false);
   const [capErrors, setCapErrors] = useState<Record<string, string>>({});
+  const [countdown, setCountdown] = useState(3);
 
   // Pessoais
   const [nome, setNome] = useState('');
@@ -105,6 +106,21 @@ export default function CadastroPublicoAfiliado() {
   const [mainErrors, setMainErrors] = useState<Record<string, string>>({});
 
   useEffect(() => { document.title = 'Cadastro de Afiliado'; }, []);
+
+  useEffect(() => {
+    if (!capSuccess) return;
+    const interval = setInterval(() => {
+      setCountdown(c => {
+        if (c <= 1) {
+          clearInterval(interval);
+          window.location.href = 'https://www.instagram.com/drafernandasarelli/';
+          return 0;
+        }
+        return c - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [capSuccess]);
 
   // Detectar tipo do link ao montar — edge function roda com service_role (bypass RLS)
   useEffect(() => {
@@ -371,13 +387,24 @@ export default function CadastroPublicoAfiliado() {
             <h1 className="text-2xl font-bold text-foreground">Cadastro enviado!</h1>
             <p className="text-sm text-muted-foreground">Obrigado por se cadastrar na rede da Dra. Fernanda Sarelli.</p>
           </div>
+          <div className="flex flex-col items-center gap-2">
+            <p className="text-sm text-muted-foreground">
+              Redirecionando para o Instagram em <span className="font-bold text-primary">{countdown}</span>s…
+            </p>
+            <div className="w-full bg-border rounded-full h-1.5 overflow-hidden">
+              <div
+                className="h-full gradient-primary rounded-full transition-all duration-1000"
+                style={{ width: `${(countdown / 3) * 100}%` }}
+              />
+            </div>
+          </div>
           <a
             href="https://www.instagram.com/drafernandasarelli/"
             target="_blank"
             rel="noopener noreferrer"
             className="w-full h-12 rounded-2xl gradient-primary text-white text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.97]"
           >
-            <Heart size={16} fill="currentColor" /> Seguir no Instagram
+            <Heart size={16} fill="currentColor" /> Seguir no Instagram agora
           </a>
         </div>
       </div>

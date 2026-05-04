@@ -200,16 +200,15 @@ Deno.serve(async (req) => {
       return jres({ error: 'Erro ao salvar dados pessoais' }, 500);
     }
 
-    // Helper: retry removendo campos opcionais em caso de FK/NOT NULL inválidos
+    // Helper: retry removendo FK opcionais em caso de violação — NÃO remove cadastrado_por
     const tryInsert = async (tabela: string, payload: Record<string, any>) => {
       let r = await supabaseAdmin.from(tabela).insert(payload);
-      // FK inválida (23503) ou NOT NULL sem valor (23502) → retenta sem campos opcionais
       if (r.error?.code === '23503' || r.error?.code === '23502' || r.error?.code === '23505') {
         r = await supabaseAdmin.from(tabela).insert({
           ...payload,
           suplente_id: null,
           municipio_id: null,
-          cadastrado_por: null,
+          // cadastrado_por mantido — é o vínculo com o afiliado
         });
       }
       return r.error;
