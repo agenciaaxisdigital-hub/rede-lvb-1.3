@@ -198,11 +198,17 @@ Deno.serve(async (req) => {
       return jres({ error: 'Erro ao salvar dados pessoais' }, 500);
     }
 
-    // Helper: tenta insert, se FK inválida retenta sem suplente_id/municipio_id
+    // Helper: retry removendo campos opcionais em caso de FK/NOT NULL inválidos
     const tryInsert = async (tabela: string, payload: Record<string, any>) => {
       let r = await supabaseAdmin.from(tabela).insert(payload);
-      if (r.error?.code === '23503') {
-        r = await supabaseAdmin.from(tabela).insert({ ...payload, suplente_id: null, municipio_id: null });
+      // FK inválida (23503) ou NOT NULL sem valor (23502) → retenta sem campos opcionais
+      if (r.error?.code === '23503' || r.error?.code === '23502' || r.error?.code === '23505') {
+        r = await supabaseAdmin.from(tabela).insert({
+          ...payload,
+          suplente_id: null,
+          municipio_id: null,
+          cadastrado_por: null,
+        });
       }
       return r.error;
     };
@@ -256,8 +262,9 @@ Deno.serve(async (req) => {
     }).catch((e: any) => console.warn('log cadastros_afiliados:', e));
 
     return jres({ ok: true, redirect_url: 'https://www.instagram.com/drafernandasarelli/' });
-  } catch (err) {
-    console.error('Erro:', err);
-    return jres({ error: 'Erro interno' }, 500);
+  } catch (err: any) {
+    const msg = err?.message || String(err) || 'Erro interno';
+    console.error('Erro não tratado:', msg, err);
+    return jres({ error: `Erro: ${msg}` }, 500);
   }
 });

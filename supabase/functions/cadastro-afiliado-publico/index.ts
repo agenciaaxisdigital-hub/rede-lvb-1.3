@@ -192,9 +192,10 @@ Deno.serve(async (req) => {
        JSON.stringify({ ok: true, login: loginSlug, hierarquia_id: novoUsuario?.id, pessoa_id: pessoaIns?.id }),
        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
      );
-  } catch (err) {
-    console.error('Error:', err);
-    return new Response(JSON.stringify({ error: 'Erro interno' }), {
+  } catch (err: any) {
+    const msg = err?.message || String(err) || 'Erro interno';
+    console.error('Erro não tratado:', msg, err);
+    return new Response(JSON.stringify({ error: `Erro: ${msg}` }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
