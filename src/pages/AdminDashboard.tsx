@@ -22,6 +22,7 @@ import TabArvore from '@/components/TabArvore';
 
   const TabLocalizacoes = lazy(() => import('@/components/TabLocalizacoes'));
   const AdminCadastrosFernanda = lazy(() => import('@/components/AdminCadastrosFernanda'));
+  const TabCadastrosSocial = lazy(() => import('@/components/TabCadastrosSocial'));
   const AdminCadastrosAfiliados = lazy(() => import('@/components/AdminCadastrosAfiliados'));
   const AdminMencoesInstagram = lazy(() => import('@/components/AdminMencoesInstagram'));
   const AdminInstagramPanel = lazy(() => import('@/components/AdminInstagramPanel'));
@@ -80,7 +81,7 @@ interface FiscalReg {
 /* ── constants ── */
 type Periodo = 'hoje' | 'semana' | 'mes' | 'total';
 type TipoFiltro = 'todos' | 'lideranca' | 'cabo' | 'eleitor' | 'fiscal';
-type VistaAtiva = 'usuarios' | 'ranking' | 'registros' | 'cidades' | 'localizacao' | 'eventos' | 'fernanda' | 'afiliados' | 'arvore' | 'instagram' | 'mencoes';
+type VistaAtiva = 'usuarios' | 'ranking' | 'registros' | 'cidades' | 'localizacao' | 'eventos' | 'fernanda' | 'social' | 'afiliados' | 'arvore' | 'instagram' | 'mencoes';
 type TipoUsuarioFiltro = 'todos' | 'suplente' | 'lideranca' | 'coordenador' | 'fernanda';
 
 const periodoLabels: Record<Periodo, string> = { hoje: 'Hoje', semana: 'Semana', mes: 'Mês', total: 'Total' };
@@ -357,6 +358,7 @@ export default function AdminDashboard() {
      { id: 'registros', icon: Eye, label: 'Registros' },
      { id: 'eventos', icon: Calendar, label: 'Eventos' },
      { id: 'fernanda', icon: ClipboardList, label: 'Fernanda' },
+     { id: 'social', icon: Users, label: 'Social' },
      { id: 'afiliados', icon: Users, label: 'Afiliados' },
      { id: 'instagram', icon: Instagram, label: 'Instagram' },
      { id: 'mencoes', icon: Instagram, label: 'Menções' },
@@ -993,6 +995,13 @@ export default function AdminDashboard() {
         {vistaAtiva === 'fernanda' && (
           <Suspense fallback={<div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-primary" /></div>}>
             <AdminCadastrosFernanda />
+          </Suspense>
+        )}
+
+        {/* ══════════ SOCIAL ══════════ */}
+        {vistaAtiva === 'social' && (
+          <Suspense fallback={<div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-primary" /></div>}>
+            <TabCadastrosSocial />
           </Suspense>
         )}
 
