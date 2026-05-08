@@ -88,8 +88,8 @@ export default function BottomNav({ active, onChange }: Props) {
     // Suplentes e Lideranças sempre enxergam Cabos e Lideranças
     if ((tab.id === 'cabos' || tab.id === 'liderancas') && isSuplementeOrLideranca) return true;
 
-    // Promotores: apenas admin/coord (já retornou acima) ou módulo explícito
-    if (tab.id === 'promotores' && isSuplementeOrLideranca) return false;
+    // Promotores: apenas admin/coord (já retornou acima) ou tipo promotor
+    if (tab.id === 'promotores') return tipoUsuario === 'promotor';
 
     // Module-based tabs (strict check against usuario_modulos)
     if (tab.module) {
