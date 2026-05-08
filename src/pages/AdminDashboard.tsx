@@ -306,12 +306,14 @@ export default function AdminDashboard() {
     const u = usuarios.find(u => u.id === popupUser);
     return {
       usuario: u,
-      liderancas: filteredL.filter(r => r.cadastrado_por === popupUser && r.tipo_lideranca !== 'Cabo Eleitoral'),
+      liderancas: filteredL.filter(r => r.cadastrado_por === popupUser && r.tipo_lideranca !== 'Cabo Eleitoral' && r.tipo_lideranca !== 'Promotor'),
       cabos: filteredL.filter(r => r.cadastrado_por === popupUser && r.tipo_lideranca === 'Cabo Eleitoral'),
+      promotores: filteredL.filter(r => r.cadastrado_por === popupUser && r.tipo_lideranca === 'Promotor'),
       eleitores: filteredE.filter(r => r.cadastrado_por === popupUser),
       fiscais: filteredF.filter(r => r.cadastrado_por === popupUser),
+      fernanda: cadastrosFernanda.filter(r => r.cadastrado_por === popupUser),
     };
-  }, [popupUser, filteredL, filteredE, filteredF, usuarios]);
+  }, [popupUser, filteredL, filteredE, filteredF, cadastrosFernanda, usuarios]);
 
   const handleDeleteCadastro = async (id: string, tipo: 'lideranca' | 'eleitor' | 'fiscal') => {
     if (!window.confirm('Tem certeza que deseja apagar este cadastro?')) return;
@@ -1023,7 +1025,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
               <div className="text-right mr-2">
-                <p className="text-2xl font-black text-primary">{popupUserData.liderancas.length + popupUserData.cabos.length + popupUserData.eleitores.length + popupUserData.fiscais.length}</p>
+                <p className="text-2xl font-black text-primary">{popupUserData.liderancas.length + popupUserData.cabos.length + popupUserData.promotores.length + popupUserData.eleitores.length + popupUserData.fiscais.length + popupUserData.fernanda.length}</p>
                 <p className="text-[9px] text-muted-foreground">cadastros</p>
               </div>
               <button onClick={() => setPopupUser(null)} className="p-1.5 rounded-lg hover:bg-muted active:scale-95 transition-all">
@@ -1053,14 +1055,26 @@ export default function AdminDashboard() {
                   <Shield size={12} className="inline mr-1" />Fiscais: {popupUserData.fiscais.length}
                 </span>
               )}
+              {popupUserData.promotores.length > 0 && (
+                <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-purple-500/15 text-purple-600">
+                  <Users size={12} className="inline mr-1" />Promotores: {popupUserData.promotores.length}
+                </span>
+              )}
+              {popupUserData.fernanda.length > 0 && (
+                <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-rose-500/15 text-rose-600">
+                  <Users size={12} className="inline mr-1" />Fernanda: {popupUserData.fernanda.length}
+                </span>
+              )}
             </div>
 
             {/* Records list */}
             <div className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-2">
               {[...popupUserData.liderancas.map(r => ({ ...r, _tipo: 'lideranca' as const })),
                 ...popupUserData.cabos.map(r => ({ ...r, _tipo: 'cabo' as const })),
+                ...popupUserData.promotores.map(r => ({ ...r, _tipo: 'promotor' as const })),
                 ...popupUserData.eleitores.map(r => ({ ...r, _tipo: 'eleitor' as const })),
-                ...popupUserData.fiscais.map(r => ({ ...r, _tipo: 'fiscal' as const }))]
+                ...popupUserData.fiscais.map(r => ({ ...r, _tipo: 'fiscal' as const })),
+                ...popupUserData.fernanda.map(r => ({ ...r, _tipo: 'fernanda' as const, pessoas: { nome: r.nome, whatsapp: r.telefone, email: null, instagram: r.instagram, facebook: null } }))]
                 .sort((a, b) => new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime())
                 .map((r: any) => {
                   const p = r.pessoas || {};
@@ -1075,11 +1089,13 @@ export default function AdminDashboard() {
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-2">
                           <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${
-                            r._tipo === 'lideranca' ? 'bg-primary/15 text-primary' 
+                            r._tipo === 'lideranca' ? 'bg-primary/15 text-primary'
                             : r._tipo === 'cabo' ? 'bg-pink-500/15 text-pink-600'
-                            : r._tipo === 'fiscal' ? 'bg-amber-500/15 text-amber-600' 
+                            : r._tipo === 'fiscal' ? 'bg-amber-500/15 text-amber-600'
+                            : r._tipo === 'promotor' ? 'bg-purple-500/15 text-purple-600'
+                            : r._tipo === 'fernanda' ? 'bg-rose-500/15 text-rose-600'
                             : 'bg-secondary text-secondary-foreground'
-                          }`}>{r._tipo === 'lideranca' ? 'Liderança' : r._tipo === 'cabo' ? 'Cabo' : r._tipo === 'fiscal' ? 'Fiscal' : 'Eleitor'}</span>
+                          }`}>{r._tipo === 'lideranca' ? 'Liderança' : r._tipo === 'cabo' ? 'Cabo' : r._tipo === 'fiscal' ? 'Fiscal' : r._tipo === 'promotor' ? 'Promotor' : r._tipo === 'fernanda' ? 'Fernanda' : 'Eleitor'}</span>
                           <p className="text-sm font-semibold text-foreground">{p.nome || '—'}</p>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
@@ -1126,7 +1142,7 @@ export default function AdminDashboard() {
                     </div>
                   );
                 })}
-              {popupUserData.liderancas.length === 0 && popupUserData.cabos.length === 0 && popupUserData.eleitores.length === 0 && popupUserData.fiscais.length === 0 && (
+              {popupUserData.liderancas.length === 0 && popupUserData.cabos.length === 0 && popupUserData.promotores.length === 0 && popupUserData.eleitores.length === 0 && popupUserData.fiscais.length === 0 && popupUserData.fernanda.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-8">Nenhum cadastro no período selecionado</p>
               )}
             </div>
