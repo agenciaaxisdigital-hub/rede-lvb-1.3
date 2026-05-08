@@ -95,6 +95,11 @@ export default function Home() {
            return;
          }
 
+         if (activeTab === 'promotores' && !hasMaster && !modulos.has('cadastrar_liderancas')) {
+           handleTabChange('cadastros');
+           return;
+         }
+
          if (activeTab === 'eleitores' && !hasMaster && !modulos.has('cadastrar_eleitores')) {
            handleTabChange('cadastros');
            return;

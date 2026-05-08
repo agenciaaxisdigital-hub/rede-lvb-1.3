@@ -85,8 +85,11 @@ export default function BottomNav({ active, onChange }: Props) {
     // Cadastros (meus cadastros) - visible to everyone
     if (tab.id === 'cadastros') return true;
 
-    // Suplentes e Lideranças sempre enxergam Cabos, Lideranças e Promotores
-    if ((tab.id === 'cabos' || tab.id === 'liderancas' || tab.id === 'promotores') && isSuplementeOrLideranca) return true;
+    // Suplentes e Lideranças sempre enxergam Cabos e Lideranças
+    if ((tab.id === 'cabos' || tab.id === 'liderancas') && isSuplementeOrLideranca) return true;
+
+    // Promotores: apenas admin/coord (já retornou acima) ou módulo explícito
+    if (tab.id === 'promotores' && isSuplementeOrLideranca) return false;
 
     // Module-based tabs (strict check against usuario_modulos)
     if (tab.module) {
