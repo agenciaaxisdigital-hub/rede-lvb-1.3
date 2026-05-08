@@ -415,6 +415,8 @@ export default function TabCriarUsuarios() {
                   { key: 'suplente' as TipoAcesso, label: 'Suplente', icon: User },
                   { key: 'lideranca' as TipoAcesso, label: 'Liderança', icon: Users },
                   { key: 'coordenador' as TipoAcesso, label: 'Coordenador', icon: Shield },
+                  { key: 'fernanda' as TipoAcesso, label: 'Fernanda', icon: User },
+                  { key: 'social' as TipoAcesso, label: 'Social', icon: Users },
                 ]).map(({ key, label, icon: Icon }) => (
                   <button key={key}
                     onClick={() => setTipoAcesso(key)}
