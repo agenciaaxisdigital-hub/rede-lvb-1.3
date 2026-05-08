@@ -43,8 +43,9 @@ export default function Home() {
   useLocationTracking();
   const { municipios } = useCidade();
   const { eventos } = useEvento();
-  const [activeTab, setActiveTab] = useState<TabId>(() => getInitialTab());
-  const [visitedTabs, setVisitedTabs] = useState<Set<TabId>>(() => new Set([getInitialTab()]));
+  const initialTab: TabId = tipoUsuario === 'social' ? 'social' : getInitialTab();
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab);
+  const [visitedTabs, setVisitedTabs] = useState<Set<TabId>>(() => new Set([initialTab]));
   const [refreshKey, setRefreshKey] = useState(0);
    const { scrollRef, onScroll } = useScrollRestore(activeTab);
 

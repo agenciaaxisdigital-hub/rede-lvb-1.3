@@ -83,7 +83,10 @@ export default function BottomNav({ active, onChange }: Props) {
     // Fernanda and Afiliados only for Super Admin / Coordenador (already handled by line above)
     if (tab.id === 'fernanda' || tab.id === 'afiliados') return false;
 
-    // Cadastros (meus cadastros) - visible to everyone
+    // Social users see only the Social tab (+ Perfil handled above)
+    if (tipoUsuario === 'social') return tab.id === 'social';
+
+    // Cadastros (meus cadastros) - visible to everyone except social
     if (tab.id === 'cadastros') return true;
 
     // Suplentes e Lideranças sempre enxergam Cabos e Lideranças
