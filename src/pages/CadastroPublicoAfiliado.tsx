@@ -30,7 +30,7 @@ export default function CadastroPublicoAfiliado() {
     if (typeof window === 'undefined') return null;
     const qs = new URLSearchParams(window.location.search);
     const t = qs.get('t') || qs.get('tipo');
-    return t === 'lideranca' || t === 'cabo' || t === 'fiscal' || t === 'eleitor' || t === 'fernanda' || t === 'afiliado' || t === 'promotor' ? t : null;
+    return t === 'lideranca' || t === 'cabo' || t === 'fiscal' || t === 'eleitor' || t === 'fernanda' || t === 'afiliado' || t === 'promotor' || t === 'social' ? t : null;
   }, []);
   const tipoLabel = tipoParam === 'lideranca'
     ? 'Convite para Liderança'
@@ -46,6 +46,8 @@ export default function CadastroPublicoAfiliado() {
     ? 'Cadastro de Afiliado'
     : tipoParam === 'promotor'
     ? 'Convite para Promotor'
+    : tipoParam === 'social'
+    ? 'Cadastro Social'
     : null;
 
   // Detecção de modo: 'captacao' (link de afiliado ativo, formulário simples)
@@ -71,6 +73,9 @@ export default function CadastroPublicoAfiliado() {
   const [capColegio, setCapColegio] = useState('');
   const [capMunicipioEl, setCapMunicipioEl] = useState('');
   const [capUfEl, setCapUfEl] = useState('GO');
+  // Social
+  const [capNomeMae, setCapNomeMae] = useState('');
+  const [capRegiao, setCapRegiao] = useState('');
   // Específicos
   const [capApoiadores, setCapApoiadores] = useState('');
   const [capBairros, setCapBairros] = useState('');
@@ -257,6 +262,8 @@ export default function CadastroPublicoAfiliado() {
           bairros_influencia: capBairros.trim() || null,
           compromisso_voto: capCompromisso.trim() || null,
           observacoes: capObs.trim() || null,
+          nome_mae: capNomeMae.trim() || null,
+          cidade: capRegiao.trim() || null,
         }),
       });
       const j = await r.json();
@@ -502,6 +509,20 @@ export default function CadastroPublicoAfiliado() {
                 {capErrors.cpf && <p className="text-[10px] text-destructive mt-1">{capErrors.cpf}</p>}
               </div>
             </div>
+
+            {/* Bloco social — nome da mãe e região */}
+            {tipoParam === 'social' && (
+              <div className="section-card space-y-3 shadow-sm">
+                <div>
+                  <label className={labelCls}>Nome da Mãe</label>
+                  <input type="text" value={capNomeMae} onChange={e => setCapNomeMae(e.target.value)} className={inputCls} maxLength={120} placeholder="Nome completo da mãe" />
+                </div>
+                <div>
+                  <label className={labelCls}>Região / Bairro</label>
+                  <input type="text" value={capRegiao} onChange={e => setCapRegiao(e.target.value)} className={inputCls} maxLength={120} placeholder="Bairro ou região onde mora" />
+                </div>
+              </div>
+            )}
 
             {/* Bloco eleitoral — somente para liderança / fiscal / eleitor */}
             {(tipoParam === 'lideranca' || tipoParam === 'fiscal' || tipoParam === 'eleitor') && (

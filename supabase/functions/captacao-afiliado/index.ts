@@ -10,7 +10,7 @@ const corsHeaders = {
 //   → retorna { ok, afiliado_nome, afiliado_tipo, is_ativo, link_tipo }
 // POST { token, tipo, ...campos } → grava no destino correto
 
-const tipoLink = z.enum(['lideranca', 'cabo', 'fiscal', 'eleitor', 'fernanda', 'afiliado', 'promotor']).optional().nullable();
+const tipoLink = z.enum(['lideranca', 'cabo', 'fiscal', 'eleitor', 'fernanda', 'afiliado', 'promotor', 'social']).optional().nullable();
 
 const postSchema = z.object({
   token: z.string().min(6).max(128),
@@ -141,6 +141,33 @@ Deno.serve(async (req) => {
           origem: 'link_publico_fernanda',
         });
       } catch (e) { console.warn('log cadastros_afiliados fernanda:', e); }
+      return jres({ ok: true, redirect_url: 'https://www.instagram.com/drafernandasarelli/' });
+    }
+
+    // ─── SOCIAL ────────────────────────────────────────────────────────────
+    if (tipoDestino === 'social') {
+      const { error: insErr } = await supabaseAdmin.from('cadastros_social').insert({
+        nome: p.nome.trim(),
+        whatsapp: whatsappFinal,
+        cpf: p.cpf?.trim() || null,
+        instagram: instagramFinal || null,
+        nome_mae: (p as any).nome_mae?.trim() || null,
+        regiao: p.cidade?.trim() || null,
+        cadastrado_por: afiliado.id,
+      });
+      if (insErr) {
+        console.error('cadastros_social insert error:', insErr);
+        return jres({ error: 'Erro ao salvar cadastro social' }, 500);
+      }
+      try {
+        await supabaseAdmin.from('cadastros_afiliados').insert({
+          afiliado_id: afiliado.id,
+          nome: p.nome.trim(),
+          telefone: whatsappFinal,
+          rede_social: instagramFinal || null,
+          origem: 'link_publico_social',
+        });
+      } catch (e) { console.warn('log cadastros_afiliados social:', e); }
       return jres({ ok: true, redirect_url: 'https://www.instagram.com/drafernandasarelli/' });
     }
 

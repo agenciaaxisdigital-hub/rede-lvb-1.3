@@ -141,6 +141,23 @@ export default function AdminDashboard() {
     return () => { active = false; supabase.removeChannel(channel); };
   }, [isAdmin]);
 
+  const [cadastrosSocial, setCadastrosSocial] = useState<Array<{ id: string; nome: string; whatsapp: string; cpf: string | null; instagram: string | null; nome_mae: string | null; regiao: string | null; cadastrado_por: string | null; criado_em: string }>>([]);
+  useEffect(() => {
+    if (!isAdmin) return;
+    let active = true;
+    const load = () => {
+      (supabase as any).from('cadastros_social').select('*').order('criado_em', { ascending: false }).then(({ data }: any) => {
+        if (active && data) setCadastrosSocial(data);
+      });
+    };
+    load();
+    const channel = supabase
+      .channel('admin_cadastros_social_sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'cadastros_social' }, load)
+      .subscribe();
+    return () => { active = false; supabase.removeChannel(channel); };
+  }, [isAdmin]);
+
   // Suplentes map for cargo_disputado tag
   const [suplentesTags, setSuplentesTags] = useState<Record<string, string>>({});
   useEffect(() => {
@@ -312,8 +329,9 @@ export default function AdminDashboard() {
       eleitores: filteredE.filter(r => r.cadastrado_por === popupUser),
       fiscais: filteredF.filter(r => r.cadastrado_por === popupUser),
       fernanda: cadastrosFernanda.filter(r => r.cadastrado_por === popupUser),
+      social: cadastrosSocial.filter(r => r.cadastrado_por === popupUser),
     };
-  }, [popupUser, filteredL, filteredE, filteredF, cadastrosFernanda, usuarios]);
+  }, [popupUser, filteredL, filteredE, filteredF, cadastrosFernanda, cadastrosSocial, usuarios]);
 
   const handleDeleteCadastro = async (id: string, tipo: 'lideranca' | 'eleitor' | 'fiscal') => {
     if (!window.confirm('Tem certeza que deseja apagar este cadastro?')) return;
@@ -1025,7 +1043,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
               <div className="text-right mr-2">
-                <p className="text-2xl font-black text-primary">{popupUserData.liderancas.length + popupUserData.cabos.length + popupUserData.promotores.length + popupUserData.eleitores.length + popupUserData.fiscais.length + popupUserData.fernanda.length}</p>
+                <p className="text-2xl font-black text-primary">{popupUserData.liderancas.length + popupUserData.cabos.length + popupUserData.promotores.length + popupUserData.eleitores.length + popupUserData.fiscais.length + popupUserData.fernanda.length + popupUserData.social.length}</p>
                 <p className="text-[9px] text-muted-foreground">cadastros</p>
               </div>
               <button onClick={() => setPopupUser(null)} className="p-1.5 rounded-lg hover:bg-muted active:scale-95 transition-all">
@@ -1065,6 +1083,11 @@ export default function AdminDashboard() {
                   <Users size={12} className="inline mr-1" />Fernanda: {popupUserData.fernanda.length}
                 </span>
               )}
+              {popupUserData.social.length > 0 && (
+                <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-teal-500/15 text-teal-600">
+                  <Users size={12} className="inline mr-1" />Social: {popupUserData.social.length}
+                </span>
+              )}
             </div>
 
             {/* Records list */}
@@ -1074,7 +1097,8 @@ export default function AdminDashboard() {
                 ...popupUserData.promotores.map(r => ({ ...r, _tipo: 'promotor' as const })),
                 ...popupUserData.eleitores.map(r => ({ ...r, _tipo: 'eleitor' as const })),
                 ...popupUserData.fiscais.map(r => ({ ...r, _tipo: 'fiscal' as const })),
-                ...popupUserData.fernanda.map(r => ({ ...r, _tipo: 'fernanda' as const, pessoas: { nome: r.nome, whatsapp: r.telefone, email: null, instagram: r.instagram, facebook: null } }))]
+                ...popupUserData.fernanda.map(r => ({ ...r, _tipo: 'fernanda' as const, pessoas: { nome: r.nome, whatsapp: r.telefone, email: null, instagram: r.instagram, facebook: null } })),
+                ...popupUserData.social.map(r => ({ ...r, _tipo: 'social' as const, pessoas: { nome: r.nome, whatsapp: r.whatsapp, email: null, instagram: r.instagram, facebook: null } }))]
                 .sort((a, b) => new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime())
                 .map((r: any) => {
                   const p = r.pessoas || {};
@@ -1094,8 +1118,9 @@ export default function AdminDashboard() {
                             : r._tipo === 'fiscal' ? 'bg-amber-500/15 text-amber-600'
                             : r._tipo === 'promotor' ? 'bg-purple-500/15 text-purple-600'
                             : r._tipo === 'fernanda' ? 'bg-rose-500/15 text-rose-600'
+                            : r._tipo === 'social' ? 'bg-teal-500/15 text-teal-600'
                             : 'bg-secondary text-secondary-foreground'
-                          }`}>{r._tipo === 'lideranca' ? 'Liderança' : r._tipo === 'cabo' ? 'Cabo' : r._tipo === 'fiscal' ? 'Fiscal' : r._tipo === 'promotor' ? 'Promotor' : r._tipo === 'fernanda' ? 'Fernanda' : 'Eleitor'}</span>
+                          }`}>{r._tipo === 'lideranca' ? 'Liderança' : r._tipo === 'cabo' ? 'Cabo' : r._tipo === 'fiscal' ? 'Fiscal' : r._tipo === 'promotor' ? 'Promotor' : r._tipo === 'fernanda' ? 'Fernanda' : r._tipo === 'social' ? 'Social' : 'Eleitor'}</span>
                           <p className="text-sm font-semibold text-foreground">{p.nome || '—'}</p>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
@@ -1142,7 +1167,7 @@ export default function AdminDashboard() {
                     </div>
                   );
                 })}
-              {popupUserData.liderancas.length === 0 && popupUserData.cabos.length === 0 && popupUserData.promotores.length === 0 && popupUserData.eleitores.length === 0 && popupUserData.fiscais.length === 0 && popupUserData.fernanda.length === 0 && (
+              {popupUserData.liderancas.length === 0 && popupUserData.cabos.length === 0 && popupUserData.promotores.length === 0 && popupUserData.eleitores.length === 0 && popupUserData.fiscais.length === 0 && popupUserData.fernanda.length === 0 && popupUserData.social.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-8">Nenhum cadastro no período selecionado</p>
               )}
             </div>

@@ -20,11 +20,12 @@ const TabFiscais = lazy(() => import('@/components/TabFiscais'));
 const TabEleitores = lazy(() => import('@/components/TabEleitores'));
 const TabCadastros = lazy(() => import('@/components/TabCadastros'));
 const TabCadastrosFernanda = lazy(() => import('@/components/TabCadastrosFernanda'));
+const TabCadastrosSocial = lazy(() => import('@/components/TabCadastrosSocial'));
 const AdminCadastrosAfiliados = lazy(() => import('@/components/AdminCadastrosAfiliados'));
 const TabPerfil = lazy(() => import('@/components/TabPerfil'));
 
 const TAB_STORAGE_KEY = 'home-active-tab';
-const VALID_TABS: TabId[] = ['liderancas', 'cabos', 'promotores', 'fiscais', 'eleitores', 'cadastros', 'fernanda', 'afiliados', 'perfil'];
+const VALID_TABS: TabId[] = ['liderancas', 'cabos', 'promotores', 'fiscais', 'eleitores', 'cadastros', 'fernanda', 'social', 'afiliados', 'perfil'];
 
 function getInitialTab(): TabId {
   try {
@@ -66,6 +67,10 @@ export default function Home() {
       return;
     }
     if (!isAdminOrCoord && activeTab === 'afiliados') {
+      handleTabChange('cadastros');
+      return;
+    }
+    if (!isAdminOrCoord && activeTab === 'social' && tipoUsuario !== 'social') {
       handleTabChange('cadastros');
       return;
     }
@@ -124,6 +129,7 @@ export default function Home() {
     eleitores: 'Cadastro de Eleitores',
     cadastros: isAdmin ? 'Todos os Cadastros' : 'Meus Cadastros',
     fernanda: 'Cadastros Fernanda',
+    social: 'Cadastros Social',
     afiliados: 'Cadastros Afiliados',
     perfil: 'Perfil & Usuários',
   };
@@ -163,6 +169,7 @@ export default function Home() {
             {visitedTabs.has('eleitores') && activeTab === 'eleitores' && <TabEleitores refreshKey={refreshKey} onSaved={handleSaved} />}
             {visitedTabs.has('cadastros') && activeTab === 'cadastros' && <TabCadastros refreshKey={refreshKey} onSaved={handleSaved} />}
             {visitedTabs.has('fernanda') && activeTab === 'fernanda' && isAdmin && <TabCadastrosFernanda />}
+            {visitedTabs.has('social') && activeTab === 'social' && (tipoUsuario === 'social' || isAdmin) && <TabCadastrosSocial />}
             {visitedTabs.has('afiliados') && activeTab === 'afiliados' && isAdmin && <AdminCadastrosAfiliados />}
             {activeTab === 'perfil' && <TabPerfil />}
           </Suspense>

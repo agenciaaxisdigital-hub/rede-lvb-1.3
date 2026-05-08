@@ -12,7 +12,7 @@ interface CadastroItem {
   criado_em: string;
 }
 
-type LinkVariant = 'lideranca' | 'cabo' | 'fiscal' | 'eleitor' | 'fernanda' | 'afiliado' | 'promotor';
+type LinkVariant = 'lideranca' | 'cabo' | 'fiscal' | 'eleitor' | 'fernanda' | 'afiliado' | 'promotor' | 'social';
 
 interface LinkCaptacaoCardProps {
   initialVariant?: LinkVariant;
@@ -41,6 +41,7 @@ export default function LinkCaptacaoCard({ initialVariant = 'lideranca', lockVar
     { key: 'eleitor', label: 'Eleitor', icon: Star, hint: 'Captar novo eleitor' },
     { key: 'fernanda', label: 'Fernanda', icon: Heart, hint: 'Cadastro simples (Fernanda)' },
     { key: 'afiliado', label: 'Afiliado', icon: Star, hint: 'Cadastro de afiliado' },
+    { key: 'social', label: 'Social', icon: Users, hint: 'Cadastro social' },
   ] as const), []);
   const [variante, setVariante] = useState<LinkVariant>(initialVariant);
   useEffect(() => { setVariante(initialVariant); }, [initialVariant]);
