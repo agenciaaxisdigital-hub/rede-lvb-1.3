@@ -33,7 +33,7 @@ interface HierarchyUser {
 }
 
 type VinculoTab = 'suplente' | 'lideranca';
-type TipoAcesso = 'suplente' | 'lideranca' | 'coordenador' | 'fernanda' | 'afiliado';
+type TipoAcesso = 'suplente' | 'lideranca' | 'coordenador' | 'fernanda' | 'afiliado' | 'social';
 
 export default function TabCriarUsuarios() {
   const { isAdmin } = useAuth();
@@ -552,6 +552,7 @@ export default function TabCriarUsuarios() {
                   { key: 'coordenador' as TipoAcesso, label: 'Coordenador', icon: Shield },
                   { key: 'fernanda' as TipoAcesso, label: 'Fernanda', icon: User },
                   { key: 'afiliado' as TipoAcesso, label: 'Afiliado', icon: Link2 },
+                  { key: 'social' as TipoAcesso, label: 'Social', icon: Users },
                 ]).map(({ key, label, icon: Icon }) => (
                   <button key={key}
                     onClick={() => setTipoAcesso(key)}
@@ -569,11 +570,12 @@ export default function TabCriarUsuarios() {
                 {tipoAcesso === 'coordenador' && 'Coordenador: acesso total ao painel admin'}
                 {tipoAcesso === 'fernanda' && 'Fernanda: acesso exclusivo à tela "Cadastros Fernanda"'}
                 {tipoAcesso === 'afiliado' && 'Afiliado: tela própria + link público para captar cadastros'}
+                {tipoAcesso === 'social' && 'Social: acesso exclusivo à tela "Cadastros Social"'}
               </p>
             </div>
 
             {/* Profissão / Cargo — tag de filtro (apenas para suplente/lideranca/coordenador) */}
-            {tipoAcesso !== 'fernanda' && tipoAcesso !== 'afiliado' && (
+            {tipoAcesso !== 'fernanda' && tipoAcesso !== 'afiliado' && tipoAcesso !== 'social' && (
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground">Profissão / Cargo (tag)</label>
                 <input type="text" value={novoProfissao} onChange={e => setNovoProfissao(e.target.value)} className={inputCls} placeholder="Ex: Assistente Social, Vereador, Empresário..." />
