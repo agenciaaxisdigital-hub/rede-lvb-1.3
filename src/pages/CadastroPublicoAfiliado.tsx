@@ -213,13 +213,20 @@ export default function CadastroPublicoAfiliado() {
     if (!capNome.trim() || capNome.trim().length < 2) erros.nome = 'Nome obrigatório (mín. 2 caracteres)';
     const capTelDigits = capTelefone.replace(/\D/g, '');
     if (!capTelefone.trim() || capTelDigits.length < 10) erros.telefone = 'Telefone com DDD obrigatório (mín. 10 dígitos)';
-    if (!capData) erros.data = 'Data de nascimento obrigatória';
+    const isSocial = tipoParam === 'social';
+    if (!capData && !isSocial) erros.data = 'Data de nascimento obrigatória';
     const instagramInformado = capInstagramAlvo.trim();
-    if (!instagramInformado) erros.instagram = 'Instagram obrigatório';
+    if (!instagramInformado && !isSocial) erros.instagram = 'Instagram obrigatório';
     const cpfDigitsVal = capCpf.replace(/\D/g, '');
-    if (!capCpf.trim() || cpfDigitsVal.length < 11) {
-      erros.cpf = 'CPF obrigatório (11 dígitos)';
-    } else if (!validateCPF(cpfDigitsVal)) {
+    if (!isSocial) {
+      if (!capCpf.trim() || cpfDigitsVal.length < 11) {
+        erros.cpf = 'CPF obrigatório (11 dígitos)';
+      } else if (!validateCPF(cpfDigitsVal)) {
+        erros.cpf = 'CPF inválido — verifique os números';
+      }
+    } else if (capCpf.trim() && cpfDigitsVal.length > 0 && cpfDigitsVal.length < 11) {
+      erros.cpf = 'CPF inválido — verifique os números';
+    } else if (capCpf.trim() && cpfDigitsVal.length === 11 && !validateCPF(cpfDigitsVal)) {
       erros.cpf = 'CPF inválido — verifique os números';
     }
     const exigeEleitoral = tipoParam === 'lideranca' || tipoParam === 'cabo' || tipoParam === 'promotor' || tipoParam === 'fiscal' || tipoParam === 'eleitor';
@@ -484,14 +491,16 @@ export default function CadastroPublicoAfiliado() {
                 </div>
                 {capErrors.telefone ? <p className="text-[10px] text-destructive mt-1">{capErrors.telefone}</p> : telefoneHelpText(telStatusCap) && <p className="text-[10px] text-destructive mt-1">{telefoneHelpText(telStatusCap)}</p>}
               </div>
-              <div>
-                <label className={labelCls}>Data de nascimento *</label>
-                <input type="date" value={capData} onChange={e => { setCapData(e.target.value); setCapErrors(p => ({ ...p, data: '' })); }} className={inputCls + (capErrors.data ? ' border-destructive' : '')} />
-                {capErrors.data && <p className="text-[10px] text-destructive mt-1">{capErrors.data}</p>}
-              </div>
+              {tipoParam !== 'social' && (
+                <div>
+                  <label className={labelCls}>Data de nascimento *</label>
+                  <input type="date" value={capData} onChange={e => { setCapData(e.target.value); setCapErrors(p => ({ ...p, data: '' })); }} className={inputCls + (capErrors.data ? ' border-destructive' : '')} />
+                  {capErrors.data && <p className="text-[10px] text-destructive mt-1">{capErrors.data}</p>}
+                </div>
+              )}
               {tipoParam !== 'fernanda' ? (
                 <div>
-                  <label className={labelCls}>Instagram *</label>
+                  <label className={labelCls}>Instagram{tipoParam !== 'social' ? ' *' : ''}</label>
                   <input type="text" value={capRede} onChange={e => { setCapRede(e.target.value); setCapErrors(p => ({ ...p, instagram: '' })); }} className={inputCls + (capErrors.instagram ? ' border-destructive' : '')} maxLength={200} placeholder="@usuario" />
                   {capErrors.instagram && <p className="text-[10px] text-destructive mt-1">{capErrors.instagram}</p>}
                 </div>
@@ -502,9 +511,9 @@ export default function CadastroPublicoAfiliado() {
                   {capErrors.instagram && <p className="text-[10px] text-destructive mt-1">{capErrors.instagram}</p>}
                 </div>
               )}
-              {/* CPF — todos os tipos */}
+              {/* CPF */}
               <div>
-                <label className={labelCls}>CPF *</label>
+                <label className={labelCls}>CPF{tipoParam !== 'social' ? ' *' : ''}</label>
                 <input type="text" value={capCpf} onChange={e => { setCapCpf(e.target.value); setCapErrors(p => ({ ...p, cpf: '' })); }} className={inputCls + (capErrors.cpf ? ' border-destructive' : '')} maxLength={14} placeholder="000.000.000-00" />
                 {capErrors.cpf && <p className="text-[10px] text-destructive mt-1">{capErrors.cpf}</p>}
               </div>

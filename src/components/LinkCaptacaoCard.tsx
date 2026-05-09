@@ -83,31 +83,45 @@ export default function LinkCaptacaoCard({ initialVariant = 'lideranca', lockVar
   const carregarCadastros = useCallback(async () => {
     if (!usuario?.id) return;
     setLoading(true);
-    const { data, count } = await (supabase as any)
-      .from('cadastros_afiliados')
-      .select('id, nome, telefone, origem, criado_em', { count: 'exact' })
-      .eq('afiliado_id', usuario.id)
-      .order('criado_em', { ascending: false })
-      .limit(5);
-    setRecentes((data as CadastroItem[]) || []);
-    setTotal(count || 0);
+    if (variante === 'social') {
+      // Social registrations are stored in cadastros_social
+      const { data, count } = await (supabase as any)
+        .from('cadastros_social')
+        .select('id, nome, whatsapp, criado_em', { count: 'exact' })
+        .eq('cadastrado_por', usuario.id)
+        .order('criado_em', { ascending: false })
+        .limit(5);
+      setRecentes(((data || []) as any[]).map((r: any) => ({ id: r.id, nome: r.nome, telefone: r.whatsapp, origem: 'social', criado_em: r.criado_em })));
+      setTotal(count || 0);
+    } else {
+      const { data, count } = await (supabase as any)
+        .from('cadastros_afiliados')
+        .select('id, nome, telefone, origem, criado_em', { count: 'exact' })
+        .eq('afiliado_id', usuario.id)
+        .order('criado_em', { ascending: false })
+        .limit(5);
+      setRecentes((data as CadastroItem[]) || []);
+      setTotal(count || 0);
+    }
     setLoading(false);
-  }, [usuario?.id]);
+  }, [usuario?.id, variante]);
 
   useEffect(() => { carregarCadastros(); }, [carregarCadastros]);
 
   // Realtime: novos cadastros via link aparecem automaticamente
   useEffect(() => {
     if (!usuario?.id) return;
+    const table = variante === 'social' ? 'cadastros_social' : 'cadastros_afiliados';
+    const filter = variante === 'social' ? `cadastrado_por=eq.${usuario.id}` : `afiliado_id=eq.${usuario.id}`;
     const channel = supabase
-      .channel(`linkcap-${usuario.id}`)
+      .channel(`linkcap-${usuario.id}-${variante}`)
       .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'cadastros_afiliados', filter: `afiliado_id=eq.${usuario.id}` },
+        { event: '*', schema: 'public', table, filter },
         () => carregarCadastros()
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [usuario?.id, carregarCadastros]);
+  }, [usuario?.id, variante, carregarCadastros]);
 
   const slugNome = useMemo(() => {
     const n = (usuario?.nome || '').toString().trim().toLowerCase();
