@@ -329,6 +329,9 @@ export default function TabPerfil() {
     if (view === 'create') {
       const preset = PRESETS_TIPO[tipoNovo];
       if (preset) setSelectedModulos(new Set(preset));
+      else setSelectedModulos(new Set());
+      // Social and Fernanda must always be in livre mode (no suplente/lideranca link)
+      if (tipoNovo === 'social' || tipoNovo === 'fernanda') setCreateMode('livre');
     }
   }, [tipoNovo, view]);
 
