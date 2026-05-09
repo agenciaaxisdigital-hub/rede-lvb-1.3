@@ -20,6 +20,7 @@ const tipoLabels: Record<string, string> = {
   suplente: 'Suplente',
   lideranca: 'Liderança',
   fernanda: 'Fernanda',
+  social: 'Social',
 };
 
 const tipoIcons: Record<string, typeof Shield> = {
@@ -28,6 +29,7 @@ const tipoIcons: Record<string, typeof Shield> = {
   suplente: User,
   lideranca: Users,
   fernanda: ClipboardList,
+  social: Users,
 };
 
 const tipoColors: Record<string, string> = {
@@ -36,6 +38,7 @@ const tipoColors: Record<string, string> = {
   suplente: 'bg-blue-500/10 text-blue-600',
   lideranca: 'bg-purple-500/10 text-purple-600',
   fernanda: 'bg-primary/10 text-primary',
+  social: 'bg-teal-500/15 text-teal-600',
 };
 
 const MODULOS_OPTIONS = MODULOS_FULL.map(m => ({ id: m.id, label: m.label }));
@@ -691,6 +694,7 @@ export default function TabPerfil() {
                   { value: 'lideranca', label: '👥 Liderança' },
                   { value: 'coordenador', label: '📋 Coordenador' },
                   { value: 'fernanda', label: '🩷 Fernanda' },
+                  { value: 'social', label: '🌐 Social' },
                 ].map(opt => (
                   <button
                     key={opt.value}
@@ -726,6 +730,12 @@ export default function TabPerfil() {
               <div className="rounded-xl border border-primary/20 bg-primary/5 px-3 py-2">
                 <p className="text-xs font-medium text-foreground">Acesso Fernanda</p>
                 <p className="text-[10px] text-muted-foreground">Esse usuário entra direto na tela exclusiva de Cadastros Fernanda.</p>
+              </div>
+            )}
+            {createMode === 'livre' && tipoNovo === 'social' && (
+              <div className="rounded-xl border border-teal-500/20 bg-teal-500/5 px-3 py-2">
+                <p className="text-xs font-medium text-foreground">Acesso Social</p>
+                <p className="text-[10px] text-muted-foreground">Esse usuário entra direto na tela exclusiva de Cadastros Social.</p>
               </div>
             )}
 
@@ -872,6 +882,7 @@ export default function TabPerfil() {
                    { value: 'suplente', label: '🏛️ Suplente' },
                    { value: 'lideranca', label: '👥 Liderança' },
                    { value: 'fernanda', label: '🩷 Fernanda' },
+                   { value: 'social', label: '🌐 Social' },
                  ].map(opt => (
                    <button
                      key={opt.value}
