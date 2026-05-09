@@ -89,7 +89,7 @@ const tipoFiltroLabels: Record<TipoFiltro, string> = { todos: 'Todos', lideranca
 const tipoUsuarioLabels: Record<TipoUsuarioFiltro, string> = { todos: 'Todos', suplente: 'Suplentes', lideranca: 'Lideranças', coordenador: 'Coordenadores', fernanda: 'Fernanda', social: 'Social' };
 
 const tipoLabel = (t: string) => {
-  const labels: Record<string, string> = { super_admin: 'Admin', coordenador: 'Coord.', suplente: 'Suplente', lideranca: 'Liderança' };
+  const labels: Record<string, string> = { super_admin: 'Admin', coordenador: 'Coord.', suplente: 'Suplente', lideranca: 'Liderança', fernanda: 'Fernanda', afiliado: 'Afiliado', promotor: 'Promotor', social: 'Social', fiscal: 'Fiscal' };
   return labels[t] || t;
 };
 
@@ -211,6 +211,7 @@ export default function AdminDashboard() {
   const filteredE = useMemo(() => eleitores.filter(r => dateFilter(r.criado_em)), [eleitores, dateFilter]);
   const filteredF = useMemo(() => fiscais.filter(r => r.criado_em && dateFilter(r.criado_em)), [fiscais, dateFilter]);
   const filteredFern = useMemo(() => cadastrosFernanda.filter(r => dateFilter(r.criado_em)), [cadastrosFernanda, dateFilter]);
+  const filteredSocial = useMemo(() => cadastrosSocial.filter(r => dateFilter(r.criado_em)), [cadastrosSocial, dateFilter]);
 
   const totais = useMemo(() => {
     const l = filteredL.filter(r => r.tipo_lideranca !== 'Cabo Eleitoral').length;
@@ -223,26 +224,27 @@ export default function AdminDashboard() {
 
   /* ── Ranking (inclui TODOS os usuários, mesmo com 0 cadastros) ── */
   const rankingUsuarios = useMemo(() => {
-    const map: Record<string, { l: number; c: number; e: number; f: number; fern: number }> = {};
+    const map: Record<string, { l: number; c: number; e: number; f: number; fern: number; soc: number }> = {};
     usuarios.filter(u => u.tipo !== 'super_admin').forEach(u => {
-      map[u.id] = { l: 0, c: 0, e: 0, f: 0, fern: 0 };
+      map[u.id] = { l: 0, c: 0, e: 0, f: 0, fern: 0, soc: 0 };
     });
     filteredL.forEach(r => {
       if (!r.cadastrado_por) return;
-      if (!map[r.cadastrado_por]) map[r.cadastrado_por] = { l: 0, c: 0, e: 0, f: 0, fern: 0 };
+      if (!map[r.cadastrado_por]) map[r.cadastrado_por] = { l: 0, c: 0, e: 0, f: 0, fern: 0, soc: 0 };
       if (r.tipo_lideranca === 'Cabo Eleitoral') map[r.cadastrado_por].c++;
       else map[r.cadastrado_por].l++;
     });
-    filteredE.forEach(r => { if (!r.cadastrado_por) return; if (!map[r.cadastrado_por]) map[r.cadastrado_por] = { l: 0, c: 0, e: 0, f: 0, fern: 0 }; map[r.cadastrado_por].e++; });
-    filteredF.forEach(r => { if (!r.cadastrado_por) return; if (!map[r.cadastrado_por]) map[r.cadastrado_por] = { l: 0, c: 0, e: 0, f: 0, fern: 0 }; map[r.cadastrado_por].f++; });
-    filteredFern.forEach(r => { if (!r.cadastrado_por) return; if (!map[r.cadastrado_por]) map[r.cadastrado_por] = { l: 0, c: 0, e: 0, f: 0, fern: 0 }; map[r.cadastrado_por].fern++; });
+    filteredE.forEach(r => { if (!r.cadastrado_por) return; if (!map[r.cadastrado_por]) map[r.cadastrado_por] = { l: 0, c: 0, e: 0, f: 0, fern: 0, soc: 0 }; map[r.cadastrado_por].e++; });
+    filteredF.forEach(r => { if (!r.cadastrado_por) return; if (!map[r.cadastrado_por]) map[r.cadastrado_por] = { l: 0, c: 0, e: 0, f: 0, fern: 0, soc: 0 }; map[r.cadastrado_por].f++; });
+    filteredFern.forEach(r => { if (!r.cadastrado_por) return; if (!map[r.cadastrado_por]) map[r.cadastrado_por] = { l: 0, c: 0, e: 0, f: 0, fern: 0, soc: 0 }; map[r.cadastrado_por].fern++; });
+    filteredSocial.forEach(r => { if (!r.cadastrado_por) return; if (!map[r.cadastrado_por]) map[r.cadastrado_por] = { l: 0, c: 0, e: 0, f: 0, fern: 0, soc: 0 }; map[r.cadastrado_por].soc++; });
     return Object.entries(map)
       .map(([id, stats]) => {
         const u = usuarios.find(u => u.id === id);
-         return { id, nome: u?.nome || 'Desconhecido', tipo: u?.tipo || '—', municipio_id: u?.municipio_id || null, suplente_id: u?.suplente_id || null, superior_id: u?.superior_id || null, total: stats.l + stats.c + stats.e + stats.f + stats.fern, ...stats };
+         return { id, nome: u?.nome || 'Desconhecido', tipo: u?.tipo || '—', municipio_id: u?.municipio_id || null, suplente_id: u?.suplente_id || null, superior_id: u?.superior_id || null, total: stats.l + stats.c + stats.e + stats.f + stats.fern + stats.soc, ...stats };
       })
       .sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome));
-  }, [filteredL, filteredE, filteredF, filteredFern, usuarios]);
+  }, [filteredL, filteredE, filteredF, filteredFern, filteredSocial, usuarios]);
 
   /* ── Users list ── */
   const filteredUsers = useMemo(() => {
@@ -703,7 +705,9 @@ export default function AdminDashboard() {
                   const uEleitores = filteredE.filter(r => r.cadastrado_por === u.id);
                   const uFiscais = filteredF.filter(r => r.cadastrado_por === u.id);
                   const uFernanda = filteredFern.filter(r => r.cadastrado_por === u.id);
+                  const uSocial = filteredSocial.filter(r => r.cadastrado_por === u.id);
                   const isFernanda = u.tipo === 'fernanda';
+                  const isSocial = u.tipo === 'social';
 
                   return (
                     <div key={u.id} className="section-card !p-0 overflow-hidden">
@@ -755,6 +759,24 @@ export default function AdminDashboard() {
                                       <p className="text-sm font-semibold text-foreground truncate">{c.nome}</p>
                                       <span className="text-[10px] text-muted-foreground shrink-0">{new Date(c.criado_em).toLocaleDateString('pt-BR')}</span>
                                     </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          ) : isSocial ? (
+                            <>
+                              <div className="flex items-center justify-between px-1">
+                                <span className="text-[11px] font-semibold text-teal-600 uppercase tracking-wider">🌐 Cadastros Social</span>
+                                <span className="text-[11px] font-bold text-foreground">{uSocial.length}</span>
+                              </div>
+                              <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
+                                {uSocial.map(c => (
+                                  <div key={c.id} className="p-3 rounded-xl bg-muted/50 border border-border/50 space-y-1.5">
+                                    <div className="flex items-start justify-between gap-2">
+                                      <p className="text-sm font-semibold text-foreground truncate">{c.nome}</p>
+                                      <span className="text-[10px] text-muted-foreground shrink-0">{new Date(c.criado_em).toLocaleDateString('pt-BR')}</span>
+                                    </div>
+                                    {c.whatsapp && <p className="text-[10px] text-muted-foreground">{c.whatsapp}</p>}
                                   </div>
                                 ))}
                               </div>
