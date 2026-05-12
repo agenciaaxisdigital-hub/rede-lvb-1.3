@@ -25,6 +25,7 @@ interface Afiliado {
 export default function AdminCadastrosAfiliados() {
   const [cadastros, setCadastros] = useState<CadastroAfil[]>([]);
   const [afiliados, setAfiliados] = useState<Afiliado[]>([]);
+  const [allUsers, setAllUsers] = useState<{ id: string; nome: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
   const [filtroAfiliado, setFiltroAfiliado] = useState<string>('todos');
@@ -32,13 +33,15 @@ export default function AdminCadastrosAfiliados() {
 
   const carregar = useCallback(async () => {
     setLoading(true);
-    const [cadRes, afRes] = await Promise.all([
+    const [cadRes, afRes, usersRes] = await Promise.all([
       (supabase as any).from('cadastros_afiliados').select('*').order('criado_em', { ascending: false }),
       (supabase as any).from('hierarquia_usuarios').select('id, nome, link_token, ativo').eq('tipo', 'afiliado'),
+      (supabase as any).from('hierarquia_usuarios').select('id, nome'),
     ]);
     if (cadRes.error) toast({ title: 'Erro', description: cadRes.error.message, variant: 'destructive' });
     else setCadastros((cadRes.data || []) as CadastroAfil[]);
     if (!afRes.error) setAfiliados((afRes.data || []) as Afiliado[]);
+    if (!usersRes.error) setAllUsers((usersRes.data || []) as { id: string; nome: string }[]);
     setLoading(false);
   }, []);
 
@@ -52,7 +55,7 @@ export default function AdminCadastrosAfiliados() {
     return () => { supabase.removeChannel(channel); };
   }, [carregar]);
 
-  const afiliadoNome = (id: string) => afiliados.find(a => a.id === id)?.nome || '—';
+  const afiliadoNome = (id: string) => allUsers.find(u => u.id === id)?.nome || '—';
 
   const filtrados = useMemo(() => {
     let base = cadastros;
@@ -81,7 +84,7 @@ export default function AdminCadastrosAfiliados() {
       || (c.rede_social || '').toLowerCase().includes(q)
       || afiliadoNome(c.afiliado_id).toLowerCase().includes(q)
     );
-  }, [cadastros, busca, filtroAfiliado, periodo, afiliados]);
+  }, [cadastros, busca, filtroAfiliado, periodo, allUsers]);
 
   const totaisPorAfiliado = useMemo(() => {
     const map: Record<string, number> = {};
@@ -213,8 +216,11 @@ export default function AdminCadastrosAfiliados() {
           onChange={e => setFiltroAfiliado(e.target.value)}
           className="px-3 py-2 rounded-lg bg-muted border border-border text-sm"
         >
-          <option value="todos">Todos os afiliados</option>
-          {afiliados.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
+          <option value="todos">Todos os usuários</option>
+          {allUsers
+            .filter(u => cadastros.some(c => c.afiliado_id === u.id))
+            .sort((a, b) => a.nome.localeCompare(b.nome))
+            .map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
         </select>
         <button
           onClick={handleExportar}
