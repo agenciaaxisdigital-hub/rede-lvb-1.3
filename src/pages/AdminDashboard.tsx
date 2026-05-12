@@ -229,15 +229,14 @@ export default function AdminDashboard() {
       map[u.id] = { l: 0, c: 0, e: 0, f: 0, fern: 0, soc: 0 };
     });
     filteredL.forEach(r => {
-      if (!r.cadastrado_por) return;
-      if (!map[r.cadastrado_por]) map[r.cadastrado_por] = { l: 0, c: 0, e: 0, f: 0, fern: 0, soc: 0 };
+      if (!r.cadastrado_por || !map[r.cadastrado_por]) return;
       if (r.tipo_lideranca === 'Cabo Eleitoral') map[r.cadastrado_por].c++;
       else map[r.cadastrado_por].l++;
     });
-    filteredE.forEach(r => { if (!r.cadastrado_por) return; if (!map[r.cadastrado_por]) map[r.cadastrado_por] = { l: 0, c: 0, e: 0, f: 0, fern: 0, soc: 0 }; map[r.cadastrado_por].e++; });
-    filteredF.forEach(r => { if (!r.cadastrado_por) return; if (!map[r.cadastrado_por]) map[r.cadastrado_por] = { l: 0, c: 0, e: 0, f: 0, fern: 0, soc: 0 }; map[r.cadastrado_por].f++; });
-    filteredFern.forEach(r => { if (!r.cadastrado_por) return; if (!map[r.cadastrado_por]) map[r.cadastrado_por] = { l: 0, c: 0, e: 0, f: 0, fern: 0, soc: 0 }; map[r.cadastrado_por].fern++; });
-    filteredSocial.forEach(r => { if (!r.cadastrado_por) return; if (!map[r.cadastrado_por]) map[r.cadastrado_por] = { l: 0, c: 0, e: 0, f: 0, fern: 0, soc: 0 }; map[r.cadastrado_por].soc++; });
+    filteredE.forEach(r => { if (!r.cadastrado_por || !map[r.cadastrado_por]) return; map[r.cadastrado_por].e++; });
+    filteredF.forEach(r => { if (!r.cadastrado_por || !map[r.cadastrado_por]) return; map[r.cadastrado_por].f++; });
+    filteredFern.forEach(r => { if (!r.cadastrado_por || !map[r.cadastrado_por]) return; map[r.cadastrado_por].fern++; });
+    filteredSocial.forEach(r => { if (!r.cadastrado_por || !map[r.cadastrado_por]) return; map[r.cadastrado_por].soc++; });
     return Object.entries(map)
       .map(([id, stats]) => {
         const u = usuarios.find(u => u.id === id);
