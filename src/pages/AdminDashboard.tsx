@@ -242,6 +242,7 @@ export default function AdminDashboard() {
         const u = usuarios.find(u => u.id === id);
          return { id, nome: u?.nome || 'Desconhecido', tipo: u?.tipo || '—', municipio_id: u?.municipio_id || null, suplente_id: u?.suplente_id || null, superior_id: u?.superior_id || null, total: stats.l + stats.c + stats.e + stats.f + stats.fern + stats.soc, ...stats };
       })
+      .filter(u => u.total > 0)
       .sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome));
   }, [filteredL, filteredE, filteredF, filteredFern, filteredSocial, usuarios]);
 
