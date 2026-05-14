@@ -5,7 +5,7 @@
 -- ═══════════════════════════════════════════════════════
 ALTER TABLE public.avisos_app
   ADD COLUMN IF NOT EXISTS persistente        boolean     NOT NULL DEFAULT false,
-  ADD COLUMN IF NOT EXISTS intervalo_minutos  integer     NULL,
+  ADD COLUMN IF NOT EXISTS intervalo_minutos  integer     NULL CHECK (intervalo_minutos IS NULL OR intervalo_minutos > 0),
   ADD COLUMN IF NOT EXISTS ultima_notificacao_em timestamptz NULL;
 
 -- ═══════════════════════════════════════════════════════
@@ -76,6 +76,19 @@ CREATE POLICY "avisos_dest_admin" ON public.avisos_destinatarios
     )
   );
 
+CREATE POLICY "avisos_dest_read_own" ON public.avisos_destinatarios
+  FOR SELECT TO authenticated
+  USING (
+    hierarquia_id = (
+      SELECT id FROM public.hierarquia_usuarios
+      WHERE auth_user_id = auth.uid() AND ativo = true LIMIT 1
+    )
+    OR tipo_usuario = (
+      SELECT tipo FROM public.hierarquia_usuarios
+      WHERE auth_user_id = auth.uid() AND ativo = true LIMIT 1
+    )
+  );
+
 -- ═══════════════════════════════════════════════════════
 -- 4. avisos_visualizacoes
 -- ═══════════════════════════════════════════════════════
@@ -113,3 +126,23 @@ CREATE POLICY "viz_admin_read" ON public.avisos_visualizacoes
         AND ativo = true
     )
   );
+
+-- ═══════════════════════════════════════════════════════
+-- 5. Índices de performance
+-- ═══════════════════════════════════════════════════════
+CREATE INDEX IF NOT EXISTS push_subscriptions_hierarquia_id_idx
+  ON public.push_subscriptions(hierarquia_id);
+
+CREATE INDEX IF NOT EXISTS avisos_viz_hierarquia_id_idx
+  ON public.avisos_visualizacoes(hierarquia_id);
+
+CREATE INDEX IF NOT EXISTS avisos_dest_aviso_id_idx
+  ON public.avisos_destinatarios(aviso_id);
+
+CREATE INDEX IF NOT EXISTS avisos_dest_hierarquia_id_idx
+  ON public.avisos_destinatarios(hierarquia_id)
+  WHERE hierarquia_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS avisos_dest_tipo_usuario_idx
+  ON public.avisos_destinatarios(tipo_usuario)
+  WHERE tipo_usuario IS NOT NULL;
