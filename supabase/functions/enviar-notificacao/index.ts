@@ -79,7 +79,8 @@ Deno.serve(async (req) => {
     const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') || 'mailto:admin@rede.sarelli.com';
 
     const authHeader = req.headers.get('Authorization');
-    const isCron = req.headers.get('x-cron-secret') === Deno.env.get('CRON_SECRET');
+    const cronSecret = Deno.env.get('CRON_SECRET');
+    const isCron = !!cronSecret && req.headers.get('x-cron-secret') === cronSecret;
 
     if (!isCron) {
       if (!authHeader) return jsonResponse({ error: 'Não autenticado' }, 401);
