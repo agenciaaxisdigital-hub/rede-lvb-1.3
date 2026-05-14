@@ -14,80 +14,29 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     VitePWA({
-      registerType: "autoUpdate",
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
+      injectManifest: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2}'],
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+      },
       devOptions: { enabled: false },
       includeAssets: ['icon-192.png', 'icon-512.png'],
       manifest: {
-        name: "Rede Política – Dra. Fernanda Sarelli",
-        short_name: "Rede Sarelli",
-        description: "Sistema de cadastros de campanha política",
-        start_url: "/",
-        scope: "/",
-        display: "standalone",
-        background_color: "#fdf2f8",
-        theme_color: "#ec4899",
-        orientation: "portrait-primary",
+        name: 'Rede Política – Dra. Fernanda Sarelli',
+        short_name: 'Rede Sarelli',
+        description: 'Sistema de cadastros de campanha política',
+        start_url: '/',
+        scope: '/',
+        display: 'standalone',
+        background_color: '#fdf2f8',
+        theme_color: '#ec4899',
+        orientation: 'portrait-primary',
         icons: [
-          { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any maskable" },
-          { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" },
+          { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+          { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
         ],
-      },
-      workbox: {
-        // App Shell: cache-first with network timeout
-        runtimeCaching: [
-          {
-            // Google Fonts stylesheets
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-stylesheets',
-              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
-            },
-          },
-          {
-            // Google Fonts webfont files
-            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-webfonts',
-              expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-          {
-            // Supabase API data (excl. auth & storage)
-            urlPattern: ({ url }) => {
-              return url.hostname.includes('supabase.co') &&
-                !url.pathname.startsWith('/auth/') &&
-                !url.pathname.startsWith('/storage/');
-            },
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'supabase-api-data',
-              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 },
-              cacheableResponse: { statuses: [0, 200] },
-              matchOptions: { ignoreSearch: false },
-            },
-          },
-          {
-            // Static images from CDN/R2
-            urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico)$/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'images-cache',
-              expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 30 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-        ],
-        navigateFallbackDenylist: [/^\/~oauth/, /^\/api\//],
-        // Pre-cache only the app shell essentials
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2}'],
-        cleanupOutdatedCaches: true,
-        skipWaiting: true, // Auto-update without user prompt
-        clientsClaim: true,
-      // Limit precache size for faster SW install
-      maximumFileSizeToCacheInBytes: 3 * 1024 * 1024, // 3MB max per file
       },
     }),
   ].filter(Boolean),
