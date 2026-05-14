@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArrowLeft, Target, Bell, User } from 'lucide-react';
+import { ArrowLeft, Target, Bell, User, AlertCircle } from 'lucide-react';
 import { lazy, Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
@@ -9,8 +9,9 @@ import { Navigate } from 'react-router-dom';
 const TabMetas = lazy(() => import('@/components/gestao/TabMetas'));
 const TabAvisos = lazy(() => import('@/components/gestao/TabAvisos'));
 const TabPerfilGestao = lazy(() => import('@/components/gestao/TabPerfilGestao'));
+const TabCobranca = lazy(() => import('@/components/gestao/TabCobranca'));
 
-type GestaoTab = 'metas' | 'avisos' | 'perfil';
+type GestaoTab = 'metas' | 'avisos' | 'perfil' | 'cobranca';
 
 export default function GestaoApp() {
   const { isAdmin, usuario } = useAuth();
@@ -22,6 +23,7 @@ export default function GestaoApp() {
   const tabs = [
     { id: 'metas' as GestaoTab, label: 'Metas', icon: Target },
     { id: 'avisos' as GestaoTab, label: 'Avisos', icon: Bell },
+    ...(isAdmin ? [{ id: 'cobranca' as GestaoTab, label: 'Cobrança', icon: AlertCircle }] : []),
     { id: 'perfil' as GestaoTab, label: 'Perfil', icon: User },
   ];
 
@@ -61,6 +63,7 @@ export default function GestaoApp() {
           <Suspense fallback={<div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-primary" /></div>}>
             {tab === 'metas' && <TabMetas />}
             {tab === 'avisos' && <TabAvisos />}
+            {tab === 'cobranca' && isAdmin && <TabCobranca />}
             {tab === 'perfil' && <TabPerfilGestao />}
           </Suspense>
         </div>
