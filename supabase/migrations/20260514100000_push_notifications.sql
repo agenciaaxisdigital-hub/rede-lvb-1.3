@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS public.push_subscriptions (
 
 ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "push_sub_own" ON public.push_subscriptions;
 CREATE POLICY "push_sub_own" ON public.push_subscriptions
   FOR ALL TO authenticated
   USING (
@@ -38,6 +39,7 @@ CREATE POLICY "push_sub_own" ON public.push_subscriptions
     )
   );
 
+DROP POLICY IF EXISTS "push_sub_admin_read" ON public.push_subscriptions;
 CREATE POLICY "push_sub_admin_read" ON public.push_subscriptions
   FOR SELECT TO authenticated
   USING (
@@ -65,6 +67,7 @@ CREATE TABLE IF NOT EXISTS public.avisos_destinatarios (
 
 ALTER TABLE public.avisos_destinatarios ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "avisos_dest_admin" ON public.avisos_destinatarios;
 CREATE POLICY "avisos_dest_admin" ON public.avisos_destinatarios
   FOR ALL TO authenticated
   USING (
@@ -76,6 +79,7 @@ CREATE POLICY "avisos_dest_admin" ON public.avisos_destinatarios
     )
   );
 
+DROP POLICY IF EXISTS "avisos_dest_read_own" ON public.avisos_destinatarios;
 CREATE POLICY "avisos_dest_read_own" ON public.avisos_destinatarios
   FOR SELECT TO authenticated
   USING (
@@ -84,7 +88,7 @@ CREATE POLICY "avisos_dest_read_own" ON public.avisos_destinatarios
       WHERE auth_user_id = auth.uid() AND ativo = true LIMIT 1
     )
     OR tipo_usuario = (
-      SELECT tipo FROM public.hierarquia_usuarios
+      SELECT tipo::text FROM public.hierarquia_usuarios
       WHERE auth_user_id = auth.uid() AND ativo = true LIMIT 1
     )
   );
@@ -101,6 +105,7 @@ CREATE TABLE IF NOT EXISTS public.avisos_visualizacoes (
 
 ALTER TABLE public.avisos_visualizacoes ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "viz_own" ON public.avisos_visualizacoes;
 CREATE POLICY "viz_own" ON public.avisos_visualizacoes
   FOR ALL TO authenticated
   USING (
@@ -116,6 +121,7 @@ CREATE POLICY "viz_own" ON public.avisos_visualizacoes
     )
   );
 
+DROP POLICY IF EXISTS "viz_admin_read" ON public.avisos_visualizacoes;
 CREATE POLICY "viz_admin_read" ON public.avisos_visualizacoes
   FOR SELECT TO authenticated
   USING (
