@@ -446,7 +446,7 @@ export default function CadastroPublicoAfiliado() {
                 Faça parte da nossa rede
               </h1>
               <p className="text-[13px] text-white/90 leading-snug">
-                Cadastre-se e receba novidades, ações e convocações da Dra. Fernanda Sarelli.
+                Cadastre-se e receba novidades e ações da Dra. Fernanda Sarelli.
               </p>
             </div>
           </div>
