@@ -442,14 +442,6 @@ export default function CadastroPublicoAfiliado() {
             <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
             <div className="absolute -bottom-12 -left-10 w-44 h-44 rounded-full bg-white/10 blur-2xl" />
             <div className="relative space-y-2">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-sm text-white text-[10px] font-bold uppercase tracking-wider">
-                <Sparkles size={11} /> Mandato Dra. Fernanda Sarelli
-              </div>
-              {tipoLabel && (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white text-primary text-[10px] font-extrabold uppercase tracking-wider shadow-md">
-                  ⭐ {tipoLabel}
-                </div>
-              )}
               <h1 className="text-2xl font-extrabold text-white leading-tight drop-shadow-sm">
                 Faça parte da nossa rede
               </h1>
