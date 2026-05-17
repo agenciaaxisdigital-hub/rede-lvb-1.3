@@ -217,18 +217,7 @@ export default function CadastroPublicoAfiliado() {
     if (!capData && !isSocial) erros.data = 'Data de nascimento obrigatória';
     const instagramInformado = capInstagramAlvo.trim();
     if (!instagramInformado && !isSocial) erros.instagram = 'Instagram obrigatório';
-    const cpfDigitsVal = capCpf.replace(/\D/g, '');
-    if (!isSocial) {
-      if (!capCpf.trim() || cpfDigitsVal.length < 11) {
-        erros.cpf = 'CPF obrigatório (11 dígitos)';
-      } else if (!validateCPF(cpfDigitsVal)) {
-        erros.cpf = 'CPF inválido — verifique os números';
-      }
-    } else if (capCpf.trim() && cpfDigitsVal.length > 0 && cpfDigitsVal.length < 11) {
-      erros.cpf = 'CPF inválido — verifique os números';
-    } else if (capCpf.trim() && cpfDigitsVal.length === 11 && !validateCPF(cpfDigitsVal)) {
-      erros.cpf = 'CPF inválido — verifique os números';
-    }
+    // CPF oculto temporariamente
     const exigeEleitoral = tipoParam === 'lideranca' || tipoParam === 'cabo' || tipoParam === 'promotor' || tipoParam === 'fiscal' || tipoParam === 'eleitor';
     if (exigeEleitoral) {
       if (!capTitulo.trim()) erros.titulo = 'Título de eleitor obrigatório';
@@ -503,12 +492,7 @@ export default function CadastroPublicoAfiliado() {
                   {capErrors.instagram && <p className="text-[10px] text-destructive mt-1">{capErrors.instagram}</p>}
                 </div>
               )}
-              {/* CPF */}
-              <div>
-                <label className={labelCls}>CPF{tipoParam !== 'social' ? ' *' : ''}</label>
-                <input type="text" value={capCpf} onChange={e => { setCapCpf(e.target.value); setCapErrors(p => ({ ...p, cpf: '' })); }} className={inputCls + (capErrors.cpf ? ' border-destructive' : '')} maxLength={14} placeholder="000.000.000-00" />
-                {capErrors.cpf && <p className="text-[10px] text-destructive mt-1">{capErrors.cpf}</p>}
-              </div>
+              {/* CPF oculto temporariamente */}
             </div>
 
             {/* Bloco social — nome da mãe e região */}
