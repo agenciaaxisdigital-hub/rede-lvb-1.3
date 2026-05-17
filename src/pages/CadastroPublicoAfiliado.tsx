@@ -64,6 +64,7 @@ export default function CadastroPublicoAfiliado() {
   const [capData, setCapData] = useState('');
   const [capRede, setCapRede] = useState('');
   const [capInstagram, setCapInstagram] = useState('');
+  const [capCidade, setCapCidade] = useState('');
   const capInstagramAlvo = tipoParam === 'fernanda' ? capInstagram : capRede;
   const telStatusCap = checkTelefone(capTelefone);
   // Eleitorais (lideranca/fiscal/eleitor)
@@ -259,7 +260,7 @@ export default function CadastroPublicoAfiliado() {
           compromisso_voto: capCompromisso.trim() || null,
           observacoes: capObs.trim() || null,
           nome_mae: capNomeMae.trim() || null,
-          cidade: capRegiao.trim() || null,
+          cidade: capCidade.trim() || capRegiao.trim() || null,
         }),
       });
       const j = await r.json();
@@ -493,6 +494,10 @@ export default function CadastroPublicoAfiliado() {
                 </div>
               )}
               {/* CPF oculto temporariamente */}
+              <div>
+                <label className={labelCls}>Cidade *</label>
+                <input type="text" value={capCidade} onChange={e => setCapCidade(e.target.value)} className={inputCls} maxLength={100} placeholder="Sua cidade" />
+              </div>
             </div>
 
             {/* Bloco social — nome da mãe e região */}
