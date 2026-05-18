@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { AlertCircle, Loader2, Send, RefreshCw, BellOff } from 'lucide-react';
+import { AlertCircle, Loader2, Send, RefreshCw, BellOff, Clock, UserX } from 'lucide-react';
 
 interface UsuarioSemCadastro {
   id: string;
   nome: string;
   tipo: string;
   ultimo_cadastro: string | null;
+  dias: number; // -1 = nunca
 }
 
 const TIPOS_MONITORADOS = [
@@ -17,6 +18,14 @@ const TIPOS_MONITORADOS = [
   { val: 'lideranca', label: 'Liderança', tabela: 'liderancas',          campo: 'cadastrado_por' },
   { val: 'suplente',  label: 'Suplente',  tabela: 'liderancas',          campo: 'cadastrado_por' },
 ];
+
+function getUrgencia(dias: number): { cor: string; bg: string; label: string; icone: typeof AlertCircle } {
+  if (dias === -1) return { cor: 'text-red-600',   bg: 'bg-red-500/10',   label: 'nunca cadastrou', icone: UserX };
+  if (dias >= 7)   return { cor: 'text-red-500',   bg: 'bg-red-500/10',   label: `${dias} dias atrás`, icone: AlertCircle };
+  if (dias >= 3)   return { cor: 'text-amber-600', bg: 'bg-amber-500/10', label: `${dias} dias atrás`, icone: Clock };
+  if (dias === 2)  return { cor: 'text-amber-500', bg: 'bg-amber-500/10', label: 'anteontem', icone: Clock };
+  return               { cor: 'text-yellow-600', bg: 'bg-yellow-500/10', label: 'ontem', icone: Clock };
+}
 
 async function enviarPush(avisoid: string, hierarquiaIds: string[]) {
   const { data: { session } } = await supabase.auth.getSession();
@@ -86,7 +95,19 @@ export default function TabCobranca() {
 
       const resultado: UsuarioSemCadastro[] = usuarios
         .filter((u: any) => !comCadastroHoje.has(u.id))
-        .map((u: any) => ({ id: u.id, nome: u.nome, tipo: u.tipo, ultimo_cadastro: ultimoMap[u.id] || null }));
+        .map((u: any) => {
+          const ultimo = ultimoMap[u.id] || null;
+          const dias = ultimo
+            ? Math.floor((Date.now() - new Date(ultimo).getTime()) / 86400000)
+            : -1;
+          return { id: u.id, nome: u.nome, tipo: u.tipo, ultimo_cadastro: ultimo, dias };
+        })
+        // Nunca cadastrou primeiro → depois por mais antigo
+        .sort((a, b) => {
+          if (a.dias === -1 && b.dias !== -1) return -1;
+          if (a.dias !== -1 && b.dias === -1) return 1;
+          return b.dias - a.dias;
+        });
 
       setSemCadastro(resultado);
     } finally {
@@ -95,14 +116,6 @@ export default function TabCobranca() {
   }, [tipoFiltro]);
 
   useEffect(() => { carregar(); }, [carregar]);
-
-  function diasDesde(dateStr: string | null): string {
-    if (!dateStr) return 'nunca cadastrou';
-    const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
-    if (diff === 0) return 'hoje';
-    if (diff === 1) return 'ontem';
-    return `${diff} dias atrás`;
-  }
 
   async function notificarUsuario(u: UsuarioSemCadastro) {
     if (enviandoIds.has(u.id)) return;
@@ -148,6 +161,8 @@ export default function TabCobranca() {
   }
 
   const tipoAtual = TIPOS_MONITORADOS.find(t => t.val === tipoFiltro);
+  const nuncaCount = semCadastro.filter(u => u.dias === -1).length;
+  const antigosCount = semCadastro.filter(u => u.dias >= 3).length;
 
   return (
     <div className="space-y-4 pb-24">
@@ -155,10 +170,11 @@ export default function TabCobranca() {
         <AlertCircle size={20} className="text-amber-500" />
         <div>
           <h2 className="text-base font-bold">Sem cadastro hoje</h2>
-          <p className="text-xs text-muted-foreground">Usuários que não registraram nenhum cadastro hoje</p>
+          <p className="text-xs text-muted-foreground">Usuários que não registraram nada hoje</p>
         </div>
       </div>
 
+      {/* Filtro por tipo */}
       <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-0.5 scrollbar-hide">
         {TIPOS_MONITORADOS.map(t => (
           <button key={t.val} onClick={() => setTipoFiltro(t.val)}
@@ -170,6 +186,29 @@ export default function TabCobranca() {
         ))}
       </div>
 
+      {/* Resumo de urgência */}
+      {semCadastro.length > 0 && (
+        <div className="flex gap-2">
+          {nuncaCount > 0 && (
+            <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/20">
+              <UserX size={14} className="text-red-600 shrink-0" />
+              <div>
+                <p className="text-xs font-bold text-red-600">{nuncaCount} nunca cadastrou</p>
+              </div>
+            </div>
+          )}
+          {antigosCount - nuncaCount > 0 && (
+            <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20">
+              <Clock size={14} className="text-amber-600 shrink-0" />
+              <div>
+                <p className="text-xs font-bold text-amber-600">{antigosCount - nuncaCount} há 3+ dias</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Ações */}
       <div className="flex gap-2">
         <button onClick={carregar} disabled={loading}
           className="h-10 px-4 rounded-xl bg-muted border border-border text-xs font-semibold flex items-center gap-1.5 active:scale-95 shrink-0">
@@ -187,6 +226,7 @@ export default function TabCobranca() {
         <span>Somente usuários com push ativado recebem notificação no celular</span>
       </div>
 
+      {/* Lista */}
       {loading ? (
         <div className="flex justify-center py-10"><Loader2 className="animate-spin text-muted-foreground" /></div>
       ) : semCadastro.length === 0 ? (
@@ -197,27 +237,31 @@ export default function TabCobranca() {
         </div>
       ) : (
         <div className="space-y-1.5">
-          {semCadastro.map(u => (
-            <div key={u.id} className="section-card !py-3 !px-3.5 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
-                <AlertCircle size={16} className="text-amber-500" />
+          {semCadastro.map(u => {
+            const { cor, bg, label, icone: Icone } = getUrgencia(u.dias);
+            const isEnviando = enviandoIds.has(u.id);
+            return (
+              <div key={u.id} className={`section-card !py-3 !px-3.5 flex items-center gap-3 border ${bg.replace('bg-', 'border-').replace('/10', '/20')}`}>
+                <div className={`w-9 h-9 rounded-full ${bg} flex items-center justify-center shrink-0`}>
+                  <Icone size={16} className={cor} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate">{u.nome}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    Último cadastro: <span className={cor}>{label}</span>
+                  </p>
+                </div>
+                <button
+                  onClick={() => notificarUsuario(u)}
+                  disabled={isEnviando}
+                  className="shrink-0 w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center disabled:opacity-50 active:scale-95 transition-all"
+                  title={`Notificar ${u.nome}`}
+                >
+                  {isEnviando ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                </button>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">{u.nome}</p>
-                <p className="text-[10px] text-muted-foreground">
-                  Último cadastro: <span className={u.ultimo_cadastro ? 'text-amber-600' : 'text-red-500'}>{diasDesde(u.ultimo_cadastro)}</span>
-                </p>
-              </div>
-              <button
-                onClick={() => notificarUsuario(u)}
-                disabled={enviandoIds.has(u.id)}
-                className="shrink-0 w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center disabled:opacity-50 active:scale-95 transition-all"
-                title={`Notificar ${u.nome}`}
-              >
-                {enviandoIds.has(u.id) ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

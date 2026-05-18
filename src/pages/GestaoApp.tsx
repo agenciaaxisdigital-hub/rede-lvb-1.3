@@ -23,7 +23,7 @@ export default function GestaoApp() {
   const tabs = [
     { id: 'metas' as GestaoTab, label: 'Metas', icon: Target },
     { id: 'avisos' as GestaoTab, label: 'Avisos', icon: Bell },
-    ...(isAdmin ? [{ id: 'cobranca' as GestaoTab, label: 'Cobrança', icon: AlertCircle }] : []),
+    { id: 'cobranca' as GestaoTab, label: 'Cobrança', icon: AlertCircle },
     { id: 'perfil' as GestaoTab, label: 'Perfil', icon: User },
   ];
 
@@ -38,7 +38,7 @@ export default function GestaoApp() {
           </button>
           <div className="flex-1">
             <h1 className="text-xl font-bold text-foreground">Gestão App</h1>
-            <p className="text-[10px] text-muted-foreground">Metas · Avisos · Perfis</p>
+            <p className="text-[10px] text-muted-foreground">Metas · Avisos · Cobrança · Perfil</p>
           </div>
         </div>
 
@@ -63,7 +63,7 @@ export default function GestaoApp() {
           <Suspense fallback={<div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-primary" /></div>}>
             {tab === 'metas' && <TabMetas />}
             {tab === 'avisos' && <TabAvisos />}
-            {tab === 'cobranca' && isAdmin && <TabCobranca />}
+            {tab === 'cobranca' && <TabCobranca />}
             {tab === 'perfil' && <TabPerfilGestao />}
           </Suspense>
         </div>
