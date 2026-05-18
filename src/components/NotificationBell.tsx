@@ -176,8 +176,9 @@ export default function NotificationBell() {
       {/* Banner in-app estilo WhatsApp — desliza do topo */}
       {bannerAviso && bannerCfg && BannerIcon && (
         <div
-          className="fixed top-0 inset-x-0 z-[300] px-3 pt-3 pointer-events-none"
+          className="fixed top-0 inset-x-0 z-[300] px-3 pointer-events-none"
           style={{
+            paddingTop: 'calc(0.75rem + env(safe-area-inset-top, 0px))',
             transform: bannerVisible ? 'translateY(0)' : 'translateY(-110%)',
             opacity: bannerVisible ? 1 : 0,
             transition: 'transform 0.35s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s ease',
@@ -284,7 +285,8 @@ export default function NotificationBell() {
             </div>
 
             {/* Footer */}
-            <div className="px-4 pb-6 pt-3 border-t border-border shrink-0">
+            <div className="px-4 pt-3 border-t border-border shrink-0"
+              style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}>
               <button
                 onClick={handleClosePanel}
                 className="w-full h-12 gradient-primary text-white font-bold rounded-2xl active:scale-[0.98] transition-all shadow-md shadow-primary/20 text-sm"
