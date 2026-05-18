@@ -71,6 +71,7 @@ self.addEventListener('push', (event) => {
     let titulo = 'Nova notificação';
     let corpo = 'Abra o app para ver o aviso.';
     let avisoid: string | null = null;
+    let tipo = 'info';
 
     if (event.data) {
       try {
@@ -78,23 +79,27 @@ self.addEventListener('push', (event) => {
         titulo = payload.titulo || titulo;
         corpo = payload.corpo || corpo;
         avisoid = payload.aviso_id || null;
+        tipo = payload.tipo || tipo;
 
-        // Payload só tem aviso_id → busca o aviso específico (não o mais recente)
+        // Payload incompleto → busca aviso específico no DB (não o mais recente)
         if (avisoid && (!payload.titulo || !payload.corpo)) {
           const res = await fetch(
-            `${SUPABASE_URL}/rest/v1/avisos_app?id=eq.${avisoid}&select=titulo,corpo&limit=1`,
+            `${SUPABASE_URL}/rest/v1/avisos_app?id=eq.${avisoid}&select=titulo,corpo,tipo&limit=1`,
             { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
           );
           const [aviso] = await res.json();
-          if (aviso) { titulo = aviso.titulo || titulo; corpo = aviso.corpo || corpo; }
+          if (aviso) {
+            titulo = aviso.titulo || titulo;
+            corpo = aviso.corpo || corpo;
+            tipo = aviso.tipo || tipo;
+          }
         }
       } catch {
         // usa defaults
       }
     }
 
-    // Tag por aviso_id evita substituição silenciosa de notificações diferentes.
-    // Sem aviso_id usa timestamp para garantir que cada push apareça como novo.
+    const urgente = tipo === 'urgente';
     const tag = avisoid ? `aviso-${avisoid}` : `rede-notif-${Date.now()}`;
 
     await self.registration.showNotification(titulo, {
@@ -102,8 +107,9 @@ self.addEventListener('push', (event) => {
       icon: '/icon-192.png',
       badge: '/icon-192.png',
       data: { aviso_id: avisoid, url: '/' },
-      vibrate: [200, 100, 200],
-      requireInteraction: false,
+      // Urgente: vibração mais intensa + fica na tela até o usuário tocar (como WhatsApp)
+      vibrate: urgente ? [300, 100, 300, 100, 500] : [200, 100, 200],
+      requireInteraction: urgente,
       tag,
       silent: false,
     });
