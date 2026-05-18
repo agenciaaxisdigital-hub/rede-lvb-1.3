@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { AlertCircle, Loader2, Send, RefreshCw } from 'lucide-react';
+import { AlertCircle, Loader2, Send, RefreshCw, BellOff } from 'lucide-react';
 
 interface UsuarioSemCadastro {
   id: string;
@@ -18,11 +18,36 @@ const TIPOS_MONITORADOS = [
   { val: 'suplente',  label: 'Suplente',  tabela: 'liderancas',          campo: 'cadastrado_por' },
 ];
 
+async function enviarPush(avisoid: string, hierarquiaIds: string[]) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/enviar-notificacao`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session?.access_token}`,
+      'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify({ aviso_id: avisoid, hierarquia_ids: hierarquiaIds }),
+  });
+  return res.json();
+}
+
+async function criarAviso(titulo: string, corpo: string): Promise<string> {
+  const { data, error } = await (supabase as any)
+    .from('avisos_app')
+    .insert({ titulo, corpo, tipo: 'urgente', ativa: true, persistente: false })
+    .select('id')
+    .single();
+  if (error) throw error;
+  return data.id as string;
+}
+
 export default function TabCobranca() {
   const [tipoFiltro, setTipoFiltro] = useState(TIPOS_MONITORADOS[0].val);
   const [semCadastro, setSemCadastro] = useState<UsuarioSemCadastro[]>([]);
   const [loading, setLoading] = useState(false);
-  const [enviando, setEnviando] = useState(false);
+  const [enviandoTodos, setEnviandoTodos] = useState(false);
+  const [enviandoIds, setEnviandoIds] = useState<Set<string>>(new Set());
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -61,12 +86,7 @@ export default function TabCobranca() {
 
       const resultado: UsuarioSemCadastro[] = usuarios
         .filter((u: any) => !comCadastroHoje.has(u.id))
-        .map((u: any) => ({
-          id: u.id,
-          nome: u.nome,
-          tipo: u.tipo,
-          ultimo_cadastro: ultimoMap[u.id] || null,
-        }));
+        .map((u: any) => ({ id: u.id, nome: u.nome, tipo: u.tipo, ultimo_cadastro: ultimoMap[u.id] || null }));
 
       setSemCadastro(resultado);
     } finally {
@@ -84,49 +104,50 @@ export default function TabCobranca() {
     return `${diff} dias atrás`;
   }
 
-  async function notificarTodos() {
-    if (semCadastro.length === 0) return;
-    setEnviando(true);
+  async function notificarUsuario(u: UsuarioSemCadastro) {
+    if (enviandoIds.has(u.id)) return;
+    setEnviandoIds(prev => new Set([...prev, u.id]));
     try {
-      const { data: novoAviso, error } = await (supabase as any)
-        .from('avisos_app')
-        .insert({
-          titulo: 'Você não cadastrou hoje!',
-          corpo: 'Não esqueça de registrar seus cadastros de hoje. Acesse o app agora!',
-          tipo: 'urgente',
-          ativa: true,
-          persistente: true,
-        })
-        .select('id')
-        .single();
-
-      if (error) throw error;
-
-      await (supabase as any).from('avisos_destinatarios').insert(
-        semCadastro.map(u => ({ aviso_id: novoAviso.id, hierarquia_id: u.id }))
+      const avisoid = await criarAviso(
+        'Você não cadastrou hoje!',
+        `${u.nome}, não esqueça de registrar seus cadastros de hoje. Acesse o app agora!`
       );
-
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/enviar-notificacao`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-        },
-        body: JSON.stringify({
-          aviso_id: novoAviso.id,
-          hierarquia_ids: semCadastro.map(u => u.id),
-        }),
+      await (supabase as any).from('avisos_destinatarios').insert([
+        { aviso_id: avisoid, hierarquia_id: u.id },
+      ]);
+      const result = await enviarPush(avisoid, [u.id]);
+      toast({
+        title: `Notificação enviada para ${u.nome}`,
+        description: result.enviados === 0 ? 'Usuário sem push ativado — aviso aparecerá no app' : undefined,
       });
-      const result = await res.json();
-      toast({ title: `Push enviado para ${result.enviados ?? semCadastro.length} pessoa(s)` });
     } catch (err: any) {
       toast({ title: 'Erro ao notificar', description: err.message, variant: 'destructive' });
     } finally {
-      setEnviando(false);
+      setEnviandoIds(prev => { const n = new Set(prev); n.delete(u.id); return n; });
     }
   }
+
+  async function notificarTodos() {
+    if (semCadastro.length === 0) return;
+    setEnviandoTodos(true);
+    try {
+      const avisoid = await criarAviso(
+        'Você não cadastrou hoje!',
+        'Não esqueça de registrar seus cadastros de hoje. Acesse o app agora!'
+      );
+      await (supabase as any).from('avisos_destinatarios').insert(
+        semCadastro.map(u => ({ aviso_id: avisoid, hierarquia_id: u.id }))
+      );
+      const result = await enviarPush(avisoid, semCadastro.map(u => u.id));
+      toast({ title: `Notificação enviada para ${result.enviados ?? semCadastro.length} pessoa(s)` });
+    } catch (err: any) {
+      toast({ title: 'Erro ao notificar', description: err.message, variant: 'destructive' });
+    } finally {
+      setEnviandoTodos(false);
+    }
+  }
+
+  const tipoAtual = TIPOS_MONITORADOS.find(t => t.val === tipoFiltro);
 
   return (
     <div className="space-y-4 pb-24">
@@ -138,7 +159,7 @@ export default function TabCobranca() {
         </div>
       </div>
 
-      <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-0.5">
+      <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-0.5 scrollbar-hide">
         {TIPOS_MONITORADOS.map(t => (
           <button key={t.val} onClick={() => setTipoFiltro(t.val)}
             className={`shrink-0 px-3 h-8 rounded-full text-[11px] font-semibold transition-all active:scale-95 ${
@@ -151,14 +172,19 @@ export default function TabCobranca() {
 
       <div className="flex gap-2">
         <button onClick={carregar} disabled={loading}
-          className="h-10 px-4 rounded-xl bg-muted border border-border text-xs font-semibold flex items-center gap-1.5 active:scale-95">
+          className="h-10 px-4 rounded-xl bg-muted border border-border text-xs font-semibold flex items-center gap-1.5 active:scale-95 shrink-0">
           <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Atualizar
         </button>
-        <button onClick={notificarTodos} disabled={enviando || semCadastro.length === 0}
+        <button onClick={notificarTodos} disabled={enviandoTodos || semCadastro.length === 0}
           className="flex-1 h-10 rounded-xl gradient-primary text-white text-xs font-semibold flex items-center justify-center gap-1.5 disabled:opacity-50 active:scale-[0.97]">
-          {enviando ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+          {enviandoTodos ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
           Notificar todos ({semCadastro.length})
         </button>
+      </div>
+
+      <div className="flex items-center gap-1.5 px-1 text-[10px] text-muted-foreground">
+        <BellOff size={11} />
+        <span>Somente usuários com push ativado recebem notificação no celular</span>
       </div>
 
       {loading ? (
@@ -167,7 +193,7 @@ export default function TabCobranca() {
         <div className="text-center py-12 text-muted-foreground">
           <AlertCircle size={32} className="mx-auto mb-2 opacity-20" />
           <p className="text-sm font-semibold">Todos cadastraram hoje!</p>
-          <p className="text-xs">Nenhum usuário {TIPOS_MONITORADOS.find(t => t.val === tipoFiltro)?.label} em falta</p>
+          <p className="text-xs">Nenhum usuário {tipoAtual?.label} em falta</p>
         </div>
       ) : (
         <div className="space-y-1.5">
@@ -182,6 +208,14 @@ export default function TabCobranca() {
                   Último cadastro: <span className={u.ultimo_cadastro ? 'text-amber-600' : 'text-red-500'}>{diasDesde(u.ultimo_cadastro)}</span>
                 </p>
               </div>
+              <button
+                onClick={() => notificarUsuario(u)}
+                disabled={enviandoIds.has(u.id)}
+                className="shrink-0 w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center disabled:opacity-50 active:scale-95 transition-all"
+                title={`Notificar ${u.nome}`}
+              >
+                {enviandoIds.has(u.id) ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+              </button>
             </div>
           ))}
         </div>

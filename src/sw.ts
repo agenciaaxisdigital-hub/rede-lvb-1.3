@@ -67,37 +67,49 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
 self.addEventListener('push', (event) => {
-  const fetchAndShow = async () => {
-    try {
-      const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/avisos_app?ativa=eq.true&order=criado_em.desc&limit=1`,
-        { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
-      );
-      const avisos = await res.json();
-      const aviso = avisos?.[0];
+  const show = async () => {
+    let titulo = 'Nova notificação';
+    let corpo = 'Abra o app para ver o aviso.';
+    let avisoid: string | null = null;
 
-      await self.registration.showNotification(
-        aviso?.titulo || 'Nova notificação',
-        {
-          body: aviso?.corpo || '',
-          icon: '/icon-192.png',
-          badge: '/icon-192.png',
-          data: { aviso_id: aviso?.id, url: '/' },
-          vibrate: [200, 100, 200],
-          requireInteraction: false,
-          tag: aviso?.id || 'rede-notif',
+    if (event.data) {
+      try {
+        const payload = event.data.json();
+        titulo = payload.titulo || titulo;
+        corpo = payload.corpo || corpo;
+        avisoid = payload.aviso_id || null;
+
+        // Payload só tem aviso_id → busca o aviso específico (não o mais recente)
+        if (avisoid && (!payload.titulo || !payload.corpo)) {
+          const res = await fetch(
+            `${SUPABASE_URL}/rest/v1/avisos_app?id=eq.${avisoid}&select=titulo,corpo&limit=1`,
+            { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
+          );
+          const [aviso] = await res.json();
+          if (aviso) { titulo = aviso.titulo || titulo; corpo = aviso.corpo || corpo; }
         }
-      );
-    } catch {
-      await self.registration.showNotification('Nova notificação', {
-        body: 'Abra o app para ver o aviso.',
-        icon: '/icon-192.png',
-        badge: '/icon-192.png',
-      });
+      } catch {
+        // usa defaults
+      }
     }
+
+    // Tag por aviso_id evita substituição silenciosa de notificações diferentes.
+    // Sem aviso_id usa timestamp para garantir que cada push apareça como novo.
+    const tag = avisoid ? `aviso-${avisoid}` : `rede-notif-${Date.now()}`;
+
+    await self.registration.showNotification(titulo, {
+      body: corpo,
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      data: { aviso_id: avisoid, url: '/' },
+      vibrate: [200, 100, 200],
+      requireInteraction: false,
+      tag,
+      silent: false,
+    });
   };
 
-  event.waitUntil(fetchAndShow());
+  event.waitUntil(show());
 });
 
 self.addEventListener('notificationclick', (event) => {
