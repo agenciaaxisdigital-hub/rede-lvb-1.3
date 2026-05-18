@@ -1,5 +1,4 @@
- import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
- import { useScrollRestore } from '@/hooks/useScrollRestore';
+import { useState, useMemo, useCallback, useEffect, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCidade } from '@/contexts/CidadeContext';
@@ -7,159 +6,119 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useLiderancas, useEleitores, useUsuarios, useFiscaisAdmin, useRealtimeSync } from '@/hooks/useDataCache';
 import {
-    ArrowLeft, Users, Target, Search, X, Shield,
-    ChevronDown, ChevronUp, Loader2, Download, Trophy,
-    BarChart3, UserCog, Eye, Building2, Plus, MapPin, Calendar, Trash2, ClipboardList,
-    Network, Instagram, Settings
- } from 'lucide-react';
+  Users, Target, Search, Shield, ChevronDown, ChevronUp,
+  Loader2, Download, MapPin, Eye, Building2, Plus, Network,
+  Phone, Mail, FileSpreadsheet, ChevronLeft, ChevronRight,
+} from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { exportAllCadastros, exportCadastrosFiltered } from '@/lib/exportXlsx';
+import { exportCadastrosFiltered } from '@/lib/exportXlsx';
 import SeletorCidade from '@/components/SeletorCidade';
 import SeletorEvento from '@/components/SeletorEvento';
 import GerenciarEventos from '@/components/GerenciarEventos';
-import { lazy, Suspense } from 'react';
 import TabArvore from '@/components/TabArvore';
+import AdminShell from '@/components/admin/AdminShell';
+import AdminStatsStrip from '@/components/admin/AdminStatsStrip';
+import AdminUserPopup from '@/components/admin/AdminUserPopup';
+import {
+  GroupId, ViewId, Periodo, TipoFiltro, TipoUsuarioFiltro,
+  LiderancaReg, EleitorReg, FiscalReg, HierarquiaUsuario,
+  CadastroFernanda, CadastroSocial,
+  tipoFiltroLabels, tipoUsuarioLabels, tipoLabel,
+  groupOfView, defaultViewOf,
+} from '@/components/admin/adminTypes';
 
-  const TabLocalizacoes = lazy(() => import('@/components/TabLocalizacoes'));
-  const AdminCadastrosFernanda = lazy(() => import('@/components/AdminCadastrosFernanda'));
-  const TabCadastrosSocial = lazy(() => import('@/components/TabCadastrosSocial'));
-  const AdminCadastrosAfiliados = lazy(() => import('@/components/AdminCadastrosAfiliados'));
-  const AdminMencoesInstagram = lazy(() => import('@/components/AdminMencoesInstagram'));
-  const AdminInstagramPanel = lazy(() => import('@/components/AdminInstagramPanel'));
+const TabLocalizacoes    = lazy(() => import('@/components/TabLocalizacoes'));
+const AdminCadastrosFernanda = lazy(() => import('@/components/AdminCadastrosFernanda'));
+const TabCadastrosSocial = lazy(() => import('@/components/TabCadastrosSocial'));
+const AdminCadastrosAfiliados = lazy(() => import('@/components/AdminCadastrosAfiliados'));
+const AdminMencoesInstagram   = lazy(() => import('@/components/AdminMencoesInstagram'));
+const AdminInstagramPanel     = lazy(() => import('@/components/AdminInstagramPanel'));
 
+const FallbackLoader = () => (
+  <div className="flex items-center justify-center py-16">
+    <Loader2 size={28} className="animate-spin text-primary" />
+  </div>
+);
 
-/* ── types ── */
-interface Pessoa {
-  nome: string;
-  cpf: string | null;
-  telefone: string | null;
-  whatsapp: string | null;
-  email: string | null;
-  instagram: string | null;
-  facebook: string | null;
-  titulo_eleitor: string | null;
-  zona_eleitoral: string | null;
-  secao_eleitoral: string | null;
-  municipio_eleitoral: string | null;
-  uf_eleitoral: string | null;
-  colegio_eleitoral: string | null;
-  endereco_colegio: string | null;
-}
-
-interface LiderancaReg {
-  id: string; criado_em: string; cadastrado_por: string | null;
-  suplente_id: string | null; status: string | null; regiao_atuacao: string | null;
-  tipo_lideranca: string | null; municipio_id: string | null; origem_captacao: string | null;
-  apoiadores_estimados: number | null; meta_votos: number | null; nivel_comprometimento: string | null;
-  observacoes: string | null;
-  pessoas: Pessoa | null;
-}
-
-interface EleitorReg {
-  id: string; criado_em: string; cadastrado_por: string | null;
-  suplente_id: string | null; compromisso_voto: string | null;
-  municipio_id: string | null; origem_captacao: string | null;
-  observacoes: string | null;
-  pessoas: Pessoa | null;
-}
-
-interface FiscalReg {
-  id: string; criado_em: string; cadastrado_por: string | null;
-  suplente_id: string | null; status: string | null;
-  municipio_id: string | null; origem_captacao: string | null;
-  zona_fiscal: string | null; secao_fiscal: string | null;
-  colegio_eleitoral: string | null; observacoes: string | null;
-  pessoas: Pessoa | null;
-}
-
- interface HierarquiaUsuario {
-   id: string; nome: string; tipo: string;
-   suplente_id: string | null; municipio_id: string | null; ativo: boolean | null;
-   superior_id: string | null; link_token: string | null;
- }
-
-/* ── constants ── */
-type Periodo = 'hoje' | 'semana' | 'mes' | 'total';
-type TipoFiltro = 'todos' | 'lideranca' | 'cabo' | 'eleitor' | 'fiscal';
-type VistaAtiva = 'usuarios' | 'ranking' | 'registros' | 'cidades' | 'localizacao' | 'eventos' | 'fernanda' | 'social' | 'afiliados' | 'arvore' | 'instagram' | 'mencoes';
-type TipoUsuarioFiltro = 'todos' | 'suplente' | 'lideranca' | 'coordenador' | 'fernanda' | 'social';
-
-const periodoLabels: Record<Periodo, string> = { hoje: 'Hoje', semana: 'Semana', mes: 'Mês', total: 'Total' };
-const tipoFiltroLabels: Record<TipoFiltro, string> = { todos: 'Todos', lideranca: 'Lideranças', cabo: 'Cabos', eleitor: 'Eleitores', fiscal: 'Fiscais' };
-const tipoUsuarioLabels: Record<TipoUsuarioFiltro, string> = { todos: 'Todos', suplente: 'Suplentes', lideranca: 'Lideranças', coordenador: 'Coordenadores', fernanda: 'Fernanda', social: 'Social' };
-
-const tipoLabel = (t: string) => {
-  const labels: Record<string, string> = { super_admin: 'Admin', coordenador: 'Coord.', suplente: 'Suplente', lideranca: 'Liderança', fernanda: 'Fernanda', afiliado: 'Afiliado', promotor: 'Promotor', social: 'Social', fiscal: 'Fiscal' };
-  return labels[t] || t;
-};
+const Field = ({ label, value }: { label: string; value: any }) => (
+  <div className="text-[10px] bg-background rounded px-2 py-1">
+    <span className="text-muted-foreground">{label}:</span>{' '}
+    <span className={value ? 'text-foreground' : 'text-muted-foreground/50 italic'}>{value || '—'}</span>
+  </div>
+);
 
 export default function AdminDashboard() {
-  const { isAdmin, tipoUsuario } = useAuth();
+  const { isAdmin } = useAuth();
   const { municipios, isTodasCidades, cidadeAtiva, setCidadeAtiva, nomeMunicipioPorId } = useCidade();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   useRealtimeSync();
 
-  const [_loading, setLoading] = useState(true);
-  const [periodo, setPeriodo] = useState<Periodo>('total');
-  const [tipoFiltro, setTipoFiltro] = useState<TipoFiltro>('todos');
-   const [vistaAtiva, setVistaAtiva] = useState<VistaAtiva>('ranking');
-   const { scrollRef, onScroll } = useScrollRestore(vistaAtiva);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [exporting, setExporting] = useState(false);
-  const [tipoUsuarioFiltro, setTipoUsuarioFiltro] = useState<TipoUsuarioFiltro>('todos');
-  const [rankingTipoUsuario, setRankingTipoUsuario] = useState<TipoUsuarioFiltro>('todos');
-  const [rankingSearch, setRankingSearch] = useState('');
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const queryClient = useQueryClient();
+  /* ── Navigation state ── */
+  const [activeGroup, setActiveGroup] = useState<GroupId>('visao-geral');
+  const [activeView,  setActiveView]  = useState<ViewId>('ranking');
 
+  /* ── Filter / UI state ── */
+  const [periodo,            setPeriodo]            = useState<Periodo>('total');
+  const [tipoFiltro,         setTipoFiltro]         = useState<TipoFiltro>('todos');
+  const [tipoUsuarioFiltro,  setTipoUsuarioFiltro]  = useState<TipoUsuarioFiltro>('todos');
+  const [rankingTipoUsuario, setRankingTipoUsuario] = useState<TipoUsuarioFiltro>('todos');
+  const [searchTerm,         setSearchTerm]         = useState('');
+  const [rankingSearch,      setRankingSearch]      = useState('');
+  const [expandedUser,       setExpandedUser]       = useState<string | null>(null);
+  const [expandedTipo,       setExpandedTipo]       = useState<string | null>(null);
+  const [popupUser,          setPopupUser]          = useState<string | null>(null);
+  const [exporting,          setExporting]          = useState(false);
+  const [deletingId,         setDeletingId]         = useState<string | null>(null);
+  const [registrosPage,      setRegistrosPage]      = useState(0);
+  const REGISTROS_PER_PAGE = 50;
+
+  /* ── Data fetching ── */
   const { data: liderancasData, isLoading: lLoading, refetch: refetchLiderancas } = useLiderancas('all', { ignoreCityFilter: true });
-  const { data: eleitoresData, isLoading: eLoading, refetch: refetchEleitores } = useEleitores('all', { ignoreCityFilter: true });
-  const { data: fiscaisData, isLoading: fLoading, refetch: refetchFiscais } = useFiscaisAdmin({ ignoreCityFilter: true });
-  const { data: usuariosData, isLoading: uLoading } = useUsuarios();
+  const { data: eleitoresData,  isLoading: eLoading, refetch: refetchEleitores  } = useEleitores('all', { ignoreCityFilter: true });
+  const { data: fiscaisData,    isLoading: fLoading, refetch: refetchFiscais    } = useFiscaisAdmin({ ignoreCityFilter: true });
+  const { data: usuariosData,   isLoading: uLoading } = useUsuarios();
 
   const liderancas = (liderancasData || []) as LiderancaReg[];
-  const eleitores = (eleitoresData || []) as EleitorReg[];
-  const fiscais = (fiscaisData || []) as FiscalReg[];
-  const usuarios = (usuariosData || []) as unknown as HierarquiaUsuario[];
-  const loading = lLoading || eLoading || fLoading || uLoading;
+  const eleitores  = (eleitoresData  || []) as EleitorReg[];
+  const fiscais    = (fiscaisData    || []) as FiscalReg[];
+  const usuarios   = (usuariosData   || []) as unknown as HierarquiaUsuario[];
+  const loading    = lLoading || eLoading || fLoading || uLoading;
 
-  // Cadastros Fernanda (tabela isolada – diferente de Lid/Eleit/Fisc)
-  const [cadastrosFernanda, setCadastrosFernanda] = useState<Array<{ id: string; nome: string; telefone: string; cidade: string | null; instagram: string | null; cadastrado_por: string | null; criado_em: string }>>([]);
+  /* ── Cadastros Fernanda (realtime) ── */
+  const [cadastrosFernanda, setCadastrosFernanda] = useState<CadastroFernanda[]>([]);
   useEffect(() => {
     if (!isAdmin) return;
     let active = true;
     const load = () => {
-      (supabase as any).from('cadastros_fernanda').select('*').order('criado_em', { ascending: false }).then(({ data }: any) => {
-        if (active && data) setCadastrosFernanda(data);
-      });
+      (supabase as any).from('cadastros_fernanda').select('*').order('criado_em', { ascending: false })
+        .then(({ data }: any) => { if (active && data) setCadastrosFernanda(data); });
     };
     load();
-    const channel = supabase
-      .channel('admin_cadastros_fernanda_sync')
+    const ch = supabase.channel('adm_fernanda')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'cadastros_fernanda' }, load)
       .subscribe();
-    return () => { active = false; supabase.removeChannel(channel); };
+    return () => { active = false; supabase.removeChannel(ch); };
   }, [isAdmin]);
 
-  const [cadastrosSocial, setCadastrosSocial] = useState<Array<{ id: string; nome: string; whatsapp: string; cpf: string | null; instagram: string | null; nome_mae: string | null; regiao: string | null; cadastrado_por: string | null; criado_em: string }>>([]);
+  /* ── Cadastros Social (realtime) ── */
+  const [cadastrosSocial, setCadastrosSocial] = useState<CadastroSocial[]>([]);
   useEffect(() => {
     if (!isAdmin) return;
     let active = true;
     const load = () => {
-      (supabase as any).from('cadastros_social').select('*').order('criado_em', { ascending: false }).then(({ data }: any) => {
-        if (active && data) setCadastrosSocial(data);
-      });
+      (supabase as any).from('cadastros_social').select('*').order('criado_em', { ascending: false })
+        .then(({ data }: any) => { if (active && data) setCadastrosSocial(data); });
     };
     load();
-    const channel = supabase
-      .channel('admin_cadastros_social_sync')
+    const ch = supabase.channel('adm_social')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'cadastros_social' }, load)
       .subscribe();
-    return () => { active = false; supabase.removeChannel(channel); };
+    return () => { active = false; supabase.removeChannel(ch); };
   }, [isAdmin]);
 
-  // Suplentes map for cargo_disputado tag
+  /* ── Suplentes cargo map ── */
   const [suplentesTags, setSuplentesTags] = useState<Record<string, string>>({});
   useEffect(() => {
     (supabase as any).from('suplentes').select('id, cargo_disputado').then(({ data }: any) => {
@@ -170,20 +129,9 @@ export default function AdminDashboard() {
       }
     });
   }, []);
-  const getCargoTag = (supId: string | null) => supId ? suplentesTags[supId] || null : null;
-  const getUserName = (userId: string | null) => usuarios.find(u => u.id === userId)?.nome || '—';
 
-  const [expandedUser, setExpandedUser] = useState<string | null>(null);
-  const [expandedTipo, setExpandedTipo] = useState<string | null>(null);
-  const [popupUser, setPopupUser] = useState<string | null>(null);
-
-  const filtroMunicipioId = useMemo(() =>
-    isTodasCidades ? null : cidadeAtiva?.id || null
-  , [isTodasCidades, cidadeAtiva]);
-
-  useEffect(() => {
-    if (!isAdmin) { navigate('/'); return; }
-  }, [isAdmin, navigate]);
+  /* ── Auth guard + initial fetch ── */
+  useEffect(() => { if (!isAdmin) navigate('/'); }, [isAdmin, navigate]);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -196,55 +144,58 @@ export default function AdminDashboard() {
     void refetchFiscais();
   }, [isAdmin, queryClient, refetchLiderancas, refetchEleitores, refetchFiscais]);
 
-  /* ── date filters ── */
-  const hoje = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
+  /* ── Helpers ── */
+  const getCargoTag  = (supId: string | null) => supId ? suplentesTags[supId] || null : null;
+  const getUserName  = (userId: string | null) => usuarios.find(u => u.id === userId)?.nome || '—';
+  const filtroMunicipioId = useMemo(
+    () => isTodasCidades ? null : cidadeAtiva?.id || null,
+    [isTodasCidades, cidadeAtiva],
+  );
+
+  /* ── Date filters ── */
+  const hoje       = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
   const inicioSemana = useMemo(() => { const d = new Date(hoje); d.setDate(d.getDate() - d.getDay()); return d; }, [hoje]);
-  const inicioMes = useMemo(() => new Date(hoje.getFullYear(), hoje.getMonth(), 1), [hoje]);
+  const inicioMes    = useMemo(() => new Date(hoje.getFullYear(), hoje.getMonth(), 1), [hoje]);
 
   const dateFilter = useCallback((criado_em: string) => {
     if (periodo === 'total') return true;
-    const dateLimit = periodo === 'hoje' ? hoje : periodo === 'semana' ? inicioSemana : inicioMes;
-    return new Date(criado_em) >= dateLimit;
+    const limit = periodo === 'hoje' ? hoje : periodo === 'semana' ? inicioSemana : inicioMes;
+    return new Date(criado_em) >= limit;
   }, [periodo, hoje, inicioSemana, inicioMes]);
 
-  const filteredL = useMemo(() => liderancas.filter(r => dateFilter(r.criado_em)), [liderancas, dateFilter]);
-  const filteredE = useMemo(() => eleitores.filter(r => dateFilter(r.criado_em)), [eleitores, dateFilter]);
-  const filteredF = useMemo(() => fiscais.filter(r => r.criado_em && dateFilter(r.criado_em)), [fiscais, dateFilter]);
+  const filteredL    = useMemo(() => liderancas.filter(r => dateFilter(r.criado_em)), [liderancas, dateFilter]);
+  const filteredE    = useMemo(() => eleitores.filter(r => dateFilter(r.criado_em)),  [eleitores, dateFilter]);
+  const filteredF    = useMemo(() => fiscais.filter(r => r.criado_em && dateFilter(r.criado_em)), [fiscais, dateFilter]);
   const filteredFern = useMemo(() => cadastrosFernanda.filter(r => dateFilter(r.criado_em)), [cadastrosFernanda, dateFilter]);
-  const filteredSocial = useMemo(() => cadastrosSocial.filter(r => dateFilter(r.criado_em)), [cadastrosSocial, dateFilter]);
+  const filteredSoc  = useMemo(() => cadastrosSocial.filter(r => dateFilter(r.criado_em)),   [cadastrosSocial, dateFilter]);
 
   const totais = useMemo(() => {
     const l = filteredL.filter(r => r.tipo_lideranca !== 'Cabo Eleitoral').length;
     const c = filteredL.filter(r => r.tipo_lideranca === 'Cabo Eleitoral').length;
-    return {
-      l, c, e: filteredE.length, f: filteredF.length,
-      total: l + c + filteredE.length + filteredF.length,
-    };
+    return { l, c, e: filteredE.length, f: filteredF.length, total: l + c + filteredE.length + filteredF.length };
   }, [filteredL, filteredE, filteredF]);
 
-  /* ── Ranking (inclui TODOS os usuários, mesmo com 0 cadastros) ── */
+  /* ── Ranking ── */
   const rankingUsuarios = useMemo(() => {
-    const map: Record<string, { l: number; c: number; e: number; f: number; fern: number; soc: number }> = {};
-    usuarios.filter(u => u.tipo !== 'super_admin').forEach(u => {
-      map[u.id] = { l: 0, c: 0, e: 0, f: 0, fern: 0, soc: 0 };
-    });
+    const map: Record<string, { l:number; c:number; e:number; f:number; fern:number; soc:number }> = {};
+    usuarios.filter(u => u.tipo !== 'super_admin').forEach(u => { map[u.id] = { l:0, c:0, e:0, f:0, fern:0, soc:0 }; });
     filteredL.forEach(r => {
       if (!r.cadastrado_por || !map[r.cadastrado_por]) return;
       if (r.tipo_lideranca === 'Cabo Eleitoral') map[r.cadastrado_por].c++;
       else map[r.cadastrado_por].l++;
     });
-    filteredE.forEach(r => { if (!r.cadastrado_por || !map[r.cadastrado_por]) return; map[r.cadastrado_por].e++; });
-    filteredF.forEach(r => { if (!r.cadastrado_por || !map[r.cadastrado_por]) return; map[r.cadastrado_por].f++; });
-    filteredFern.forEach(r => { if (!r.cadastrado_por || !map[r.cadastrado_por]) return; map[r.cadastrado_por].fern++; });
-    filteredSocial.forEach(r => { if (!r.cadastrado_por || !map[r.cadastrado_por]) return; map[r.cadastrado_por].soc++; });
+    filteredE.forEach(r => { if (r.cadastrado_por && map[r.cadastrado_por]) map[r.cadastrado_por].e++; });
+    filteredF.forEach(r => { if (r.cadastrado_por && map[r.cadastrado_por]) map[r.cadastrado_por].f++; });
+    filteredFern.forEach(r => { if (r.cadastrado_por && map[r.cadastrado_por]) map[r.cadastrado_por].fern++; });
+    filteredSoc.forEach(r => { if (r.cadastrado_por && map[r.cadastrado_por]) map[r.cadastrado_por].soc++; });
     return Object.entries(map)
-      .map(([id, stats]) => {
+      .map(([id, s]) => {
         const u = usuarios.find(u => u.id === id);
-         return { id, nome: u?.nome || 'Desconhecido', tipo: u?.tipo || '—', municipio_id: u?.municipio_id || null, suplente_id: u?.suplente_id || null, superior_id: u?.superior_id || null, total: stats.l + stats.c + stats.e + stats.f + stats.fern + stats.soc, ...stats };
+        return { id, nome: u?.nome || 'Desconhecido', tipo: u?.tipo || '—', municipio_id: u?.municipio_id || null, suplente_id: u?.suplente_id || null, superior_id: u?.superior_id || null, total: s.l+s.c+s.e+s.f+s.fern+s.soc, ...s };
       })
       .filter(u => u.total > 0)
       .sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome));
-  }, [filteredL, filteredE, filteredF, filteredFern, filteredSocial, usuarios]);
+  }, [filteredL, filteredE, filteredF, filteredFern, filteredSoc, usuarios]);
 
   /* ── Users list ── */
   const filteredUsers = useMemo(() => {
@@ -256,49 +207,67 @@ export default function AdminDashboard() {
     }
     if (filtroMunicipioId) {
       list = list.sort((a, b) => {
-        const aMatch = a.municipio_id === filtroMunicipioId ? 0 : 1;
-        const bMatch = b.municipio_id === filtroMunicipioId ? 0 : 1;
-        return aMatch - bMatch || a.nome.localeCompare(b.nome);
+        const aM = a.municipio_id === filtroMunicipioId ? 0 : 1;
+        const bM = b.municipio_id === filtroMunicipioId ? 0 : 1;
+        return aM - bM || a.nome.localeCompare(b.nome);
       });
     }
     return list;
-  }, [usuarios, tipoUsuarioFiltro, filtroMunicipioId, searchTerm]);
+  }, [usuarios, tipoUsuarioFiltro, filtroMunicipioId, searchTerm, suplentesTags]);
 
   /* ── Registros list ── */
   const allRegistros = useMemo(() => {
-   let result: { tipo: string; pessoa: Pessoa | null; criado_em: string; cadastrado_por: string | null; suplente_id: string | null; suplente_nome?: string | null; lideranca_nome?: string | null; extra: string }[] = [];
+    let result: { tipo: string; pessoa: any; criado_em: string; cadastrado_por: string | null; suplente_id: string | null; suplente_nome?: string | null; lideranca_nome?: string | null; extra: string }[] = [];
     if (tipoFiltro === 'todos' || tipoFiltro === 'lideranca' || tipoFiltro === 'cabo')
-     filteredL.forEach(r => {
-       const isCabo = r.tipo_lideranca === 'Cabo Eleitoral';
-       if (tipoFiltro === 'lideranca' && isCabo) return;
-       if (tipoFiltro === 'cabo' && !isCabo) return;
-       result.push({
-         tipo: isCabo ? 'cabo' : 'lideranca',
-         pessoa: r.pessoas,
-         criado_em: r.criado_em,
-         cadastrado_por: r.cadastrado_por,
-         suplente_id: r.suplente_id,
-         suplente_nome: (r as any).suplentes?.nome,
-         extra: r.status || ''
-       });
-     });
+      filteredL.forEach(r => {
+        const isCabo = r.tipo_lideranca === 'Cabo Eleitoral';
+        if (tipoFiltro === 'lideranca' && isCabo) return;
+        if (tipoFiltro === 'cabo' && !isCabo) return;
+        result.push({ tipo: isCabo ? 'cabo' : 'lideranca', pessoa: r.pessoas, criado_em: r.criado_em, cadastrado_por: r.cadastrado_por, suplente_id: r.suplente_id, suplente_nome: (r as any).suplentes?.nome, extra: r.status || '' });
+      });
     if (tipoFiltro === 'todos' || tipoFiltro === 'eleitor')
-     filteredE.forEach(r => result.push({ tipo: 'eleitor', pessoa: r.pessoas, criado_em: r.criado_em, cadastrado_por: r.cadastrado_por, suplente_id: r.suplente_id, suplente_nome: (r as any).suplentes?.nome, lideranca_nome: (r as any).liderancas?.pessoas?.nome, extra: r.compromisso_voto || '' }));
+      filteredE.forEach(r => result.push({ tipo: 'eleitor', pessoa: r.pessoas, criado_em: r.criado_em, cadastrado_por: r.cadastrado_por, suplente_id: r.suplente_id, suplente_nome: (r as any).suplentes?.nome, lideranca_nome: (r as any).liderancas?.pessoas?.nome, extra: r.compromisso_voto || '' }));
     if (tipoFiltro === 'todos' || tipoFiltro === 'fiscal')
-     filteredF.forEach(r => result.push({ tipo: 'fiscal', pessoa: r.pessoas, criado_em: r.criado_em || '', cadastrado_por: r.cadastrado_por, suplente_id: r.suplente_id, suplente_nome: (r as any).suplentes?.nome, lideranca_nome: (r as any).liderancas?.pessoas?.nome, extra: r.status || '' }));
+      filteredF.forEach(r => result.push({ tipo: 'fiscal', pessoa: r.pessoas, criado_em: r.criado_em || '', cadastrado_por: r.cadastrado_por, suplente_id: r.suplente_id, suplente_nome: (r as any).suplentes?.nome, lideranca_nome: (r as any).liderancas?.pessoas?.nome, extra: r.status || '' }));
     if (searchTerm) {
       const s = searchTerm.toLowerCase();
       result = result.filter(r =>
         r.pessoa?.nome?.toLowerCase().includes(s) ||
         r.pessoa?.cpf?.includes(s) ||
         (getCargoTag(r.suplente_id) || '').toLowerCase().includes(s) ||
-        getUserName(r.cadastrado_por).toLowerCase().includes(s)
+        getUserName(r.cadastrado_por).toLowerCase().includes(s),
       );
     }
     return result.sort((a, b) => new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime());
   }, [filteredL, filteredE, filteredF, tipoFiltro, searchTerm, suplentesTags, usuarios]);
-  const getMedalEmoji = (i: number) => i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}º`;
 
+  /* ── User expanded data ── */
+  const userCadastros = useMemo(() => {
+    if (!expandedUser) return null;
+    return {
+      liderancas: filteredL.filter(r => r.cadastrado_por === expandedUser && r.tipo_lideranca !== 'Cabo Eleitoral'),
+      cabos:      filteredL.filter(r => r.cadastrado_por === expandedUser && r.tipo_lideranca === 'Cabo Eleitoral'),
+      eleitores:  filteredE.filter(r => r.cadastrado_por === expandedUser),
+      fiscais:    filteredF.filter(r => r.cadastrado_por === expandedUser),
+    };
+  }, [expandedUser, filteredL, filteredE, filteredF]);
+
+  /* ── Popup data ── */
+  const popupUserData = useMemo(() => {
+    if (!popupUser) return null;
+    return {
+      usuario:    usuarios.find(u => u.id === popupUser),
+      liderancas: filteredL.filter(r => r.cadastrado_por === popupUser && r.tipo_lideranca !== 'Cabo Eleitoral' && r.tipo_lideranca !== 'Promotor'),
+      cabos:      filteredL.filter(r => r.cadastrado_por === popupUser && r.tipo_lideranca === 'Cabo Eleitoral'),
+      promotores: filteredL.filter(r => r.cadastrado_por === popupUser && r.tipo_lideranca === 'Promotor'),
+      eleitores:  filteredE.filter(r => r.cadastrado_por === popupUser),
+      fiscais:    filteredF.filter(r => r.cadastrado_por === popupUser),
+      fernanda:   cadastrosFernanda.filter(r => r.cadastrado_por === popupUser),
+      social:     cadastrosSocial.filter(r => r.cadastrado_por === popupUser),
+    };
+  }, [popupUser, filteredL, filteredE, filteredF, cadastrosFernanda, cadastrosSocial, usuarios]);
+
+  /* ── Handlers ── */
   const handleExport = async (tipo?: 'lideranca' | 'eleitor' | 'fiscal', cadastradoPorId?: string, cadastradoPorNome?: string) => {
     setExporting(true);
     try {
@@ -308,33 +277,6 @@ export default function AdminDashboard() {
       toast({ title: 'Erro ao exportar', description: err.message, variant: 'destructive' });
     } finally { setExporting(false); }
   };
-
-  /* ── User expanded data ── */
-  const userCadastros = useMemo(() => {
-    if (!expandedUser) return null;
-    return {
-      liderancas: filteredL.filter(r => r.cadastrado_por === expandedUser && r.tipo_lideranca !== 'Cabo Eleitoral'),
-      cabos: filteredL.filter(r => r.cadastrado_por === expandedUser && r.tipo_lideranca === 'Cabo Eleitoral'),
-      eleitores: filteredE.filter(r => r.cadastrado_por === expandedUser),
-      fiscais: filteredF.filter(r => r.cadastrado_por === expandedUser),
-    };
-  }, [expandedUser, filteredL, filteredE, filteredF]);
-
-  /* ── Popup user data ── */
-  const popupUserData = useMemo(() => {
-    if (!popupUser) return null;
-    const u = usuarios.find(u => u.id === popupUser);
-    return {
-      usuario: u,
-      liderancas: filteredL.filter(r => r.cadastrado_por === popupUser && r.tipo_lideranca !== 'Cabo Eleitoral' && r.tipo_lideranca !== 'Promotor'),
-      cabos: filteredL.filter(r => r.cadastrado_por === popupUser && r.tipo_lideranca === 'Cabo Eleitoral'),
-      promotores: filteredL.filter(r => r.cadastrado_por === popupUser && r.tipo_lideranca === 'Promotor'),
-      eleitores: filteredE.filter(r => r.cadastrado_por === popupUser),
-      fiscais: filteredF.filter(r => r.cadastrado_por === popupUser),
-      fernanda: cadastrosFernanda.filter(r => r.cadastrado_por === popupUser),
-      social: cadastrosSocial.filter(r => r.cadastrado_por === popupUser),
-    };
-  }, [popupUser, filteredL, filteredE, filteredF, cadastrosFernanda, cadastrosSocial, usuarios]);
 
   const handleDeleteCadastro = async (id: string, tipo: 'lideranca' | 'eleitor' | 'fiscal') => {
     if (!window.confirm('Tem certeza que deseja apagar este cadastro?')) return;
@@ -352,280 +294,51 @@ export default function AdminDashboard() {
     } finally { setDeletingId(null); }
   };
 
-  const vistaLabels: { id: VistaAtiva; icon: any; label: string }[] = [
-      { id: 'ranking', icon: Trophy, label: 'Ranking' },
-      { id: 'arvore', icon: Network, label: 'Árvore' },
-     { id: 'localizacao', icon: MapPin, label: 'Localização' },
-     { id: 'usuarios', icon: UserCog, label: 'Usuários' },
-     { id: 'registros', icon: Eye, label: 'Registros' },
-     { id: 'eventos', icon: Calendar, label: 'Eventos' },
-     { id: 'fernanda', icon: ClipboardList, label: 'Fernanda' },
-     { id: 'social', icon: Users, label: 'Social' },
-     { id: 'afiliados', icon: Users, label: 'Afiliados' },
-     { id: 'instagram', icon: Instagram, label: 'Instagram' },
-     { id: 'mencoes', icon: Instagram, label: 'Menções' },
-     ...(municipios.length > 1 ? [{ id: 'cidades' as VistaAtiva, icon: Building2, label: 'Cidades' }] : []),
-   ];
+  const resetFilters = () => {
+    setSearchTerm(''); setRankingSearch(''); setExpandedUser(null);
+    setExpandedTipo(null); setTipoFiltro('todos'); setRankingTipoUsuario('todos');
+  };
 
-  if (loading) {
-    return (
-      <div className="h-full bg-background flex items-center justify-center">
-        <Loader2 size={28} className="animate-spin text-primary" />
-      </div>
-    );
-  }
+  const handleGroupChange = (g: GroupId) => { setActiveGroup(g); setActiveView(defaultViewOf(g)); resetFilters(); };
+  const handleViewChange  = (v: ViewId)  => { setActiveView(v); resetFilters(); };
+  const navigateTo        = (v: ViewId)  => { setActiveGroup(groupOfView(v)); setActiveView(v); resetFilters(); };
 
-   return (
-     <div 
-       ref={scrollRef} 
-       onScroll={onScroll}
-       className="h-full bg-background overflow-y-auto overscroll-contain pb-8"
-     >
-      <div className="h-[1.5px] gradient-header" />
+  /* ── Loading ── */
+  if (loading) return (
+    <div className="h-full bg-background flex items-center justify-center">
+      <Loader2 size={28} className="animate-spin text-primary" />
+    </div>
+  );
 
-      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-xl border-b border-border">
-        <div className="max-w-3xl mx-auto px-4 pt-3 pb-2 flex items-center gap-2">
-          <button onClick={() => navigate('/')} className="p-1.5 rounded-xl hover:bg-muted active:scale-95 transition-all shrink-0">
-            <ArrowLeft size={20} className="text-foreground" />
-          </button>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-base font-bold text-foreground leading-tight">Painel Admin</h1>
-            <p className="text-[10px] text-muted-foreground">Visão completa da rede</p>
-          </div>
-          <button onClick={() => navigate('/gestao')}
-            className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-primary/10 text-primary text-xs font-semibold active:scale-95 transition-all">
-            <Settings size={12} /> Gestão
-          </button>
-        </div>
+  return (
+    <AdminShell
+      activeGroup={activeGroup}
+      activeView={activeView}
+      onGroupChange={handleGroupChange}
+      onViewChange={handleViewChange}
+    >
+      {/* Estatísticas globais + período */}
+      <AdminStatsStrip totais={totais} periodo={periodo} onPeriodoChange={setPeriodo} variant="full" />
 
-        {/* Stats breakdown — 4 cards sempre visíveis */}
-        <div className="max-w-3xl mx-auto px-4 pb-2">
-          <div className="grid grid-cols-4 gap-1.5">
-            {[
-              { label: 'Lideranças', value: totais.l, color: 'text-primary bg-primary/8' },
-              { label: 'Cabos', value: totais.c, color: 'text-pink-600 bg-pink-500/8' },
-              { label: 'Eleitores', value: totais.e, color: 'text-emerald-600 bg-emerald-500/8' },
-              { label: 'Fiscais', value: totais.f, color: 'text-amber-600 bg-amber-500/8' },
-            ].map(({ label, value, color }) => (
-              <div key={label} className={`rounded-xl py-2 px-1 text-center ${color}`}>
-                <p className="text-lg font-black leading-none">{value}</p>
-                <p className="text-[9px] font-semibold mt-0.5 leading-tight">{label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Seletores de contexto */}
+      {municipios.length > 1 && <SeletorCidade />}
+      <SeletorEvento />
 
-        {/* Período */}
-        <div className="max-w-3xl mx-auto px-4 pb-1">
-          <div className="flex gap-1">
-            {(Object.keys(periodoLabels) as Periodo[]).map(p => (
-              <button key={p} onClick={() => setPeriodo(p)}
-                className={`flex-1 py-1.5 rounded-lg text-[11px] font-semibold transition-all active:scale-95 ${
-                  periodo === p ? 'gradient-primary text-white shadow-sm' : 'bg-muted text-muted-foreground'
-                }`}>{periodoLabels[p]}</button>
-            ))}
-          </div>
-        </div>
+      {/* ══════════ RANKING ══════════ */}
+      {activeView === 'ranking' && (() => {
+        let filtered = rankingUsuarios;
+        if (rankingTipoUsuario !== 'todos') filtered = filtered.filter(u => u.tipo === rankingTipoUsuario);
+        if (tipoFiltro === 'lideranca') filtered = filtered.filter(u => u.l > 0);
+        else if (tipoFiltro === 'cabo')   filtered = filtered.filter(u => u.c > 0);
+        else if (tipoFiltro === 'eleitor') filtered = filtered.filter(u => u.e > 0);
+        else if (tipoFiltro === 'fiscal')  filtered = filtered.filter(u => u.f > 0);
+        if (rankingSearch) {
+          const s = rankingSearch.toLowerCase();
+          filtered = filtered.filter(u => u.nome.toLowerCase().includes(s) || (getCargoTag(u.suplente_id) || '').toLowerCase().includes(s));
+        }
+        const maxTotal = filtered.length > 0 ? Math.max(...filtered.map(u => u.total), 1) : 1;
 
-        {/* Seletores */}
-        {municipios.length > 1 && (
-          <div className="max-w-3xl mx-auto px-4 pb-1">
-            <SeletorCidade />
-          </div>
-        )}
-        <div className="max-w-3xl mx-auto px-4 pb-2">
-          <SeletorEvento />
-        </div>
-
-        {/* Navegação de seções — grid wrap para caber tudo */}
-        <div className="max-w-3xl mx-auto px-4 pb-2 flex flex-wrap gap-1.5">
-          {vistaLabels.map(({ id, icon: Icon, label }) => (
-            <button key={id}
-              onClick={() => { setVistaAtiva(id); setSearchTerm(''); setRankingSearch(''); setExpandedUser(null); setTipoFiltro('todos'); setRankingTipoUsuario('todos'); }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all active:scale-95 ${
-                vistaAtiva === id ? 'gradient-primary text-white shadow-sm' : 'bg-muted/70 text-muted-foreground border border-border/50'
-              }`}>
-              <Icon size={12} /> {label}
-            </button>
-          ))}
-        </div>
-      </header>
-
-      <div className="max-w-3xl mx-auto px-4 py-4 space-y-4">
-
-        {/* ══════════ USUÁRIOS ══════════ */}
-        {vistaAtiva === 'usuarios' && (
-          <div className="space-y-3">
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input type="text" placeholder="Buscar usuário..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                className="w-full h-10 pl-9 pr-4 rounded-xl bg-muted border border-border text-sm text-foreground placeholder:text-muted-foreground" />
-            </div>
-
-            {/* Type filter */}
-            <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
-              {(Object.keys(tipoUsuarioLabels) as TipoUsuarioFiltro[]).map(t => (
-                <button key={t} onClick={() => setTipoUsuarioFiltro(t)}
-                  className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all active:scale-95 ${
-                    tipoUsuarioFiltro === t ? 'gradient-primary text-white' : 'bg-muted text-muted-foreground'
-                  }`}>{tipoUsuarioLabels[t]}</button>
-              ))}
-            </div>
-
-            <p className="text-xs text-muted-foreground">{filteredUsers.length} usuário{filteredUsers.length !== 1 ? 's' : ''}</p>
-
-            {filteredUsers.map(u => {
-              const uL = filteredL.filter(r => r.cadastrado_por === u.id && r.tipo_lideranca !== 'Cabo Eleitoral');
-              const uC = filteredL.filter(r => r.cadastrado_por === u.id && r.tipo_lideranca === 'Cabo Eleitoral');
-              const uE = filteredE.filter(r => r.cadastrado_por === u.id);
-              const uF = filteredF.filter(r => r.cadastrado_por === u.id);
-              const total = uL.length + uC.length + uE.length + uF.length;
-              const isExpanded = expandedUser === u.id;
-              const cityName = nomeMunicipioPorId(u.municipio_id);
-
-              return (
-                <div key={u.id} className="section-card !p-0 overflow-hidden">
-                  <button
-                    onClick={() => { setExpandedUser(isExpanded ? null : u.id); setExpandedTipo(null); }}
-                    className="w-full text-left p-3 flex items-center gap-3 active:bg-muted/50 transition-all"
-                  >
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                      <span className="text-sm font-bold text-primary">{u.nome.charAt(0)}</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-foreground truncate">{u.nome}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium bg-primary/10 text-primary">{tipoLabel(u.tipo)}</span>
-                        {getCargoTag(u.suplente_id) && (
-                          <span className="text-[8px] px-1.5 py-0.5 rounded-md bg-accent/50 text-accent-foreground font-medium">{getCargoTag(u.suplente_id)}</span>
-                        )}
-                        {cityName && (
-                          <span className="text-[9px] text-muted-foreground flex items-center gap-0.5">
-                            <MapPin size={8} />{cityName}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-lg font-bold text-primary">{total}</p>
-                      <p className="text-[8px] text-muted-foreground">cadastros</p>
-                    </div>
-                    {isExpanded ? <ChevronUp size={14} className="text-muted-foreground shrink-0" /> : <ChevronDown size={14} className="text-muted-foreground shrink-0" />}
-                  </button>
-
-                  {isExpanded && userCadastros && (
-                    <div className="border-t border-border px-3 pb-3 pt-2 space-y-2">
-                      <div className="grid grid-cols-2 gap-2">
-                        {[
-                          { key: 'lideranca', label: 'Lideranças', count: userCadastros.liderancas.length, icon: Users },
-                          { key: 'cabo', label: 'Cabos', count: userCadastros.cabos.length, icon: Users },
-                          { key: 'eleitor', label: 'Eleitores', count: userCadastros.eleitores.length, icon: Target },
-                          { key: 'fiscal', label: 'Fiscais', count: userCadastros.fiscais.length, icon: Shield },
-                        ].map(({ key, label, count, icon: Icon }) => (
-                          <button key={key}
-                            onClick={() => setExpandedTipo(expandedTipo === key ? null : key)}
-                            className={`flex flex-col items-center gap-1 p-2 rounded-xl border transition-all active:scale-95 ${
-                              expandedTipo === key ? 'border-primary bg-primary/5' : 'border-border bg-card'
-                            }`}
-                          >
-                            <Icon size={14} className={expandedTipo === key ? 'text-primary' : 'text-muted-foreground'} />
-                            <span className="text-lg font-bold text-foreground">{count}</span>
-                            <span className="text-[9px] text-muted-foreground">{label}</span>
-                          </button>
-                        ))}
-                      </div>
-
-                      {expandedTipo && (
-                        <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
-                          {(() => {
-                            const records = expandedTipo === 'lideranca' ? userCadastros.liderancas
-                              : expandedTipo === 'cabo' ? userCadastros.cabos
-                              : expandedTipo === 'fiscal' ? userCadastros.fiscais
-                              : userCadastros.eleitores;
-                            if (records.length === 0) return <p className="text-xs text-muted-foreground text-center py-4">Nenhum registro</p>;
-                            return records.map((r: any) => {
-                              const p = r.pessoas || {};
-                              const Field = ({ label, value }: { label: string; value: any }) => (
-                                <div className="text-[10px] bg-background rounded px-2 py-1">
-                                  <span className="text-muted-foreground">{label}:</span>{' '}
-                                  <span className={value ? 'text-foreground' : 'text-muted-foreground/50 italic'}>{value || '—'}</span>
-                                </div>
-                              );
-                              return (
-                              <div key={r.id} className="p-3 rounded-xl bg-muted/50 border border-border/50 space-y-2">
-                                <div className="flex items-start justify-between">
-                                   <div className="flex items-center gap-2">
-                                    <p className="text-sm font-semibold text-foreground">{p.nome || '—'}</p>
-                                   </div>
-                                  <span className="text-[10px] text-muted-foreground shrink-0">{new Date(r.criado_em).toLocaleDateString('pt-BR')}</span>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-1">
-                                  <Field label="CPF" value={p.cpf} />
-                                  <Field label="WhatsApp" value={p.whatsapp} />
-                                  <Field label="E-mail" value={p.email} />
-                                  <Field label="Instagram" value={p.instagram || p.facebook} />
-                                </div>
-
-                                {(expandedTipo === 'lideranca' || expandedTipo === 'cabo') && (
-                                  <div className="grid grid-cols-2 gap-1">
-                                    <Field label="Região" value={r.regiao_atuacao} />
-                                    <Field label="Comprometimento" value={r.nivel_comprometimento} />
-                                    <Field label="Apoiadores" value={r.apoiadores_estimados} />
-                                    <Field label="Meta votos" value={r.meta_votos} />
-                                  </div>
-                                )}
-                                {expandedTipo === 'eleitor' && (
-                                  <div className="grid grid-cols-2 gap-1">
-                                    <Field label="Compromisso" value={r.compromisso_voto} />
-                                  </div>
-                                )}
-
-                                {r.observacoes && <Field label="Observações" value={r.observacoes} />}
-                              </div>
-                            );});
-                          })()}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-
-            <button onClick={() => handleExport()} disabled={exporting}
-              className="w-full h-10 flex items-center justify-center gap-2 bg-card border border-border rounded-xl text-sm font-medium text-foreground active:scale-[0.97] transition-all disabled:opacity-50">
-              {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-              Exportar Todos (Excel)
-            </button>
-          </div>
-        )}
-
-        {vistaAtiva === 'arvore' && (
-          <TabArvore 
-            usuarios={usuarios} 
-            liderancas={liderancas} 
-            eleitores={eleitores} 
-            fiscais={fiscais} 
-          />
-        )}
-
-        {/* ══════════ RANKING ══════════ */}
-        {vistaAtiva === 'ranking' && (() => {
-          let filtered = rankingUsuarios;
-          if (rankingTipoUsuario !== 'todos') filtered = filtered.filter(u => u.tipo === rankingTipoUsuario);
-          if (tipoFiltro === 'lideranca') filtered = filtered.filter(u => u.l > 0);
-          else if (tipoFiltro === 'cabo') filtered = filtered.filter(u => u.c > 0);
-          else if (tipoFiltro === 'eleitor') filtered = filtered.filter(u => u.e > 0);
-          else if (tipoFiltro === 'fiscal') filtered = filtered.filter(u => u.f > 0);
-
-          if (rankingSearch) {
-            const s = rankingSearch.toLowerCase();
-            filtered = filtered.filter(u => u.nome.toLowerCase().includes(s) || (getCargoTag(u.suplente_id) || '').toLowerCase().includes(s));
-          }
-          const maxTotal = filtered.length > 0 ? Math.max(...filtered.map(u => u.total), 1) : 1;
-
-          return (
+        return (
           <div className="space-y-3">
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -636,18 +349,18 @@ export default function AdminDashboard() {
             <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
               {(Object.keys(tipoUsuarioLabels) as TipoUsuarioFiltro[]).map(t => (
                 <button key={t} onClick={() => setRankingTipoUsuario(t)}
-                  className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all active:scale-95 ${
-                    rankingTipoUsuario === t ? 'gradient-primary text-white' : 'bg-muted text-muted-foreground'
-                  }`}>{tipoUsuarioLabels[t]}</button>
+                  className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all active:scale-95 ${rankingTipoUsuario === t ? 'gradient-primary text-white' : 'bg-muted text-muted-foreground'}`}>
+                  {tipoUsuarioLabels[t]}
+                </button>
               ))}
             </div>
 
             <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
               {(Object.keys(tipoFiltroLabels) as TipoFiltro[]).map(t => (
                 <button key={t} onClick={() => setTipoFiltro(t)}
-                  className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all active:scale-95 ${
-                    tipoFiltro === t ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground'
-                  }`}>{tipoFiltroLabels[t]}</button>
+                  className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all active:scale-95 ${tipoFiltro === t ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground'}`}>
+                  {tipoFiltroLabels[t]}
+                </button>
               ))}
             </div>
 
@@ -655,19 +368,19 @@ export default function AdminDashboard() {
               <p className="text-sm text-muted-foreground text-center py-6">Nenhum usuário encontrado</p>
             ) : (
               <div className="space-y-2">
+                {/* Top 3 destaque */}
                 {!rankingSearch && rankingTipoUsuario === 'todos' && tipoFiltro === 'todos' && filtered.length >= 3 && (
                   <div className="space-y-2 mb-3">
                     {filtered.slice(0, 3).map((u, i) => {
                       const styles = [
                         { gradient: 'from-yellow-500/20 via-amber-400/10 to-transparent', border: 'border-yellow-400/40', medal: '🥇', numColor: 'text-yellow-600' },
-                        { gradient: 'from-slate-400/15 via-gray-300/10 to-transparent', border: 'border-slate-300/40', medal: '🥈', numColor: 'text-slate-500' },
-                        { gradient: 'from-amber-700/15 via-orange-400/10 to-transparent', border: 'border-amber-600/30', medal: '🥉', numColor: 'text-amber-700' },
+                        { gradient: 'from-slate-400/15 via-gray-300/10 to-transparent',   border: 'border-slate-300/40',  medal: '🥈', numColor: 'text-slate-500' },
+                        { gradient: 'from-amber-700/15 via-orange-400/10 to-transparent', border: 'border-amber-600/30',  medal: '🥉', numColor: 'text-amber-700' },
                       ];
                       const s = styles[i];
                       return (
                         <div key={u.id} onClick={() => setPopupUser(u.id)}
-                          className={`relative flex items-center gap-3 p-3 rounded-xl border ${s.border} bg-gradient-to-r ${s.gradient} cursor-pointer hover:shadow-md transition-all active:scale-[0.98]`}
-                        >
+                          className={`relative flex items-center gap-3 p-3 rounded-xl border ${s.border} bg-gradient-to-r ${s.gradient} cursor-pointer hover:shadow-md transition-all active:scale-[0.98]`}>
                           <span className="text-lg shrink-0">{s.medal}</span>
                           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                             <span className="text-sm font-bold text-primary">{u.nome.charAt(0)}</span>
@@ -675,12 +388,12 @@ export default function AdminDashboard() {
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-bold text-foreground truncate">{u.nome}</p>
                             <div className="flex items-center gap-1.5 mt-0.5">
-                               <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-primary/10 text-primary font-medium">{tipoLabel(u.tipo)}</span>
-                               {u.superior_id && (
-                                 <span className="text-[8px] px-1.5 py-0.5 rounded-md bg-green-500/10 text-green-600 font-bold uppercase tracking-wider flex items-center gap-0.5" title={`Vinculado a ${getUserName(u.superior_id)}`}>
-                                   <Network size={8} /> {getUserName(u.superior_id)}
-                                 </span>
-                               )}
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-primary/10 text-primary font-medium">{tipoLabel(u.tipo)}</span>
+                              {u.superior_id && (
+                                <span className="text-[8px] px-1.5 py-0.5 rounded-md bg-green-500/10 text-green-600 font-bold uppercase tracking-wider flex items-center gap-0.5">
+                                  <Network size={8} /> {getUserName(u.superior_id)}
+                                </span>
+                              )}
                               <div className="flex gap-1">
                                 {u.l > 0 && <span className="text-[8px] font-semibold text-primary/70">Lid. {u.l}</span>}
                                 {u.c > 0 && <span className="text-[8px] font-semibold text-pink-600/70">Cabos {u.c}</span>}
@@ -696,29 +409,25 @@ export default function AdminDashboard() {
                   </div>
                 )}
 
+                {/* Restante do ranking */}
                 {filtered.slice((!rankingSearch && rankingTipoUsuario === 'todos' && tipoFiltro === 'todos' && filtered.length >= 3) ? 3 : 0).map((u, i) => {
                   const pos = (!rankingSearch && rankingTipoUsuario === 'todos' && tipoFiltro === 'todos' && filtered.length >= 3) ? i + 3 : i;
                   const pct = maxTotal > 0 ? Math.round((u.total / maxTotal) * 100) : 0;
                   const isExpanded = expandedUser === u.id;
                   const uLiderancas = filteredL.filter(r => r.cadastrado_por === u.id && r.tipo_lideranca !== 'Cabo Eleitoral');
-                  const uCabos = filteredL.filter(r => r.cadastrado_por === u.id && r.tipo_lideranca === 'Cabo Eleitoral');
-                  const uEleitores = filteredE.filter(r => r.cadastrado_por === u.id);
-                  const uFiscais = filteredF.filter(r => r.cadastrado_por === u.id);
-                  const uFernanda = filteredFern.filter(r => r.cadastrado_por === u.id);
-                  const uSocial = filteredSocial.filter(r => r.cadastrado_por === u.id);
-                  const isFernanda = u.tipo === 'fernanda';
-                  const isSocial = u.tipo === 'social';
+                  const uCabos      = filteredL.filter(r => r.cadastrado_por === u.id && r.tipo_lideranca === 'Cabo Eleitoral');
+                  const uEleitores  = filteredE.filter(r => r.cadastrado_por === u.id);
+                  const uFiscais    = filteredF.filter(r => r.cadastrado_por === u.id);
+                  const uFernanda   = filteredFern.filter(r => r.cadastrado_por === u.id);
+                  const uSocial     = filteredSoc.filter(r => r.cadastrado_por === u.id);
+                  const isFernanda  = u.tipo === 'fernanda';
+                  const isSocial    = u.tipo === 'social';
 
                   return (
                     <div key={u.id} className="section-card !p-0 overflow-hidden">
-                      <button
-                        onClick={() => { setExpandedUser(isExpanded ? null : u.id); setExpandedTipo(null); }}
-                        className="w-full text-left relative overflow-hidden"
-                      >
-                        <div
-                          className="absolute inset-y-0 left-0 bg-primary/[0.06] transition-all duration-500"
-                          style={{ width: `${pct}%` }}
-                        />
+                      <button onClick={() => { setExpandedUser(isExpanded ? null : u.id); setExpandedTipo(null); }}
+                        className="w-full text-left relative overflow-hidden">
+                        <div className="absolute inset-y-0 left-0 bg-primary/[0.06] transition-all duration-500" style={{ width: `${pct}%` }} />
                         <div className="relative p-3 flex items-center gap-2.5">
                           <span className="text-sm font-bold text-muted-foreground w-7 text-center shrink-0">{pos + 1}º</span>
                           <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
@@ -727,8 +436,8 @@ export default function AdminDashboard() {
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-foreground truncate">{u.nome}</p>
                             <div className="flex items-center gap-1.5 mt-0.5">
-                               <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{tipoLabel(u.tipo)}</span>
-                               <div className="flex gap-1">
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{tipoLabel(u.tipo)}</span>
+                              <div className="flex gap-1">
                                 {u.l > 0 && <span className="text-[8px] font-semibold text-primary/70">Lid. {u.l}</span>}
                                 {u.c > 0 && <span className="text-[8px] font-semibold text-pink-600/70">Cabos {u.c}</span>}
                                 {u.e > 0 && <span className="text-[8px] font-semibold text-muted-foreground">Eleit. {u.e}</span>}
@@ -754,7 +463,7 @@ export default function AdminDashboard() {
                               </div>
                               <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
                                 {uFernanda.map(c => (
-                                  <div key={c.id} className="p-3 rounded-xl bg-muted/50 border border-border/50 space-y-1.5">
+                                  <div key={c.id} className="p-3 rounded-xl bg-muted/50 border border-border/50">
                                     <div className="flex items-start justify-between gap-2">
                                       <p className="text-sm font-semibold text-foreground truncate">{c.nome}</p>
                                       <span className="text-[10px] text-muted-foreground shrink-0">{new Date(c.criado_em).toLocaleDateString('pt-BR')}</span>
@@ -771,7 +480,7 @@ export default function AdminDashboard() {
                               </div>
                               <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
                                 {uSocial.map(c => (
-                                  <div key={c.id} className="p-3 rounded-xl bg-muted/50 border border-border/50 space-y-1.5">
+                                  <div key={c.id} className="p-3 rounded-xl bg-muted/50 border border-border/50">
                                     <div className="flex items-start justify-between gap-2">
                                       <p className="text-sm font-semibold text-foreground truncate">{c.nome}</p>
                                       <span className="text-[10px] text-muted-foreground shrink-0">{new Date(c.criado_em).toLocaleDateString('pt-BR')}</span>
@@ -783,79 +492,67 @@ export default function AdminDashboard() {
                             </>
                           ) : (
                             <>
-                          <div className="grid grid-cols-2 gap-2">
-                            {[
-                              { key: 'lideranca', label: 'Lideranças', count: uLiderancas.length, icon: Users },
-                              { key: 'cabo', label: 'Cabos', count: uCabos.length, icon: Users },
-                              { key: 'eleitor', label: 'Eleitores', count: uEleitores.length, icon: Target },
-                              { key: 'fiscal', label: 'Fiscais', count: uFiscais.length, icon: Shield },
-                            ].map(({ key, label, count, icon: Icon }) => (
-                              <button key={key}
-                                onClick={() => setExpandedTipo(expandedTipo === key ? null : key)}
-                                className={`flex flex-col items-center gap-1 p-2 rounded-xl border transition-all active:scale-95 ${
-                                  expandedTipo === key ? 'border-primary bg-primary/5' : 'border-border bg-card'
-                                }`}
-                              >
-                                <Icon size={14} className={expandedTipo === key ? 'text-primary' : 'text-muted-foreground'} />
-                                <span className="text-lg font-bold text-foreground">{count}</span>
-                                <span className="text-[9px] text-muted-foreground">{label}</span>
-                              </button>
-                            ))}
-                          </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                {[
+                                  { key: 'lideranca', label: 'Lideranças', count: uLiderancas.length, icon: Users },
+                                  { key: 'cabo',      label: 'Cabos',      count: uCabos.length,      icon: Users },
+                                  { key: 'eleitor',   label: 'Eleitores',  count: uEleitores.length,  icon: Target },
+                                  { key: 'fiscal',    label: 'Fiscais',    count: uFiscais.length,    icon: Shield },
+                                ].map(({ key, label, count, icon: Icon }) => (
+                                  <button key={key} onClick={() => setExpandedTipo(expandedTipo === key ? null : key)}
+                                    className={`flex flex-col items-center gap-1 p-2 rounded-xl border transition-all active:scale-95 ${expandedTipo === key ? 'border-primary bg-primary/5' : 'border-border bg-card'}`}>
+                                    <Icon size={14} className={expandedTipo === key ? 'text-primary' : 'text-muted-foreground'} />
+                                    <span className="text-lg font-bold text-foreground">{count}</span>
+                                    <span className="text-[9px] text-muted-foreground">{label}</span>
+                                  </button>
+                                ))}
+                              </div>
 
-                          {expandedTipo && (
-                            <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
-                              {(() => {
-                                const records = expandedTipo === 'lideranca' ? uLiderancas
-                                  : expandedTipo === 'cabo' ? uCabos
-                                  : expandedTipo === 'fiscal' ? uFiscais
-                                  : uEleitores;
-                                if (records.length === 0) return <p className="text-xs text-muted-foreground text-center py-4">Nenhum registro</p>;
-                                return records.map((r: any) => {
-                                  const p = r.pessoas || {};
-                                  const Field = ({ label, value }: { label: string; value: any }) => (
-                                    <div className="text-[10px] bg-background rounded px-2 py-1">
-                                      <span className="text-muted-foreground">{label}:</span>{' '}
-                                      <span className={value ? 'text-foreground' : 'text-muted-foreground/50 italic'}>{value || '—'}</span>
-                                    </div>
-                                  );
-                                  return (
-                                    <div key={r.id} className="p-3 rounded-xl bg-muted/50 border border-border/50 space-y-2">
-                                      <div className="flex items-start justify-between">
-                                        <div className="flex items-center gap-2">
-                                          <p className="text-sm font-semibold text-foreground">{p.nome || '—'}</p>
+                              {expandedTipo && (
+                                <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
+                                  {(() => {
+                                    const records = expandedTipo === 'lideranca' ? uLiderancas : expandedTipo === 'cabo' ? uCabos : expandedTipo === 'fiscal' ? uFiscais : uEleitores;
+                                    if (records.length === 0) return <p className="text-xs text-muted-foreground text-center py-4">Nenhum registro</p>;
+                                    return records.map((r: any) => {
+                                      const p = r.pessoas || {};
+                                      return (
+                                        <div key={r.id} className="p-3 rounded-xl bg-muted/50 border border-border/50 space-y-2">
+                                          <div className="flex items-start justify-between">
+                                            <p className="text-sm font-semibold text-foreground">{p.nome || '—'}</p>
+                                            <span className="text-[10px] text-muted-foreground shrink-0">{new Date(r.criado_em).toLocaleDateString('pt-BR')}</span>
+                                          </div>
+                                          <div className="grid grid-cols-2 gap-1">
+                                            <Field label="CPF" value={p.cpf} />
+                                            <Field label="WhatsApp" value={p.whatsapp} />
+                                            <Field label="E-mail" value={p.email} />
+                                            <Field label="Instagram" value={p.instagram || p.facebook} />
+                                          </div>
+                                          {(expandedTipo === 'lideranca' || expandedTipo === 'cabo') && (
+                                            <div className="grid grid-cols-2 gap-1">
+                                              <Field label="Região" value={r.regiao_atuacao} />
+                                              <Field label="Comprometimento" value={r.nivel_comprometimento} />
+                                              <Field label="Apoiadores" value={r.apoiadores_estimados} />
+                                              <Field label="Meta votos" value={r.meta_votos} />
+                                            </div>
+                                          )}
+                                          {expandedTipo === 'eleitor' && <div className="grid grid-cols-2 gap-1"><Field label="Compromisso" value={r.compromisso_voto} /></div>}
+                                          {expandedTipo === 'fiscal' && (
+                                            <div className="grid grid-cols-2 gap-1">
+                                              <Field label="Zona fiscal" value={r.zona_fiscal} />
+                                              <Field label="Seção fiscal" value={r.secao_fiscal} />
+                                              <Field label="Colégio" value={r.colegio_eleitoral} />
+                                            </div>
+                                          )}
+                                          {r.observacoes && <Field label="Observações" value={r.observacoes} />}
                                         </div>
-                                        <span className="text-[10px] text-muted-foreground shrink-0">{new Date(r.criado_em).toLocaleDateString('pt-BR')}</span>
-                                      </div>
-                                      {(expandedTipo === 'lideranca' || expandedTipo === 'cabo') && (
-                                        <div className="grid grid-cols-2 gap-1">
-                                          <Field label="Região" value={r.regiao_atuacao} />
-                                          <Field label="Comprometimento" value={r.nivel_comprometimento} />
-                                          <Field label="Apoiadores" value={r.apoiadores_estimados} />
-                                          <Field label="Meta votos" value={r.meta_votos} />
-                                        </div>
-                                      )}
-                                      {expandedTipo === 'eleitor' && (
-                                        <div className="grid grid-cols-2 gap-1">
-                                          <Field label="Compromisso" value={r.compromisso_voto} />
-                                        </div>
-                                      )}
-                                      {expandedTipo === 'fiscal' && (
-                                        <div className="grid grid-cols-2 gap-1">
-                                          <Field label="Zona fiscal" value={r.zona_fiscal} />
-                                          <Field label="Seção fiscal" value={r.secao_fiscal} />
-                                          <Field label="Colégio" value={r.colegio_eleitoral} />
-                                        </div>
-                                      )}
-                                      {r.observacoes && <Field label="Observações" value={r.observacoes} />}
-                                    </div>
-                                  );
-                                });
-                              })()}
-                            </div>
-                          )}
+                                      );
+                                    });
+                                  })()}
+                                </div>
+                              )}
                             </>
                           )}
+
                           <div className="flex gap-2 pt-1">
                             <button onClick={() => setPopupUser(u.id)}
                               className="flex-1 h-9 flex items-center justify-center gap-1.5 bg-primary/10 text-primary rounded-xl text-xs font-semibold active:scale-95 transition-all">
@@ -881,330 +578,466 @@ export default function AdminDashboard() {
               Exportar Todos (Excel)
             </button>
           </div>
-          );
-        })()}
+        );
+      })()}
 
-        {/* ══════════ REGISTROS ══════════ */}
-        {vistaAtiva === 'registros' && (
+      {/* ══════════ ÁRVORE ══════════ */}
+      {activeView === 'arvore' && (
+        <TabArvore usuarios={usuarios} liderancas={liderancas} eleitores={eleitores} fiscais={fiscais} />
+      )}
+
+      {/* ══════════ USUÁRIOS ══════════ */}
+      {activeView === 'usuarios' && (
+        <div className="space-y-3">
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input type="text" placeholder="Buscar usuário..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+              className="w-full h-10 pl-9 pr-4 rounded-xl bg-muted border border-border text-sm text-foreground placeholder:text-muted-foreground" />
+          </div>
+
+          <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+            {(Object.keys(tipoUsuarioLabels) as TipoUsuarioFiltro[]).map(t => (
+              <button key={t} onClick={() => setTipoUsuarioFiltro(t)}
+                className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all active:scale-95 ${tipoUsuarioFiltro === t ? 'gradient-primary text-white' : 'bg-muted text-muted-foreground'}`}>
+                {tipoUsuarioLabels[t]}
+              </button>
+            ))}
+          </div>
+
+          <p className="text-xs text-muted-foreground">{filteredUsers.length} usuário{filteredUsers.length !== 1 ? 's' : ''}</p>
+
+          {filteredUsers.map(u => {
+            const uL    = filteredL.filter(r => r.cadastrado_por === u.id && r.tipo_lideranca !== 'Cabo Eleitoral');
+            const uC    = filteredL.filter(r => r.cadastrado_por === u.id && r.tipo_lideranca === 'Cabo Eleitoral');
+            const uE    = filteredE.filter(r => r.cadastrado_por === u.id);
+            const uF    = filteredF.filter(r => r.cadastrado_por === u.id);
+            const total = uL.length + uC.length + uE.length + uF.length;
+            const isExpanded = expandedUser === u.id;
+            const cityName   = nomeMunicipioPorId(u.municipio_id);
+
+            return (
+              <div key={u.id} className="section-card !p-0 overflow-hidden">
+                <button onClick={() => { setExpandedUser(isExpanded ? null : u.id); setExpandedTipo(null); }}
+                  className="w-full text-left p-3 flex items-center gap-3 active:bg-muted/50 transition-all">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <span className="text-sm font-bold text-primary">{u.nome.charAt(0)}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-foreground truncate">{u.nome}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium bg-primary/10 text-primary">{tipoLabel(u.tipo)}</span>
+                      {getCargoTag(u.suplente_id) && (
+                        <span className="text-[8px] px-1.5 py-0.5 rounded-md bg-accent/50 text-accent-foreground font-medium">{getCargoTag(u.suplente_id)}</span>
+                      )}
+                      {cityName && (
+                        <span className="text-[9px] text-muted-foreground flex items-center gap-0.5">
+                          <MapPin size={8} />{cityName}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-lg font-bold text-primary">{total}</p>
+                    <p className="text-[8px] text-muted-foreground">cadastros</p>
+                  </div>
+                  {isExpanded ? <ChevronUp size={14} className="text-muted-foreground shrink-0" /> : <ChevronDown size={14} className="text-muted-foreground shrink-0" />}
+                </button>
+
+                {isExpanded && userCadastros && (
+                  <div className="border-t border-border px-3 pb-3 pt-2 space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { key: 'lideranca', label: 'Lideranças', count: userCadastros.liderancas.length, icon: Users },
+                        { key: 'cabo',      label: 'Cabos',      count: userCadastros.cabos.length,      icon: Users },
+                        { key: 'eleitor',   label: 'Eleitores',  count: userCadastros.eleitores.length,  icon: Target },
+                        { key: 'fiscal',    label: 'Fiscais',    count: userCadastros.fiscais.length,    icon: Shield },
+                      ].map(({ key, label, count, icon: Icon }) => (
+                        <button key={key} onClick={() => setExpandedTipo(expandedTipo === key ? null : key)}
+                          className={`flex flex-col items-center gap-1 p-2 rounded-xl border transition-all active:scale-95 ${expandedTipo === key ? 'border-primary bg-primary/5' : 'border-border bg-card'}`}>
+                          <Icon size={14} className={expandedTipo === key ? 'text-primary' : 'text-muted-foreground'} />
+                          <span className="text-lg font-bold text-foreground">{count}</span>
+                          <span className="text-[9px] text-muted-foreground">{label}</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    {expandedTipo && (
+                      <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
+                        {(() => {
+                          const records = expandedTipo === 'lideranca' ? userCadastros.liderancas : expandedTipo === 'cabo' ? userCadastros.cabos : expandedTipo === 'fiscal' ? userCadastros.fiscais : userCadastros.eleitores;
+                          if (records.length === 0) return <p className="text-xs text-muted-foreground text-center py-4">Nenhum registro</p>;
+                          return records.map((r: any) => {
+                            const p = r.pessoas || {};
+                            return (
+                              <div key={r.id} className="p-3 rounded-xl bg-muted/50 border border-border/50 space-y-2">
+                                <div className="flex items-start justify-between">
+                                  <p className="text-sm font-semibold text-foreground">{p.nome || '—'}</p>
+                                  <span className="text-[10px] text-muted-foreground shrink-0">{new Date(r.criado_em).toLocaleDateString('pt-BR')}</span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-1">
+                                  <Field label="CPF" value={p.cpf} />
+                                  <Field label="WhatsApp" value={p.whatsapp} />
+                                  <Field label="E-mail" value={p.email} />
+                                  <Field label="Instagram" value={p.instagram || p.facebook} />
+                                </div>
+                                {(expandedTipo === 'lideranca' || expandedTipo === 'cabo') && (
+                                  <div className="grid grid-cols-2 gap-1">
+                                    <Field label="Região" value={r.regiao_atuacao} />
+                                    <Field label="Comprometimento" value={r.nivel_comprometimento} />
+                                    <Field label="Apoiadores" value={r.apoiadores_estimados} />
+                                    <Field label="Meta votos" value={r.meta_votos} />
+                                  </div>
+                                )}
+                                {expandedTipo === 'eleitor' && <div className="grid grid-cols-2 gap-1"><Field label="Compromisso" value={r.compromisso_voto} /></div>}
+                                {expandedTipo === 'fiscal' && (
+                                  <div className="grid grid-cols-2 gap-1">
+                                    <Field label="Zona fiscal" value={r.zona_fiscal} />
+                                    <Field label="Seção fiscal" value={r.secao_fiscal} />
+                                    <Field label="Colégio" value={r.colegio_eleitoral} />
+                                  </div>
+                                )}
+                                {r.observacoes && <Field label="Observações" value={r.observacoes} />}
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          <button onClick={() => handleExport()} disabled={exporting}
+            className="w-full h-10 flex items-center justify-center gap-2 bg-card border border-border rounded-xl text-sm font-medium text-foreground active:scale-[0.97] transition-all disabled:opacity-50">
+            {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+            Exportar Todos (Excel)
+          </button>
+        </div>
+      )}
+
+      {/* ══════════ REGISTROS ══════════ */}
+      {activeView === 'registros' && (() => {
+        const totalPages = Math.max(1, Math.ceil(allRegistros.length / REGISTROS_PER_PAGE));
+        const safePage = Math.min(registrosPage, totalPages - 1);
+        const pageItems = allRegistros.slice(safePage * REGISTROS_PER_PAGE, (safePage + 1) * REGISTROS_PER_PAGE);
+
+        // Contadores por tipo
+        const countLid = allRegistros.filter(r => r.tipo === 'lideranca').length;
+        const countCab = allRegistros.filter(r => r.tipo === 'cabo').length;
+        const countEle = allRegistros.filter(r => r.tipo === 'eleitor').length;
+        const countFis = allRegistros.filter(r => r.tipo === 'fiscal').length;
+
+        const tipoBadgeCls = (tipo: string) => {
+          const m: Record<string, string> = {
+            lideranca: 'bg-primary/15 text-primary border-primary/20',
+            cabo: 'bg-pink-500/10 text-pink-600 border-pink-500/20',
+            eleitor: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
+            fiscal: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+          };
+          return m[tipo] || 'bg-secondary text-secondary-foreground border-border';
+        };
+        const tipoName = (tipo: string) => ({
+          lideranca: 'Liderança', cabo: 'Cabo Eleitoral', eleitor: 'Eleitor', fiscal: 'Fiscal',
+        }[tipo] || tipo);
+        const tipoIcon = (tipo: string) => {
+          if (tipo === 'lideranca') return <Users size={10} className="text-primary" />;
+          if (tipo === 'cabo') return <Users size={10} className="text-pink-600" />;
+          if (tipo === 'eleitor') return <Target size={10} className="text-blue-600" />;
+          if (tipo === 'fiscal') return <Shield size={10} className="text-amber-600" />;
+          return null;
+        };
+        const avatarBg = (tipo: string) => {
+          const m: Record<string, string> = {
+            lideranca: 'bg-primary/10 text-primary',
+            cabo: 'bg-pink-500/10 text-pink-600',
+            eleitor: 'bg-blue-500/10 text-blue-600',
+            fiscal: 'bg-amber-500/10 text-amber-600',
+          };
+          return m[tipo] || 'bg-muted text-muted-foreground';
+        };
+
+        return (
           <div className="space-y-3">
+            {/* ── Search ── */}
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input type="text" placeholder="Buscar por nome, CPF, cargo..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+              <input type="text" placeholder="Buscar por nome, CPF, cargo..." value={searchTerm}
+                onChange={e => { setSearchTerm(e.target.value); setRegistrosPage(0); }}
                 className="w-full h-10 pl-9 pr-4 rounded-xl bg-muted border border-border text-sm text-foreground placeholder:text-muted-foreground" />
             </div>
 
+            {/* ── Filtros por tipo ── */}
             <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
               {(Object.keys(tipoFiltroLabels) as TipoFiltro[]).map(t => (
-                <button key={t} onClick={() => setTipoFiltro(t)}
-                  className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all active:scale-95 ${
-                    tipoFiltro === t ? 'gradient-primary text-white' : 'bg-muted text-muted-foreground'
-                  }`}>{tipoFiltroLabels[t]}</button>
+                <button key={t} onClick={() => { setTipoFiltro(t); setRegistrosPage(0); }}
+                  className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all active:scale-95 ${tipoFiltro === t ? 'gradient-primary text-white' : 'bg-muted text-muted-foreground'}`}>
+                  {tipoFiltroLabels[t]}
+                </button>
               ))}
             </div>
 
-            <p className="text-xs text-muted-foreground">{allRegistros.length} registros</p>
-
-            <div className="space-y-1.5 max-h-[600px] overflow-y-auto">
-              {allRegistros.map((r, i) => (
-                <div key={i} className="flex items-start gap-2 p-2.5 rounded-xl bg-card border border-border">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-foreground truncate">{r.pessoa?.nome || '—'}</p>
-                    </div>
-                     {(r.suplente_nome || r.lideranca_nome) && (
-                       <p className="text-[10px] text-primary/70 truncate">
-                         🔗 {r.suplente_nome || r.lideranca_nome} {getCargoTag(r.suplente_id) && `(${getCargoTag(r.suplente_id)})`}
-                       </p>
-                     )}
-                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground">
-                      <span>{r.pessoa?.cpf || 'Sem CPF'}</span>
-                      <span>{r.pessoa?.telefone || 'Sem tel.'}</span>
-                      <span>{r.extra}</span>
-                    </div>
-                    <p className="text-[9px] text-primary/70 mt-0.5">
-                      Por: {getUserName(r.cadastrado_por)} · {new Date(r.criado_em).toLocaleDateString('pt-BR')}
-                    </p>
-                  </div>
-                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
-                    r.tipo === 'lideranca' ? 'bg-primary/10 text-primary'
-                    : r.tipo === 'cabo' ? 'bg-pink-500/15 text-pink-600'
-                    : r.tipo === 'fiscal' ? 'bg-amber-500/15 text-amber-600'
-                    : 'bg-secondary text-secondary-foreground'
+            {/* ── Contadores por tipo (resumo visual) ── */}
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                { label: 'Lideranças', count: countLid, icon: Users, cls: 'text-primary bg-primary/10', key: 'lideranca' as TipoFiltro },
+                { label: 'Cabos', count: countCab, icon: Users, cls: 'text-pink-600 bg-pink-500/10', key: 'cabo' as TipoFiltro },
+                { label: 'Eleitores', count: countEle, icon: Target, cls: 'text-blue-600 bg-blue-500/10', key: 'eleitor' as TipoFiltro },
+                { label: 'Fiscais', count: countFis, icon: Shield, cls: 'text-amber-600 bg-amber-500/10', key: 'fiscal' as TipoFiltro },
+              ].map(({ label, count, icon: Icon, cls, key }) => (
+                <button key={key} onClick={() => { setTipoFiltro(tipoFiltro === key ? 'todos' : key); setRegistrosPage(0); }}
+                  className={`flex flex-col items-center gap-0.5 p-2 rounded-xl border transition-all active:scale-95 ${
+                    tipoFiltro === key ? 'border-primary bg-primary/5 shadow-sm' : 'border-border bg-card hover:bg-muted/50'
                   }`}>
-                    {r.tipo === 'lideranca' ? 'Liderança' : r.tipo === 'cabo' ? 'Cabo' : r.tipo === 'fiscal' ? 'Fiscal' : 'Eleitor'}
-                  </span>
-                </div>
+                  <Icon size={14} className={cls.split(' ')[0]} />
+                  <span className="text-lg font-bold text-foreground">{count}</span>
+                  <span className="text-[8px] text-muted-foreground font-medium">{label}</span>
+                </button>
               ))}
             </div>
 
-            <button onClick={() => handleExport(tipoFiltro === 'todos' ? undefined : tipoFiltro as any)} disabled={exporting}
-              className="w-full h-10 flex items-center justify-center gap-2 bg-card border border-border rounded-xl text-sm font-medium text-foreground active:scale-[0.97] transition-all disabled:opacity-50">
-              {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-              Exportar {tipoFiltro === 'todos' ? 'Todos' : tipoFiltroLabels[tipoFiltro]} (Excel)
-            </button>
-          </div>
-        )}
-
-        {/* ══════════ EVENTOS ══════════ */}
-        {vistaAtiva === 'eventos' && (
-          <GerenciarEventos />
-        )}
-
-        {/* ══════════ CIDADES ══════════ */}
-        {vistaAtiva === 'cidades' && (
-          <div className="space-y-3">
-            <div className="flex gap-2">
-              <input type="text" placeholder="Nome da nova cidade..." id="nova-cidade-input"
-                className="flex-1 h-10 px-3 bg-card border border-border rounded-xl text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30" />
-              <button
-                onClick={async () => {
-                  const input = document.getElementById('nova-cidade-input') as HTMLInputElement;
-                  const nome = input?.value?.trim();
-                  if (!nome) return;
-                  const { error } = await (supabase as any).from('municipios').insert({ nome, uf: 'GO' });
-                  if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
-                  toast({ title: `✅ ${nome} adicionada!` });
-                  input.value = '';
-                }}
-                className="h-10 px-4 gradient-primary text-white rounded-xl text-sm font-semibold flex items-center gap-1 active:scale-95">
-                <Plus size={14} /> Adicionar
-              </button>
-            </div>
-
-            {municipios.map(m => {
-              const userCount = usuarios.filter(u => u.municipio_id === m.id).length;
-              const lidCount = liderancas.filter(l => l.municipio_id === m.id && l.tipo_lideranca !== 'Cabo Eleitoral').length;
-              const caboCount = liderancas.filter(l => l.municipio_id === m.id && l.tipo_lideranca === 'Cabo Eleitoral').length;
-              const eleCount = eleitores.filter(e => e.municipio_id === m.id).length;
-              const fisCount = fiscais.filter(f => f.municipio_id === m.id).length;
-
-              return (
-                <div key={m.id} className="section-card">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                      <Building2 size={18} className="text-primary" />
-                      <div>
-                        <p className="text-sm font-bold text-foreground">{m.nome}</p>
-                        <p className="text-[10px] text-muted-foreground">{m.uf} · {userCount} usuários</p>
-                      </div>
-                    </div>
-                    <button onClick={() => { setCidadeAtiva({ id: m.id, nome: m.nome }); setVistaAtiva('usuarios'); }}
-                      className="text-[10px] text-primary font-semibold px-2 py-1 rounded-lg bg-primary/5 active:scale-95">
-                      Ver →
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 pt-2 border-t border-border">
-                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><Users size={10} /> {lidCount} Lid.</span>
-                    <span className="flex items-center gap-1 text-[10px] text-pink-600/70"><Users size={10} /> {caboCount} Cab.</span>
-                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><Target size={10} /> {eleCount} Ele.</span>
-                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><Shield size={10} /> {fisCount} Fis.</span>
-                    <span className="ml-auto text-xs font-bold text-primary">{lidCount + caboCount + eleCount + fisCount} total</span>
-                  </div>
+            {/* ── Header de paginação ── */}
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground font-medium">
+                {allRegistros.length} registros
+                {totalPages > 1 && <span className="ml-1">· página {safePage + 1}/{totalPages}</span>}
+              </p>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button onClick={() => setRegistrosPage(Math.max(0, safePage - 1))} disabled={safePage === 0}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg bg-card border border-border text-muted-foreground disabled:opacity-30 active:scale-95 transition-all">
+                    <ChevronLeft size={14} />
+                  </button>
+                  <button onClick={() => setRegistrosPage(Math.min(totalPages - 1, safePage + 1))} disabled={safePage >= totalPages - 1}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg bg-card border border-border text-muted-foreground disabled:opacity-30 active:scale-95 transition-all">
+                    <ChevronRight size={14} />
+                  </button>
                 </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* ══════════ LOCALIZAÇÃO ══════════ */}
-        {vistaAtiva === 'localizacao' && (
-          <Suspense fallback={<div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-primary" /></div>}>
-            <TabLocalizacoes />
-          </Suspense>
-        )}
-
-        {/* ══════════ FERNANDA ══════════ */}
-        {vistaAtiva === 'fernanda' && (
-          <Suspense fallback={<div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-primary" /></div>}>
-            <AdminCadastrosFernanda />
-          </Suspense>
-        )}
-
-        {/* ══════════ SOCIAL ══════════ */}
-        {vistaAtiva === 'social' && (
-          <Suspense fallback={<div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-primary" /></div>}>
-            <TabCadastrosSocial />
-          </Suspense>
-        )}
-
-         {/* ══════════ AFILIADOS ══════════ */}
-         {vistaAtiva === 'afiliados' && (
-           <Suspense fallback={<div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-primary" /></div>}>
-             <AdminCadastrosAfiliados />
-           </Suspense>
-         )}
-
-         {/* ══════════ PAINEL INSTAGRAM ══════════ */}
-         {vistaAtiva === 'instagram' && (
-           <Suspense fallback={<div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-primary" /></div>}>
-             <AdminInstagramPanel />
-           </Suspense>
-         )}
-
-         {/* ══════════ MENÇÕES INSTAGRAM ══════════ */}
-         {vistaAtiva === 'mencoes' && (
-           <Suspense fallback={<div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-primary" /></div>}>
-             <AdminMencoesInstagram />
-           </Suspense>
-         )}
-      </div>
-
-      {/* ══════════ POPUP CADASTROS DO USUÁRIO ══════════ */}
-      {popupUser && popupUserData && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setPopupUser(null)} />
-          <div className="relative w-full max-w-lg max-h-[85vh] bg-background rounded-t-2xl sm:rounded-2xl border border-border shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 duration-300">
-            {/* Header */}
-            <div className="flex items-center gap-3 p-4 border-b border-border shrink-0">
-              <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center">
-                <span className="text-lg font-bold text-primary">{popupUserData.usuario?.nome?.charAt(0) || '?'}</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-base font-bold text-foreground truncate">{popupUserData.usuario?.nome || 'Desconhecido'}</p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-primary/10 text-primary">{tipoLabel(popupUserData.usuario?.tipo || '')}</span>
-                  {getCargoTag(popupUserData.usuario?.suplente_id || null) && (
-                    <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-accent/50 text-accent-foreground font-medium">{getCargoTag(popupUserData.usuario?.suplente_id || null)}</span>
-                  )}
-                  {popupUserData.usuario?.municipio_id && (
-                    <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                      <MapPin size={9} />{nomeMunicipioPorId(popupUserData.usuario.municipio_id)}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="text-right mr-2">
-                <p className="text-2xl font-black text-primary">{popupUserData.liderancas.length + popupUserData.cabos.length + popupUserData.promotores.length + popupUserData.eleitores.length + popupUserData.fiscais.length + popupUserData.fernanda.length + popupUserData.social.length}</p>
-                <p className="text-[9px] text-muted-foreground">cadastros</p>
-              </div>
-              <button onClick={() => setPopupUser(null)} className="p-1.5 rounded-lg hover:bg-muted active:scale-95 transition-all">
-                <X size={18} className="text-muted-foreground" />
-              </button>
-            </div>
-
-            {/* Summary badges */}
-            <div className="flex flex-wrap gap-2 px-4 py-3 border-b border-border shrink-0">
-              {popupUserData.liderancas.length > 0 && (
-                <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-primary/15 text-primary">
-                  <Users size={12} className="inline mr-1" />Lideranças: {popupUserData.liderancas.length}
-                </span>
-              )}
-              {popupUserData.cabos.length > 0 && (
-                <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-pink-500/15 text-pink-600">
-                  <Users size={12} className="inline mr-1" />Cabos: {popupUserData.cabos.length}
-                </span>
-              )}
-              {popupUserData.eleitores.length > 0 && (
-                <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-secondary text-secondary-foreground">
-                  <Target size={12} className="inline mr-1" />Eleitores: {popupUserData.eleitores.length}
-                </span>
-              )}
-              {popupUserData.fiscais.length > 0 && (
-                <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-600">
-                  <Shield size={12} className="inline mr-1" />Fiscais: {popupUserData.fiscais.length}
-                </span>
-              )}
-              {popupUserData.promotores.length > 0 && (
-                <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-purple-500/15 text-purple-600">
-                  <Users size={12} className="inline mr-1" />Promotores: {popupUserData.promotores.length}
-                </span>
-              )}
-              {popupUserData.fernanda.length > 0 && (
-                <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-rose-500/15 text-rose-600">
-                  <Users size={12} className="inline mr-1" />Fernanda: {popupUserData.fernanda.length}
-                </span>
-              )}
-              {popupUserData.social.length > 0 && (
-                <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-teal-500/15 text-teal-600">
-                  <Users size={12} className="inline mr-1" />Social: {popupUserData.social.length}
-                </span>
               )}
             </div>
 
-            {/* Records list */}
-            <div className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-2">
-              {[...popupUserData.liderancas.map(r => ({ ...r, _tipo: 'lideranca' as const })),
-                ...popupUserData.cabos.map(r => ({ ...r, _tipo: 'cabo' as const })),
-                ...popupUserData.promotores.map(r => ({ ...r, _tipo: 'promotor' as const })),
-                ...popupUserData.eleitores.map(r => ({ ...r, _tipo: 'eleitor' as const })),
-                ...popupUserData.fiscais.map(r => ({ ...r, _tipo: 'fiscal' as const })),
-                ...popupUserData.fernanda.map(r => ({ ...r, _tipo: 'fernanda' as const, pessoas: { nome: r.nome, whatsapp: r.telefone, email: null, instagram: r.instagram, facebook: null } })),
-                ...popupUserData.social.map(r => ({ ...r, _tipo: 'social' as const, pessoas: { nome: r.nome, whatsapp: r.whatsapp, email: null, instagram: r.instagram, facebook: null } }))]
-                .sort((a, b) => new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime())
-                .map((r: any) => {
-                  const p = r.pessoas || {};
-                  const Field = ({ label, value }: { label: string; value: any }) => (
-                    <div className="text-[10px] bg-background rounded px-2 py-1">
-                      <span className="text-muted-foreground">{label}:</span>{' '}
-                      <span className={value ? 'text-foreground' : 'text-muted-foreground/50 italic'}>{value || '—'}</span>
-                    </div>
-                  );
+            {/* ── Lista de registros ── */}
+            {pageItems.length === 0 ? (
+              <div className="text-center py-12">
+                <Search size={32} className="mx-auto text-muted-foreground/30 mb-3" />
+                <p className="text-sm text-muted-foreground">Nenhum cadastro encontrado</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {pageItems.map((r, i) => {
+                  const nome = r.pessoa?.nome || '—';
+                  const iniciais = nome !== '—' ? nome.split(' ').map((n: string) => n[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() : '?';
                   return (
-                    <div key={r.id} className="p-3 rounded-xl bg-muted/50 border border-border/50 space-y-2">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${
-                            r._tipo === 'lideranca' ? 'bg-primary/15 text-primary'
-                            : r._tipo === 'cabo' ? 'bg-pink-500/15 text-pink-600'
-                            : r._tipo === 'fiscal' ? 'bg-amber-500/15 text-amber-600'
-                            : r._tipo === 'promotor' ? 'bg-purple-500/15 text-purple-600'
-                            : r._tipo === 'fernanda' ? 'bg-rose-500/15 text-rose-600'
-                            : r._tipo === 'social' ? 'bg-teal-500/15 text-teal-600'
-                            : 'bg-secondary text-secondary-foreground'
-                          }`}>{r._tipo === 'lideranca' ? 'Liderança' : r._tipo === 'cabo' ? 'Cabo' : r._tipo === 'fiscal' ? 'Fiscal' : r._tipo === 'promotor' ? 'Promotor' : r._tipo === 'fernanda' ? 'Fernanda' : r._tipo === 'social' ? 'Social' : 'Eleitor'}</span>
-                          <p className="text-sm font-semibold text-foreground">{p.nome || '—'}</p>
+                    <div key={`${r.tipo}-${i}-${safePage}`}
+                      className="group rounded-xl bg-card border border-border hover:border-primary/30 hover:shadow-md transition-all duration-200 overflow-hidden">
+                      <div className="flex items-start gap-3 p-3">
+                        {/* Avatar */}
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 font-bold text-xs ${avatarBg(r.tipo)}`}>
+                          {iniciais}
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-[10px] text-muted-foreground">{new Date(r.criado_em).toLocaleDateString('pt-BR')}</span>
-                          <button
-                            onClick={() => handleDeleteCadastro(r.id, r._tipo === 'eleitor' ? 'eleitor' : (r._tipo === 'cabo' ? 'lideranca' : r._tipo))}
-                            disabled={deletingId === r.id}
-                            className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
-                            title="Apagar registro"
-                          >
-                            {deletingId === r.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-                          </button>
+
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="text-sm font-bold text-foreground truncate">{nome}</p>
+                            <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-full border shrink-0 flex items-center gap-1 ${tipoBadgeCls(r.tipo)}`}>
+                              {tipoIcon(r.tipo)} {tipoName(r.tipo)}
+                            </span>
+                          </div>
+
+                          {/* Dados de contato em uma linha */}
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-1.5">
+                            {r.pessoa?.whatsapp && (
+                              <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                <Phone size={9} className="text-green-500" /> {r.pessoa.whatsapp}
+                              </span>
+                            )}
+                            {r.pessoa?.cpf && (
+                              <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                <Shield size={9} /> {r.pessoa.cpf}
+                              </span>
+                            )}
+                            {r.pessoa?.email && (
+                              <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                <Mail size={9} /> {r.pessoa.email}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Vinculação / Suplente */}
+                          {(r.suplente_nome || r.lideranca_nome) && (
+                            <p className="text-[10px] text-primary/80 font-medium truncate mb-1">
+                              🔗 {r.suplente_nome || r.lideranca_nome}
+                              {getCargoTag(r.suplente_id) && <span className="text-primary/60"> · {getCargoTag(r.suplente_id)}</span>}
+                            </p>
+                          )}
+
+                          {/* Extra + autor + data */}
+                          <div className="flex items-center gap-2 text-[9px] text-muted-foreground/70">
+                            {r.extra && <span className="px-1.5 py-0.5 bg-muted rounded-md font-medium">{r.extra}</span>}
+                            <span>Por: {getUserName(r.cadastrado_por)}</span>
+                            <span>·</span>
+                            <span>{new Date(r.criado_em).toLocaleDateString('pt-BR')}</span>
+                          </div>
                         </div>
                       </div>
-
-                      <div className="grid grid-cols-2 gap-1">
-                        <Field label="CPF" value={p.cpf} />
-                        <Field label="WhatsApp" value={p.whatsapp} />
-                        <Field label="E-mail" value={p.email} />
-                        <Field label="Instagram" value={p.instagram || p.facebook} />
-                      </div>
-
-                      {(r._tipo === 'lideranca' || r._tipo === 'cabo') && (
-                        <div className="grid grid-cols-2 gap-1">
-                          <Field label="Região" value={r.regiao_atuacao} />
-                          <Field label="Comprometimento" value={r.nivel_comprometimento} />
-                          <Field label="Apoiadores" value={r.apoiadores_estimados} />
-                          <Field label="Meta votos" value={r.meta_votos} />
-                        </div>
-                      )}
-                      {r._tipo === 'eleitor' && (
-                        <div className="grid grid-cols-2 gap-1">
-                          <Field label="Compromisso" value={r.compromisso_voto} />
-                        </div>
-                      )}
-                      {r._tipo === 'fiscal' && (
-                        <div className="grid grid-cols-2 gap-1">
-                          <Field label="Zona fiscal" value={r.zona_fiscal} />
-                          <Field label="Seção fiscal" value={r.secao_fiscal} />
-                          <Field label="Colégio" value={r.colegio_eleitoral} />
-                        </div>
-                      )}
-                      {r.observacoes && <Field label="Observações" value={r.observacoes} />}
                     </div>
                   );
                 })}
-              {popupUserData.liderancas.length === 0 && popupUserData.cabos.length === 0 && popupUserData.promotores.length === 0 && popupUserData.eleitores.length === 0 && popupUserData.fiscais.length === 0 && popupUserData.fernanda.length === 0 && popupUserData.social.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-8">Nenhum cadastro no período selecionado</p>
+              </div>
+            )}
+
+            {/* ── Paginação inferior ── */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 pt-2">
+                <button onClick={() => setRegistrosPage(Math.max(0, safePage - 1))} disabled={safePage === 0}
+                  className="h-9 px-3 flex items-center gap-1.5 rounded-xl bg-card border border-border text-xs font-medium text-muted-foreground disabled:opacity-30 active:scale-95 transition-all">
+                  <ChevronLeft size={14} /> Anterior
+                </button>
+                <div className="flex gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, idx) => {
+                    let page: number;
+                    if (totalPages <= 5) page = idx;
+                    else if (safePage < 3) page = idx;
+                    else if (safePage > totalPages - 4) page = totalPages - 5 + idx;
+                    else page = safePage - 2 + idx;
+                    return (
+                      <button key={page} onClick={() => setRegistrosPage(page)}
+                        className={`w-8 h-8 rounded-lg text-xs font-bold transition-all active:scale-95 ${
+                          page === safePage ? 'gradient-primary text-white shadow-sm' : 'bg-card border border-border text-muted-foreground hover:bg-muted'
+                        }`}>
+                        {page + 1}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button onClick={() => setRegistrosPage(Math.min(totalPages - 1, safePage + 1))} disabled={safePage >= totalPages - 1}
+                  className="h-9 px-3 flex items-center gap-1.5 rounded-xl bg-card border border-border text-xs font-medium text-muted-foreground disabled:opacity-30 active:scale-95 transition-all">
+                  Próxima <ChevronRight size={14} />
+                </button>
+              </div>
+            )}
+
+            {/* ── Botões de exportação ── */}
+            <div className="space-y-2 pt-1">
+              <button onClick={() => handleExport(tipoFiltro === 'todos' ? undefined : tipoFiltro as any)} disabled={exporting}
+                className="w-full h-11 flex items-center justify-center gap-2 gradient-primary text-white rounded-xl text-sm font-bold active:scale-[0.97] transition-all disabled:opacity-50 shadow-sm">
+                {exporting ? <Loader2 size={14} className="animate-spin" /> : <FileSpreadsheet size={14} />}
+                Exportar {tipoFiltro === 'todos' ? 'Todos os Cadastros' : tipoFiltroLabels[tipoFiltro]} (Excel)
+              </button>
+
+              {tipoFiltro === 'todos' && (
+                <div className="grid grid-cols-2 gap-2">
+                  {(['lideranca', 'cabo', 'eleitor', 'fiscal'] as const).map(tipo => (
+                    <button key={tipo} onClick={() => handleExport(tipo === 'cabo' ? undefined : tipo as any)}
+                      disabled={exporting}
+                      className="h-9 flex items-center justify-center gap-1.5 bg-card border border-border rounded-xl text-[11px] font-medium text-foreground active:scale-95 transition-all disabled:opacity-50">
+                      <Download size={12} />
+                      {tipo === 'lideranca' ? 'Lideranças' : tipo === 'cabo' ? 'Cabos' : tipo === 'eleitor' ? 'Eleitores' : 'Fiscais'}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
           </div>
+        );
+      })()}
+
+      {/* ══════════ CIDADES ══════════ */}
+      {activeView === 'cidades' && (
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            <input type="text" placeholder="Nome da nova cidade..." id="nova-cidade-input"
+              className="flex-1 h-10 px-3 bg-card border border-border rounded-xl text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30" />
+            <button
+              onClick={async () => {
+                const input = document.getElementById('nova-cidade-input') as HTMLInputElement;
+                const nome = input?.value?.trim();
+                if (!nome) return;
+                const { error } = await (supabase as any).from('municipios').insert({ nome, uf: 'GO' });
+                if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
+                toast({ title: `✅ ${nome} adicionada!` });
+                input.value = '';
+              }}
+              className="h-10 px-4 gradient-primary text-white rounded-xl text-sm font-semibold flex items-center gap-1 active:scale-95">
+              <Plus size={14} /> Adicionar
+            </button>
+          </div>
+
+          {municipios.map(m => {
+            const userCount = usuarios.filter(u => u.municipio_id === m.id).length;
+            const lidCount  = liderancas.filter(l => l.municipio_id === m.id && l.tipo_lideranca !== 'Cabo Eleitoral').length;
+            const caboCount = liderancas.filter(l => l.municipio_id === m.id && l.tipo_lideranca === 'Cabo Eleitoral').length;
+            const eleCount  = eleitores.filter(e => e.municipio_id === m.id).length;
+            const fisCount  = fiscais.filter(f => f.municipio_id === m.id).length;
+
+            return (
+              <div key={m.id} className="section-card">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2">
+                    <Building2 size={18} className="text-primary" />
+                    <div>
+                      <p className="text-sm font-bold text-foreground">{m.nome}</p>
+                      <p className="text-[10px] text-muted-foreground">{m.uf} · {userCount} usuários</p>
+                    </div>
+                  </div>
+                  <button onClick={() => { setCidadeAtiva({ id: m.id, nome: m.nome }); navigateTo('usuarios'); }}
+                    className="text-[10px] text-primary font-semibold px-2 py-1 rounded-lg bg-primary/5 active:scale-95">
+                    Ver →
+                  </button>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 pt-2 border-t border-border">
+                  <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><Users size={10} /> {lidCount} Lid.</span>
+                  <span className="flex items-center gap-1 text-[10px] text-pink-600/70"><Users size={10} /> {caboCount} Cab.</span>
+                  <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><Target size={10} /> {eleCount} Ele.</span>
+                  <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><Shield size={10} /> {fisCount} Fis.</span>
+                  <span className="ml-auto text-xs font-bold text-primary">{lidCount + caboCount + eleCount + fisCount} total</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
-    </div>
+
+      {/* ══════════ EVENTOS ══════════ */}
+      {activeView === 'eventos' && <GerenciarEventos />}
+
+      {/* ══════════ FERNANDA ══════════ */}
+      {activeView === 'fernanda' && (
+        <Suspense fallback={<FallbackLoader />}><AdminCadastrosFernanda /></Suspense>
+      )}
+
+      {/* ══════════ SOCIAL ══════════ */}
+      {activeView === 'social' && (
+        <Suspense fallback={<FallbackLoader />}><TabCadastrosSocial /></Suspense>
+      )}
+
+      {/* ══════════ AFILIADOS ══════════ */}
+      {activeView === 'afiliados' && (
+        <Suspense fallback={<FallbackLoader />}><AdminCadastrosAfiliados /></Suspense>
+      )}
+
+      {/* ══════════ INSTAGRAM ══════════ */}
+      {activeView === 'instagram' && (
+        <Suspense fallback={<FallbackLoader />}><AdminInstagramPanel /></Suspense>
+      )}
+
+      {/* ══════════ MENÇÕES ══════════ */}
+      {activeView === 'mencoes' && (
+        <Suspense fallback={<FallbackLoader />}><AdminMencoesInstagram /></Suspense>
+      )}
+
+      {/* ══════════ POPUP CADASTROS ══════════ */}
+      <AdminUserPopup
+        popupUser={popupUser}
+        popupUserData={popupUserData}
+        onClose={() => setPopupUser(null)}
+        getCargoTag={getCargoTag}
+        nomeMunicipioPorId={nomeMunicipioPorId}
+        deletingId={deletingId}
+        handleDeleteCadastro={handleDeleteCadastro}
+      />
+    </AdminShell>
   );
 }
