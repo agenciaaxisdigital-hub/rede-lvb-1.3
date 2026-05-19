@@ -15,30 +15,71 @@ interface Aviso {
 }
 
 const TIPO_CONFIG = {
-  info:    { icon: Info,          color: 'text-blue-500',    bg: 'bg-blue-500/10',    border: 'border-blue-500/20' },
-  alerta:  { icon: AlertTriangle, color: 'text-amber-500',   bg: 'bg-amber-500/10',   border: 'border-amber-500/20' },
-  sucesso: { icon: CheckCircle,   color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
-  urgente: { icon: Zap,           color: 'text-red-500',     bg: 'bg-red-500/10',     border: 'border-red-500/20' },
+  info:    { icon: Info,          color: 'text-blue-500',    bg: 'bg-blue-500/10',    border: 'border-blue-500/20',    gradient: 'from-blue-500/20 to-blue-500/5' },
+  alerta:  { icon: AlertTriangle, color: 'text-amber-500',   bg: 'bg-amber-500/10',   border: 'border-amber-500/20',   gradient: 'from-amber-500/20 to-amber-500/5' },
+  sucesso: { icon: CheckCircle,   color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', gradient: 'from-emerald-500/20 to-emerald-500/5' },
+  urgente: { icon: Zap,           color: 'text-red-500',     bg: 'bg-red-500/10',     border: 'border-red-500/20',     gradient: 'from-red-500/30 to-red-500/5' },
 };
 
-function playNotifSound() {
+// Persistent AudioContext to avoid autoplay policy issues
+let _audioCtx: AudioContext | null = null;
+function getAudioCtx(): AudioContext {
+  if (!_audioCtx) _audioCtx = new AudioContext();
+  if (_audioCtx.state === 'suspended') _audioCtx.resume();
+  return _audioCtx;
+}
+
+// Unlock AudioContext on first user gesture (call once at module level)
+if (typeof window !== 'undefined') {
+  const unlock = () => {
+    try { getAudioCtx(); } catch {}
+    document.removeEventListener('touchstart', unlock);
+    document.removeEventListener('click', unlock);
+  };
+  document.addEventListener('touchstart', unlock, { once: true, passive: true });
+  document.addEventListener('click', unlock, { once: true });
+}
+
+function playNotifSound(urgente = false) {
   try {
-    const ctx = new AudioContext();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(1760, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.3);
-    gain.gain.setValueAtTime(0, ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(0.25, ctx.currentTime + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.4);
-    osc.onended = () => ctx.close();
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+
+    if (urgente) {
+      // Double beep for urgente
+      [0, 0.25].forEach(delay => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1760, now + delay);
+        osc.frequency.exponentialRampToValueAtTime(880, now + delay + 0.25);
+        gain.gain.setValueAtTime(0, now + delay);
+        gain.gain.linearRampToValueAtTime(0.35, now + delay + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.3);
+        osc.start(now + delay);
+        osc.stop(now + delay + 0.3);
+        osc.onended = () => { try { osc.disconnect(); gain.disconnect(); } catch {} };
+      });
+    } else {
+      // Single soft beep
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1320, now);
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.3);
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.2, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+      osc.start(now);
+      osc.stop(now + 0.35);
+      osc.onended = () => { try { osc.disconnect(); gain.disconnect(); } catch {} };
+    }
   } catch {
-    // AudioContext indisponível
+    // AudioContext unavailable
   }
 }
 
@@ -49,27 +90,35 @@ export default function NotificationBell() {
   const [avisos, setAvisos] = useState<Aviso[]>([]);
   const [visualizados, setVisualizados] = useState<Set<string>>(new Set());
   const [panelOpen, setPanelOpen] = useState(false);
-  const [bannerAviso, setBannerAviso] = useState<Aviso | null>(null);
-  const [bannerVisible, setBannerVisible] = useState(false);
+  const [modalAviso, setModalAviso] = useState<Aviso | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
 
   const initialDoneRef = useRef(false);
   const knownIdsRef = useRef<Set<string>>(new Set());
-  const bannerTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const modalTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
-  const triggerBanner = useCallback((aviso: Aviso) => {
-    if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
-    setBannerAviso(aviso);
-    setBannerVisible(true);
-    bannerTimerRef.current = setTimeout(() => {
-      setBannerVisible(false);
-      setTimeout(() => setBannerAviso(null), 300);
-    }, 5000);
+  const triggerModal = useCallback((aviso: Aviso) => {
+    if (modalTimerRef.current) clearTimeout(modalTimerRef.current);
+    setModalAviso(aviso);
+    // Small delay so CSS transition plays
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => setModalVisible(true));
+    });
+    playNotifSound(aviso.tipo === 'urgente');
+
+    if (aviso.tipo !== 'urgente') {
+      // Auto-dismiss non-urgent after 6s
+      modalTimerRef.current = setTimeout(() => {
+        setModalVisible(false);
+        setTimeout(() => setModalAviso(null), 300);
+      }, 6000);
+    }
   }, []);
 
-  const dismissBanner = useCallback(() => {
-    if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
-    setBannerVisible(false);
-    setTimeout(() => setBannerAviso(null), 300);
+  const dismissModal = useCallback(() => {
+    if (modalTimerRef.current) clearTimeout(modalTimerRef.current);
+    setModalVisible(false);
+    setTimeout(() => setModalAviso(null), 300);
   }, []);
 
   const loadData = useCallback(async (isRealtime = false) => {
@@ -110,30 +159,52 @@ export default function NotificationBell() {
     if (isRealtime && initialDoneRef.current) {
       const novos = visiveis.filter(a => !knownIdsRef.current.has(a.id) && !vizSet.has(a.id));
       if (novos.length > 0) {
-        playNotifSound();
-        triggerBanner(novos[0]);
+        triggerModal(novos[0]);
       }
     } else if (!initialDoneRef.current) {
       const persistenteNaoVisto = visiveis.find(a => a.persistente && !vizSet.has(a.id));
-      if (persistenteNaoVisto) setPanelOpen(true);
+      if (persistenteNaoVisto) {
+        setPanelOpen(true);
+        playNotifSound(persistenteNaoVisto.tipo === 'urgente');
+      }
       initialDoneRef.current = true;
     }
 
     knownIdsRef.current = new Set(visiveis.map(a => a.id));
     setAvisos(visiveis);
     setVisualizados(vizSet);
-  }, [usuario?.id, (usuario as any)?.tipo, triggerBanner]);
+  }, [usuario?.id, (usuario as any)?.tipo, triggerModal]);
 
   useEffect(() => {
     loadData(false);
+
     const channel = (supabase as any)
       .channel('notif-bell-v2')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'avisos_app' }, () => loadData(true))
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'avisos_app' }, () => loadData(true))
       .subscribe();
+
+    const broadcastChannel = (supabase as any)
+      .channel('app-notifications')
+      .on('broadcast', { event: 'new_notification' }, ({ payload }: any) => {
+        const targetIds: string[] = payload?.target_ids ?? [];
+        if (targetIds.length > 0 && !targetIds.includes(usuario?.id ?? '')) return;
+        triggerModal({
+          id: payload?.aviso_id ?? `notif-${Date.now()}`,
+          titulo: payload?.titulo ?? 'Notificação',
+          corpo: payload?.corpo ?? '',
+          tipo: (payload?.tipo ?? 'urgente') as Aviso['tipo'],
+          ativa: true,
+          persistente: false,
+          criado_em: new Date().toISOString(),
+        });
+      })
+      .subscribe();
+
     return () => {
       (supabase as any).removeChannel(channel);
-      if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
+      (supabase as any).removeChannel(broadcastChannel);
+      if (modalTimerRef.current) clearTimeout(modalTimerRef.current);
     };
   }, [loadData]);
 
@@ -155,8 +226,8 @@ export default function NotificationBell() {
 
   const unreadCount = avisos.filter(a => !visualizados.has(a.id)).length;
   const showPushBanner = supported && permission !== 'denied' && !subscribed;
-  const bannerCfg = bannerAviso ? (TIPO_CONFIG[bannerAviso.tipo] ?? TIPO_CONFIG.info) : null;
-  const BannerIcon = bannerCfg?.icon ?? null;
+  const modalCfg = modalAviso ? (TIPO_CONFIG[modalAviso.tipo] ?? TIPO_CONFIG.info) : null;
+  const ModalIcon = modalCfg?.icon ?? null;
 
   return (
     <>
@@ -173,34 +244,59 @@ export default function NotificationBell() {
         )}
       </button>
 
-      {/* Banner in-app estilo WhatsApp — desliza do topo */}
-      {bannerAviso && bannerCfg && BannerIcon && (
+      {/* Modal centralizado para novos avisos */}
+      {modalAviso && modalCfg && ModalIcon && (
         <div
-          className="fixed top-0 inset-x-0 z-[300] px-3 pointer-events-none"
+          className="fixed inset-0 z-[300] flex items-center justify-center px-4"
           style={{
-            paddingTop: 'calc(0.75rem + env(safe-area-inset-top, 0px))',
-            transform: bannerVisible ? 'translateY(0)' : 'translateY(-110%)',
-            opacity: bannerVisible ? 1 : 0,
-            transition: 'transform 0.35s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s ease',
+            opacity: modalVisible ? 1 : 0,
+            transition: 'opacity 0.25s ease',
+            pointerEvents: modalVisible ? 'auto' : 'none',
           }}
         >
-          <div className={`w-full pointer-events-auto flex items-start gap-3 p-4 rounded-2xl shadow-2xl border ${bannerCfg.border} ${bannerCfg.bg} bg-card/95 backdrop-blur-xl`}>
-            <button
-              onClick={() => { dismissBanner(); setPanelOpen(true); }}
-              className="flex items-start gap-3 flex-1 min-w-0 text-left active:opacity-80 transition-opacity"
-            >
-              <BannerIcon size={20} className={`${bannerCfg.color} shrink-0 mt-0.5`} />
-              <div className="flex-1 min-w-0">
-                <p className={`text-sm font-bold ${bannerCfg.color} truncate`}>{bannerAviso.titulo}</p>
-                <p className="text-xs text-foreground/70 line-clamp-2 mt-0.5 leading-relaxed">{bannerAviso.corpo}</p>
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={dismissModal}
+          />
+
+          {/* Card central */}
+          <div
+            className={`relative w-full max-w-sm bg-card rounded-3xl shadow-2xl border ${modalCfg.border} overflow-hidden`}
+            style={{
+              transform: modalVisible ? 'scale(1) translateY(0)' : 'scale(0.85) translateY(20px)',
+              transition: 'transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
+            }}
+          >
+            {/* Gradient topo */}
+            <div className={`h-1.5 bg-gradient-to-r ${modalCfg.gradient} w-full`} />
+
+            <div className="p-5">
+              {/* Ícone + fechar */}
+              <div className="flex items-start justify-between mb-3">
+                <div className={`w-12 h-12 rounded-2xl ${modalCfg.bg} flex items-center justify-center`}>
+                  <ModalIcon size={24} className={modalCfg.color} />
+                </div>
+                <button
+                  onClick={dismissModal}
+                  className="p-1.5 rounded-full hover:bg-muted transition-colors -mr-1 -mt-1"
+                >
+                  <X size={16} className="text-muted-foreground" />
+                </button>
               </div>
-            </button>
-            <button
-              onClick={dismissBanner}
-              className="shrink-0 p-1.5 rounded-full hover:bg-black/10 transition-colors"
-            >
-              <X size={13} className="text-muted-foreground" />
-            </button>
+
+              {/* Conteúdo */}
+              <h3 className={`text-base font-bold ${modalCfg.color} mb-1.5`}>{modalAviso.titulo}</h3>
+              <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">{modalAviso.corpo}</p>
+
+              {/* Botão fechar */}
+              <button
+                onClick={() => { dismissModal(); setPanelOpen(true); }}
+                className={`w-full mt-4 h-11 rounded-2xl gradient-primary text-white font-semibold text-sm active:scale-[0.97] transition-all shadow-md shadow-primary/20`}
+              >
+                Ver avisos
+              </button>
+            </div>
           </div>
         </div>
       )}

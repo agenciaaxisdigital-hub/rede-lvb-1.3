@@ -80,19 +80,23 @@ self.addEventListener('push', (event) => {
         corpo = payload.corpo || corpo;
         avisoid = payload.aviso_id || null;
         tipo = payload.tipo || tipo;
+      } catch {
+        // payload vazio ou inválido → tenta buscar do DB
+      }
+    }
 
-        // Payload incompleto → busca aviso específico no DB (não o mais recente)
-        if (avisoid && (!payload.titulo || !payload.corpo)) {
-          const res = await fetch(
-            `${SUPABASE_URL}/rest/v1/avisos_app?id=eq.${avisoid}&select=titulo,corpo,tipo&limit=1`,
-            { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
-          );
-          const [aviso] = await res.json();
-          if (aviso) {
-            titulo = aviso.titulo || titulo;
-            corpo = aviso.corpo || corpo;
-            tipo = aviso.tipo || tipo;
-          }
+    // Se ainda sem conteúdo, busca do banco (fallback para pushes sem payload)
+    if (avisoid && titulo === 'Nova notificação') {
+      try {
+        const res = await fetch(
+          `${SUPABASE_URL}/rest/v1/avisos_app?id=eq.${avisoid}&select=titulo,corpo,tipo&limit=1`,
+          { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
+        );
+        const [aviso] = await res.json();
+        if (aviso) {
+          titulo = aviso.titulo || titulo;
+          corpo = aviso.corpo || corpo;
+          tipo = aviso.tipo || tipo;
         }
       } catch {
         // usa defaults
@@ -102,17 +106,23 @@ self.addEventListener('push', (event) => {
     const urgente = tipo === 'urgente';
     const tag = avisoid ? `aviso-${avisoid}` : `rede-notif-${Date.now()}`;
 
+    // Notificação com ações para engagement rápido
+    const actions = urgente
+      ? [{ action: 'abrir', title: '👁 Ver agora' }]
+      : [{ action: 'abrir', title: 'Ver aviso' }];
+
     await self.registration.showNotification(titulo, {
       body: corpo,
       icon: '/icon-192.png',
       badge: '/icon-192.png',
+      image: urgente ? '/icon-512.png' : undefined,
       data: { aviso_id: avisoid, url: '/' },
-      // Urgente: vibração mais intensa + fica na tela até o usuário tocar (como WhatsApp)
-      vibrate: urgente ? [300, 100, 300, 100, 500] : [200, 100, 200],
+      vibrate: urgente ? [200, 100, 200, 100, 400, 100, 400] : [150, 50, 150],
       requireInteraction: urgente,
       tag,
       silent: false,
-    });
+      actions,
+    } as any);
   };
 
   event.waitUntil(show());

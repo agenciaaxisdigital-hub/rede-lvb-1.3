@@ -27,6 +27,20 @@ function b64urlEncode(buf: ArrayBuffer | Uint8Array): string {
     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 }
 
+function concat(...arrays: Uint8Array[]): Uint8Array {
+  const total = arrays.reduce((s, a) => s + a.length, 0);
+  const out = new Uint8Array(total);
+  let off = 0;
+  for (const a of arrays) { out.set(a, off); off += a.length; }
+  return out;
+}
+
+async function hkdf(salt: Uint8Array, ikm: Uint8Array, info: Uint8Array, len: number): Promise<Uint8Array> {
+  const key = await crypto.subtle.importKey('raw', ikm, { name: 'HKDF' }, false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt, info }, key, len * 8);
+  return new Uint8Array(bits);
+}
+
 async function buildVapidAuthHeader(
   endpoint: string,
   vapidPublicKey: string,
@@ -61,6 +75,59 @@ async function buildVapidAuthHeader(
 
   const jwt = `${signingInput}.${b64urlEncode(signatureRaw)}`;
   return `vapid t=${jwt},k=${vapidPublicKey}`;
+}
+
+// ── Web Push Payload Encryption (RFC 8291 + RFC 8188 aes128gcm) ──
+
+async function encryptWebPush(
+  payload: string,
+  p256dh: string,
+  auth: string
+): Promise<{ body: Uint8Array; contentType: string; contentEncoding: string }> {
+  const plaintext = new TextEncoder().encode(payload);
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+
+  const receiverPubRaw = b64urlDecode(p256dh);
+  const authBytes = b64urlDecode(auth);
+
+  const receiverPub = await crypto.subtle.importKey(
+    'raw', receiverPubRaw, { name: 'ECDH', namedCurve: 'P-256' }, false, []
+  );
+
+  const senderKeys = await crypto.subtle.generateKey(
+    { name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']
+  );
+  const senderPubRaw = new Uint8Array(await crypto.subtle.exportKey('raw', senderKeys.publicKey));
+
+  const sharedBits = await crypto.subtle.deriveBits(
+    { name: 'ECDH', public: receiverPub }, senderKeys.privateKey, 256
+  );
+
+  // RFC 8291 §3.3: IKM from shared secret + auth
+  const keyInfo = concat(
+    new TextEncoder().encode('WebPush: info\x00'),
+    receiverPubRaw,
+    senderPubRaw
+  );
+  const ikm = await hkdf(authBytes, new Uint8Array(sharedBits), keyInfo, 32);
+
+  // RFC 8188 §2: CEK and nonce from IKM + salt
+  const cek = await hkdf(salt, ikm, new TextEncoder().encode('Content-Encoding: aes128gcm\x00\x01'), 16);
+  const nonce = await hkdf(salt, ikm, new TextEncoder().encode('Content-Encoding: nonce\x00\x01'), 12);
+
+  // Encrypt: AES-128-GCM with 0x02 end-of-record padding
+  const padded = concat(plaintext, new Uint8Array([0x02]));
+  const encKey = await crypto.subtle.importKey('raw', cek, { name: 'AES-GCM' }, false, ['encrypt']);
+  const ciphertext = new Uint8Array(await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv: nonce, tagLength: 128 }, encKey, padded
+  ));
+
+  // aes128gcm header: salt(16) + rs(4) + idlen(1) + keyid(65) + ciphertext
+  const rs = new Uint8Array(4);
+  new DataView(rs.buffer).setUint32(0, 4096, false);
+
+  const body = concat(salt, rs, new Uint8Array([65]), senderPubRaw, ciphertext);
+  return { body, contentType: 'application/octet-stream', contentEncoding: 'aes128gcm' };
 }
 
 // ── Main handler ───────────────────────────────────────────────
@@ -105,7 +172,23 @@ Deno.serve(async (req) => {
 
     if (!aviso_id) return jsonResponse({ error: 'aviso_id obrigatório' }, 400);
 
-    let query = supabaseAdmin.from('push_subscriptions').select('endpoint, p256dh, auth, hierarquia_id');
+    // Fetch aviso content to embed in push payload
+    const { data: aviso } = await supabaseAdmin
+      .from('avisos_app')
+      .select('titulo, corpo, tipo')
+      .eq('id', aviso_id)
+      .single();
+
+    const pushPayload = JSON.stringify({
+      titulo: aviso?.titulo || 'Novo aviso',
+      corpo: aviso?.corpo || 'Abra o app para ver.',
+      aviso_id,
+      tipo: aviso?.tipo || 'info',
+    });
+
+    let query = supabaseAdmin
+      .from('push_subscriptions')
+      .select('endpoint, p256dh, auth, hierarquia_id');
 
     if (hierarquia_ids && hierarquia_ids.length > 0) {
       query = query.in('hierarquia_id', hierarquia_ids);
@@ -114,7 +197,10 @@ Deno.serve(async (req) => {
     const { data: subs, error: subsError } = await query;
     if (subsError) throw subsError;
     if (!subs || subs.length === 0) {
-      await supabaseAdmin.from('avisos_app').update({ ultima_notificacao_em: new Date().toISOString() }).eq('id', aviso_id);
+      await supabaseAdmin
+        .from('avisos_app')
+        .update({ ultima_notificacao_em: new Date().toISOString() })
+        .eq('id', aviso_id);
       return jsonResponse({ success: true, enviados: 0, erros: [] });
     }
 
@@ -125,14 +211,36 @@ Deno.serve(async (req) => {
     for (const sub of subs) {
       try {
         const vapidAuth = await buildVapidAuthHeader(sub.endpoint, VAPID_PUBLIC, VAPID_PRIVATE, VAPID_SUBJECT);
-        const res = await fetch(sub.endpoint, {
-          method: 'POST',
-          headers: {
-            'Authorization': vapidAuth,
-            'TTL': '86400',
-            'Content-Length': '0',
-          },
-        });
+
+        let fetchOpts: RequestInit;
+
+        if (sub.p256dh && sub.auth) {
+          // Encrypt payload (RFC 8291)
+          const enc = await encryptWebPush(pushPayload, sub.p256dh, sub.auth);
+          fetchOpts = {
+            method: 'POST',
+            headers: {
+              'Authorization': vapidAuth,
+              'TTL': '86400',
+              'Content-Type': enc.contentType,
+              'Content-Encoding': enc.contentEncoding,
+              'Content-Length': String(enc.body.length),
+            },
+            body: enc.body,
+          };
+        } else {
+          // Fallback: no encryption (older subscriptions without keys)
+          fetchOpts = {
+            method: 'POST',
+            headers: {
+              'Authorization': vapidAuth,
+              'TTL': '86400',
+              'Content-Length': '0',
+            },
+          };
+        }
+
+        const res = await fetch(sub.endpoint, fetchOpts);
 
         if (res.status === 201 || res.status === 200) {
           enviados++;
@@ -148,10 +256,14 @@ Deno.serve(async (req) => {
     }
 
     if (endpointsParaRemover.length > 0) {
-      await supabaseAdmin.from('push_subscriptions').delete().in('endpoint', endpointsParaRemover);
+      await supabaseAdmin
+        .from('push_subscriptions')
+        .delete()
+        .in('endpoint', endpointsParaRemover);
     }
 
-    await supabaseAdmin.from('avisos_app')
+    await supabaseAdmin
+      .from('avisos_app')
       .update({ ultima_notificacao_em: new Date().toISOString() })
       .eq('id', aviso_id);
 

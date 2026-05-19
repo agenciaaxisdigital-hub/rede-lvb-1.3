@@ -76,6 +76,7 @@ export default function TabAvisos() {
     const { data } = await (supabase as any)
       .from('avisos_app')
       .select('id, titulo, corpo, ativa, tipo, persistente, intervalo_minutos, ultima_notificacao_em, criado_em')
+      .eq('ativa', true)
       .order('criado_em', { ascending: false });
     setAvisos(data || []);
     setLoading(false);
@@ -246,7 +247,7 @@ export default function TabAvisos() {
   }
 
   const getTipo = (key: string) => TIPOS.find(t => t.key === key) || TIPOS[0];
-  const avisosVisiveis = isAdmin ? avisos : avisos.filter(a => a.ativa);
+  const avisosVisiveis = avisos.filter(a => a.ativa);
 
   if (loading) return <div className="flex justify-center py-12"><Loader2 size={24} className="animate-spin text-primary" /></div>;
 
