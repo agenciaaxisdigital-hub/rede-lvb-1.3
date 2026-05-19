@@ -20,7 +20,7 @@ const TIPOS_MONITORADOS = [
   { val: 'suplente',  label: 'Suplente',  tabela: 'liderancas',          campo: 'cadastrado_por' },
 ];
 
-function getUrgencia(dias: number): { cor: string; bg: string; label: string; icone: typeof AlertCircle } {
+export function getUrgencia(dias: number): { cor: string; bg: string; label: string; icone: typeof AlertCircle } {
   if (dias === -1) return { cor: 'text-red-600',   bg: 'bg-red-500/10',   label: 'nunca cadastrou', icone: UserX };
   if (dias >= 7)   return { cor: 'text-red-500',   bg: 'bg-red-500/10',   label: `${dias} dias atrás`, icone: AlertCircle };
   if (dias >= 3)   return { cor: 'text-amber-600', bg: 'bg-amber-500/10', label: `${dias} dias atrás`, icone: Clock };
@@ -42,7 +42,7 @@ async function enviarPush(avisoid: string, hierarquiaIds: string[]) {
   return res.json();
 }
 
-async function criarAviso(titulo: string, corpo: string): Promise<string> {
+export async function criarAviso(titulo: string, corpo: string): Promise<string> {
   const { data, error } = await (supabase as any)
     .from('avisos_app')
     .insert({ titulo, corpo, tipo: 'urgente', ativa: false, persistente: false })
@@ -52,7 +52,7 @@ async function criarAviso(titulo: string, corpo: string): Promise<string> {
   return data.id as string;
 }
 
-function enviarBroadcast(avisoid: string, titulo: string, corpo: string, ids: string[]) {
+export function enviarBroadcast(avisoid: string, titulo: string, corpo: string, ids: string[]) {
   const ch = (supabase as any).channel('app-notifications');
   ch.subscribe((status: string) => {
     if (status !== 'SUBSCRIBED') return;
