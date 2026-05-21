@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import type { PopupUserData } from '@/components/admin/adminTypes';
 
 interface ExportRow {
   tipo: string;
@@ -203,4 +204,167 @@ export async function exportCadastrosFiltered(filters: ExportFilters = {}) {
 
   XLSX.writeFile(wb, fileName);
   return rows.length;
+}
+
+function applySheetStyle(XLSX: any, ws: any, colCount: number) {
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+  for (let c = range.s.c; c <= Math.min(range.e.c, colCount - 1); c++) {
+    const addr = XLSX.utils.encode_cell({ r: 0, c });
+    if (ws[addr]) ws[addr].s = { font: { bold: true }, fill: { fgColor: { rgb: 'D0E8FF' } } };
+  }
+  // Auto col widths
+  const colWidths: { wch: number }[] = [];
+  for (let c = range.s.c; c <= range.e.c; c++) {
+    let max = 8;
+    for (let r = range.s.r; r <= range.e.r; r++) {
+      const cell = ws[XLSX.utils.encode_cell({ r, c })];
+      const len = cell ? String(cell.v || '').length : 0;
+      if (len > max) max = len;
+    }
+    colWidths.push({ wch: Math.min(max + 2, 45) });
+  }
+  ws['!cols'] = colWidths;
+}
+
+export async function exportPopupUserData(userName: string, data: PopupUserData) {
+  const XLSX = await import('xlsx');
+  const wb = XLSX.utils.book_new();
+
+  // ── Lideranças + Cabos ──────────────────────────────────────────────────────
+  const lids = [
+    ...data.liderancas.map(r => ({ ...r, _rotulo: 'Liderança' })),
+    ...data.cabos.map(r => ({ ...r, _rotulo: 'Cabo Eleitoral' })),
+  ];
+  if (lids.length > 0) {
+    const headers = [
+      'Tipo', 'Nome', 'CPF', 'Telefone', 'WhatsApp', 'E-mail', 'Instagram', 'Facebook',
+      'Título Eleitor', 'Zona', 'Seção', 'Município Eleitoral', 'UF',
+      'Colégio', 'End. Colégio', 'Sit. Título',
+      'Tipo Liderança', 'Região', 'Comprometimento', 'Apoiadores Est.', 'Meta Votos',
+      'Status', 'Origem', 'Observações', 'Data Cadastro',
+    ];
+    const rows = lids.map(l => {
+      const p = (l.pessoas || {}) as any;
+      return [
+        l._rotulo, p.nome || '', p.cpf || '', p.telefone || '', p.whatsapp || '',
+        p.email || '', p.instagram || '', p.facebook || '',
+        p.titulo_eleitor || '', p.zona_eleitoral || '', p.secao_eleitoral || '',
+        p.municipio_eleitoral || '', p.uf_eleitoral || '',
+        p.colegio_eleitoral || '', p.endereco_colegio || '', p.situacao_titulo || '',
+        l.tipo_lideranca || '', l.regiao_atuacao || '', l.nivel_comprometimento || '',
+        l.apoiadores_estimados ?? '', l.meta_votos ?? '',
+        l.status || '', l.origem_captacao || '', l.observacoes || '',
+        formatDate(l.criado_em),
+      ];
+    });
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    applySheetStyle(XLSX, ws, headers.length);
+    XLSX.utils.book_append_sheet(wb, ws, 'Lideranças');
+  }
+
+  // ── Promotores ──────────────────────────────────────────────────────────────
+  if (data.promotores.length > 0) {
+    const headers = [
+      'Nome', 'CPF', 'Telefone', 'WhatsApp', 'E-mail', 'Instagram', 'Facebook',
+      'Título Eleitor', 'Zona', 'Seção', 'Município Eleitoral', 'UF',
+      'Colégio', 'End. Colégio', 'Sit. Título',
+      'Tipo', 'Região', 'Comprometimento', 'Apoiadores Est.', 'Meta Votos',
+      'Status', 'Origem', 'Observações', 'Data Cadastro',
+    ];
+    const rows = data.promotores.map(l => {
+      const p = (l.pessoas || {}) as any;
+      return [
+        p.nome || '', p.cpf || '', p.telefone || '', p.whatsapp || '',
+        p.email || '', p.instagram || '', p.facebook || '',
+        p.titulo_eleitor || '', p.zona_eleitoral || '', p.secao_eleitoral || '',
+        p.municipio_eleitoral || '', p.uf_eleitoral || '',
+        p.colegio_eleitoral || '', p.endereco_colegio || '', p.situacao_titulo || '',
+        l.tipo_lideranca || '', l.regiao_atuacao || '', l.nivel_comprometimento || '',
+        l.apoiadores_estimados ?? '', l.meta_votos ?? '',
+        l.status || '', l.origem_captacao || '', l.observacoes || '',
+        formatDate(l.criado_em),
+      ];
+    });
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    applySheetStyle(XLSX, ws, headers.length);
+    XLSX.utils.book_append_sheet(wb, ws, 'Promotores');
+  }
+
+  // ── Eleitores ───────────────────────────────────────────────────────────────
+  if (data.eleitores.length > 0) {
+    const headers = [
+      'Nome', 'CPF', 'Telefone', 'WhatsApp', 'E-mail', 'Instagram', 'Facebook',
+      'Título Eleitor', 'Zona', 'Seção', 'Município Eleitoral', 'UF',
+      'Colégio', 'End. Colégio', 'Sit. Título',
+      'Compromisso de Voto', 'Origem', 'Observações', 'Data Cadastro',
+    ];
+    const rows = data.eleitores.map(e => {
+      const p = (e.pessoas || {}) as any;
+      return [
+        p.nome || '', p.cpf || '', p.telefone || '', p.whatsapp || '',
+        p.email || '', p.instagram || '', p.facebook || '',
+        p.titulo_eleitor || '', p.zona_eleitoral || '', p.secao_eleitoral || '',
+        p.municipio_eleitoral || '', p.uf_eleitoral || '',
+        p.colegio_eleitoral || '', p.endereco_colegio || '', p.situacao_titulo || '',
+        e.compromisso_voto || '', e.origem_captacao || '', e.observacoes || '',
+        formatDate(e.criado_em),
+      ];
+    });
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    applySheetStyle(XLSX, ws, headers.length);
+    XLSX.utils.book_append_sheet(wb, ws, 'Eleitores');
+  }
+
+  // ── Fiscais ─────────────────────────────────────────────────────────────────
+  if (data.fiscais.length > 0) {
+    const headers = [
+      'Nome', 'CPF', 'Telefone', 'WhatsApp', 'E-mail', 'Instagram', 'Facebook',
+      'Título Eleitor', 'Zona', 'Seção', 'Município Eleitoral', 'UF',
+      'Colégio', 'End. Colégio', 'Sit. Título',
+      'Zona Fiscal', 'Seção Fiscal', 'Colégio Fiscal',
+      'Status', 'Origem', 'Observações', 'Data Cadastro',
+    ];
+    const rows = data.fiscais.map(f => {
+      const p = (f.pessoas || {}) as any;
+      return [
+        p.nome || '', p.cpf || '', p.telefone || '', p.whatsapp || '',
+        p.email || '', p.instagram || '', p.facebook || '',
+        p.titulo_eleitor || '', p.zona_eleitoral || '', p.secao_eleitoral || '',
+        p.municipio_eleitoral || '', p.uf_eleitoral || '',
+        p.colegio_eleitoral || '', p.endereco_colegio || '', p.situacao_titulo || '',
+        f.zona_fiscal || '', f.secao_fiscal || '', f.colegio_eleitoral || '',
+        f.status || '', f.origem_captacao || '', f.observacoes || '',
+        formatDate(f.criado_em),
+      ];
+    });
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    applySheetStyle(XLSX, ws, headers.length);
+    XLSX.utils.book_append_sheet(wb, ws, 'Fiscais');
+  }
+
+  // ── Fernanda ────────────────────────────────────────────────────────────────
+  if (data.fernanda.length > 0) {
+    const headers = ['Nome', 'Telefone', 'Cidade', 'Instagram', 'Data Cadastro'];
+    const rows = data.fernanda.map(f => [
+      f.nome || '', f.telefone || '', f.cidade || '', f.instagram || '', formatDate(f.criado_em),
+    ]);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    applySheetStyle(XLSX, ws, headers.length);
+    XLSX.utils.book_append_sheet(wb, ws, 'Fernanda');
+  }
+
+  // ── Social ──────────────────────────────────────────────────────────────────
+  if (data.social.length > 0) {
+    const headers = ['Nome', 'WhatsApp', 'CPF', 'Instagram', 'Nome da Mãe', 'Região', 'Data Cadastro'];
+    const rows = data.social.map(s => [
+      s.nome || '', s.whatsapp || '', s.cpf || '', s.instagram || '',
+      s.nome_mae || '', s.regiao || '', formatDate(s.criado_em),
+    ]);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    applySheetStyle(XLSX, ws, headers.length);
+    XLSX.utils.book_append_sheet(wb, ws, 'Social');
+  }
+
+  const safeName = (userName || 'usuario').split(' ')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+  XLSX.writeFile(wb, `cadastros_${safeName}_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }

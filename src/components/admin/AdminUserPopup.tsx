@@ -1,5 +1,7 @@
-import { X, MapPin, Users, Target, Shield, Loader2, Trash2 } from 'lucide-react';
+import { X, MapPin, Users, Target, Shield, Loader2, Trash2, Download } from 'lucide-react';
 import { PopupUserData, tipoLabel, LiderancaReg, EleitorReg, FiscalReg } from './adminTypes';
+import { exportPopupUserData } from '@/lib/exportXlsx';
+import { useState } from 'react';
 
 interface Props {
   popupUser: string | null;
@@ -14,13 +16,26 @@ interface Props {
 const Field = ({ label, value }: { label: string; value: any }) => (
   <div className="text-[10px] bg-background rounded px-2 py-1">
     <span className="text-muted-foreground">{label}:</span>{' '}
-    <span className={value ? 'text-foreground' : 'text-muted-foreground/50 italic'}>{value || '—'}</span>
+    <span className="text-foreground break-all">{value}</span>
   </div>
 );
+
+// Renders only filled fields from a list
+const FilledFields = ({ fields }: { fields: Array<{ label: string; value: any }> }) => {
+  const filled = fields.filter(f => f.value != null && f.value !== '');
+  if (filled.length === 0) return null;
+  return (
+    <div className="grid grid-cols-2 gap-1">
+      {filled.map(f => <Field key={f.label} label={f.label} value={f.value} />)}
+    </div>
+  );
+};
 
 export default function AdminUserPopup({
   popupUser, popupUserData, onClose, getCargoTag, nomeMunicipioPorId, deletingId, handleDeleteCadastro,
 }: Props) {
+  const [exporting, setExporting] = useState(false);
+
   if (!popupUser || !popupUserData) return null;
 
   const { usuario } = popupUserData;
@@ -44,7 +59,7 @@ export default function AdminUserPopup({
     ...popupUserData.social.map(r => ({
       ...r, _tipo: 'social' as const,
       pessoas: { nome: r.nome, whatsapp: r.whatsapp, email: null, instagram: r.instagram, facebook: null,
-        cpf: null, telefone: null, titulo_eleitor: null, zona_eleitoral: null, secao_eleitoral: null,
+        cpf: r.cpf, telefone: null, titulo_eleitor: null, zona_eleitoral: null, secao_eleitoral: null,
         municipio_eleitoral: null, uf_eleitoral: null, colegio_eleitoral: null, endereco_colegio: null },
     })),
   ].sort((a, b) => new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime());
@@ -63,10 +78,20 @@ export default function AdminUserPopup({
     fernanda: 'Fernanda', social: 'Social', eleitor: 'Eleitor',
   }[tipo] || tipo);
 
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      await exportPopupUserData(usuario?.nome || 'usuario', popupUserData);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-lg max-h-[85vh] bg-background rounded-t-2xl sm:rounded-2xl border border-border shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 duration-300">
+        {/* Header */}
         <div className="flex items-center gap-3 p-4 border-b border-border shrink-0">
           <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center">
             <span className="text-lg font-bold text-primary">{usuario?.nome?.charAt(0) || '?'}</span>
@@ -85,15 +110,25 @@ export default function AdminUserPopup({
               )}
             </div>
           </div>
-          <div className="text-right mr-2">
+          <div className="text-right mr-1">
             <p className="text-2xl font-black text-primary">{totalCount}</p>
             <p className="text-[9px] text-muted-foreground">cadastros</p>
           </div>
+          {/* Export button */}
+          <button
+            onClick={handleExport}
+            disabled={exporting || totalCount === 0}
+            title="Exportar para Excel"
+            className="p-1.5 rounded-lg hover:bg-green-500/10 text-green-600 hover:text-green-700 active:scale-95 disabled:opacity-40 transition-colors"
+          >
+            {exporting ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+          </button>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted active:scale-95">
             <X size={18} className="text-muted-foreground" />
           </button>
         </div>
 
+        {/* Tipo badges */}
         <div className="flex flex-wrap gap-2 px-4 py-3 border-b border-border shrink-0">
           {[
             { data: popupUserData.liderancas, label: 'Lideranças', cls: 'bg-primary/15 text-primary', Icon: Users },
@@ -110,6 +145,7 @@ export default function AdminUserPopup({
           ))}
         </div>
 
+        {/* Records list */}
         <div className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-2">
           {allRecords.length === 0 && (
             <p className="text-sm text-muted-foreground text-center py-8">Nenhum cadastro no período selecionado</p>
@@ -118,14 +154,15 @@ export default function AdminUserPopup({
             const p = r.pessoas || {};
             return (
               <div key={r.id} className="p-3 rounded-xl bg-muted/50 border border-border/50 space-y-2">
+                {/* Card header */}
                 <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${tipoBadge(r._tipo)}`}>
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className={`shrink-0 text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${tipoBadge(r._tipo)}`}>
                       {tipoName(r._tipo)}
                     </span>
-                    <p className="text-sm font-semibold text-foreground">{p.nome || '—'}</p>
+                    <p className="text-sm font-semibold text-foreground truncate">{p.nome || '—'}</p>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0 ml-2">
                     <span className="text-[10px] text-muted-foreground">{new Date(r.criado_em).toLocaleDateString('pt-BR')}</span>
                     {(r._tipo === 'lideranca' || r._tipo === 'cabo' || r._tipo === 'eleitor' || r._tipo === 'fiscal') && (
                       <button
@@ -138,29 +175,74 @@ export default function AdminUserPopup({
                     )}
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-1">
-                  <Field label="CPF" value={p.cpf} />
-                  <Field label="WhatsApp" value={p.whatsapp} />
-                  <Field label="E-mail" value={p.email} />
-                  <Field label="Instagram" value={p.instagram || p.facebook} />
-                </div>
+
+                {/* Contato — campos comuns de pessoas */}
+                <FilledFields fields={[
+                  { label: 'CPF', value: p.cpf },
+                  { label: 'Telefone', value: p.telefone },
+                  { label: 'WhatsApp', value: p.whatsapp },
+                  { label: 'E-mail', value: p.email },
+                  { label: 'Instagram', value: p.instagram },
+                  { label: 'Facebook', value: p.facebook },
+                ]} />
+
+                {/* Dados eleitorais da pessoa */}
+                <FilledFields fields={[
+                  { label: 'Título Eleitor', value: p.titulo_eleitor },
+                  { label: 'Zona Eleitoral', value: p.zona_eleitoral },
+                  { label: 'Seção', value: p.secao_eleitoral },
+                  { label: 'Município Eleitoral', value: p.municipio_eleitoral },
+                  { label: 'UF', value: p.uf_eleitoral },
+                  { label: 'Colégio', value: p.colegio_eleitoral },
+                  { label: 'End. Colégio', value: p.endereco_colegio },
+                  { label: 'Sit. Título', value: p.situacao_titulo },
+                ]} />
+
+                {/* Campos específicos por tipo */}
                 {(r._tipo === 'lideranca' || r._tipo === 'cabo') && (
-                  <div className="grid grid-cols-2 gap-1">
-                    <Field label="Região" value={r.regiao_atuacao} />
-                    <Field label="Comprometimento" value={r.nivel_comprometimento} />
-                    <Field label="Apoiadores" value={r.apoiadores_estimados} />
-                    <Field label="Meta votos" value={r.meta_votos} />
-                  </div>
+                  <FilledFields fields={[
+                    { label: 'Tipo', value: r.tipo_lideranca },
+                    { label: 'Região', value: r.regiao_atuacao },
+                    { label: 'Comprometimento', value: r.nivel_comprometimento },
+                    { label: 'Apoiadores', value: r.apoiadores_estimados },
+                    { label: 'Meta votos', value: r.meta_votos },
+                    { label: 'Status', value: r.status },
+                    { label: 'Origem', value: r.origem_captacao },
+                    { label: 'Observações', value: r.observacoes },
+                  ]} />
                 )}
-                {r._tipo === 'eleitor' && <div className="grid grid-cols-2 gap-1"><Field label="Compromisso" value={r.compromisso_voto} /></div>}
+
+                {r._tipo === 'eleitor' && (
+                  <FilledFields fields={[
+                    { label: 'Compromisso', value: r.compromisso_voto },
+                    { label: 'Origem', value: r.origem_captacao },
+                    { label: 'Observações', value: r.observacoes },
+                  ]} />
+                )}
+
                 {r._tipo === 'fiscal' && (
-                  <div className="grid grid-cols-2 gap-1">
-                    <Field label="Zona fiscal" value={r.zona_fiscal} />
-                    <Field label="Seção fiscal" value={r.secao_fiscal} />
-                    <Field label="Colégio" value={r.colegio_eleitoral} />
-                  </div>
+                  <FilledFields fields={[
+                    { label: 'Zona Fiscal', value: r.zona_fiscal },
+                    { label: 'Seção Fiscal', value: r.secao_fiscal },
+                    { label: 'Colégio Fiscal', value: r.colegio_eleitoral },
+                    { label: 'Status', value: r.status },
+                    { label: 'Origem', value: r.origem_captacao },
+                    { label: 'Observações', value: r.observacoes },
+                  ]} />
                 )}
-                {r.observacoes && <Field label="Observações" value={r.observacoes} />}
+
+                {r._tipo === 'fernanda' && (
+                  <FilledFields fields={[
+                    { label: 'Cidade', value: r.cidade },
+                  ]} />
+                )}
+
+                {r._tipo === 'social' && (
+                  <FilledFields fields={[
+                    { label: 'Nome da Mãe', value: r.nome_mae },
+                    { label: 'Região', value: r.regiao },
+                  ]} />
+                )}
               </div>
             );
           })}
