@@ -21,7 +21,10 @@ export default defineConfig(({ mode }) => ({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2}'],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
       },
-      devOptions: { enabled: false },
+      devOptions: {
+        enabled: true,
+        type: 'module',
+      },
       includeAssets: ['icon-192.png', 'icon-512.png'],
       manifest: {
         name: 'Rede Política – Dra. Fernanda Sarelli',

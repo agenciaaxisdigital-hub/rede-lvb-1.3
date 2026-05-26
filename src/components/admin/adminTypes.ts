@@ -11,7 +11,7 @@ export type ViewId =
   | 'instagram' | 'mencoes';
 export type Periodo = 'hoje' | 'semana' | 'mes' | 'total';
 export type TipoFiltro = 'todos' | 'lideranca' | 'cabo' | 'eleitor' | 'fiscal';
-export type TipoUsuarioFiltro = 'todos' | 'suplente' | 'lideranca' | 'coordenador' | 'fernanda' | 'social';
+export type TipoUsuarioFiltro = 'todos' | 'suplente' | 'lideranca' | 'coordenador' | 'fernanda' | 'social' | 'agenda';
 
 export interface Pessoa {
   nome: string; cpf: string | null; telefone: string | null; whatsapp: string | null;
@@ -90,14 +90,14 @@ export const tipoFiltroLabels: Record<TipoFiltro, string> = {
 };
 export const tipoUsuarioLabels: Record<TipoUsuarioFiltro, string> = {
   todos: 'Todos', suplente: 'Suplentes', lideranca: 'Lideranças',
-  coordenador: 'Coordenadores', fernanda: 'Fernanda', social: 'Social',
+  coordenador: 'Coordenadores', fernanda: 'Fernanda', social: 'Social', agenda: 'Agenda',
 };
 
 export const tipoLabel = (t: string) => {
   const labels: Record<string, string> = {
     super_admin: 'Admin', coordenador: 'Coord.', suplente: 'Suplente',
     lideranca: 'Liderança', fernanda: 'Fernanda', afiliado: 'Afiliado',
-    promotor: 'Promotor', social: 'Social', fiscal: 'Fiscal',
+    promotor: 'Promotor', social: 'Social', fiscal: 'Fiscal', agenda: 'Agenda',
   };
   return labels[t] || t;
 };

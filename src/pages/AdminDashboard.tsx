@@ -8,7 +8,7 @@ import { useLiderancas, useEleitores, useUsuarios, useFiscaisAdmin, useRealtimeS
 import {
   Users, Target, Search, Shield, ChevronDown, ChevronUp,
   Loader2, Download, MapPin, Eye, Building2, Plus, Network,
-  Phone, Mail, FileSpreadsheet, ChevronLeft, ChevronRight,
+  Phone, Mail, FileSpreadsheet, ChevronLeft, ChevronRight, Calendar,
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { exportCadastrosFiltered } from '@/lib/exportXlsx';
@@ -66,6 +66,7 @@ export default function AdminDashboard() {
   const [rankingTipoUsuario, setRankingTipoUsuario] = useState<TipoUsuarioFiltro>('todos');
   const [searchTerm,         setSearchTerm]         = useState('');
   const [rankingSearch,      setRankingSearch]      = useState('');
+  const [rankingMetric,      setRankingMetric]      = useState<'cadastros' | 'reunioes'>('cadastros');
   const [expandedUser,       setExpandedUser]       = useState<string | null>(null);
   const [expandedTipo,       setExpandedTipo]       = useState<string | null>(null);
   const [popupUser,          setPopupUser]          = useState<string | null>(null);
@@ -114,6 +115,22 @@ export default function AdminDashboard() {
     load();
     const ch = supabase.channel('adm_social')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'cadastros_social' }, load)
+      .subscribe();
+    return () => { active = false; supabase.removeChannel(ch); };
+  }, [isAdmin]);
+
+  /* ── Reuniões (realtime) ── */
+  const [reunioes, setReunioes] = useState<any[]>([]);
+  useEffect(() => {
+    if (!isAdmin) return;
+    let active = true;
+    const load = () => {
+      (supabase as any).from('reunioes').select('*').order('data_reuniao', { ascending: false })
+        .then(({ data }: any) => { if (active && data) setReunioes(data); });
+    };
+    load();
+    const ch = supabase.channel('adm_reunioes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reunioes' }, load)
       .subscribe();
     return () => { active = false; supabase.removeChannel(ch); };
   }, [isAdmin]);
@@ -196,6 +213,33 @@ export default function AdminDashboard() {
       .filter(u => u.total > 0)
       .sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome));
   }, [filteredL, filteredE, filteredF, filteredFern, filteredSoc, usuarios]);
+
+  /* ── Ranking de Reuniões ── */
+  const rankingReunioes = useMemo(() => {
+    const map: Record<string, number> = {};
+    usuarios.filter(u => u.tipo !== 'super_admin').forEach(u => { map[u.id] = 0; });
+    reunioes.forEach(r => {
+      if (r.usuario_id && map[r.usuario_id] !== undefined) {
+        map[r.usuario_id]++;
+      }
+    });
+    return Object.entries(map)
+      .map(([id, total]) => {
+        const u = usuarios.find(usr => usr.id === id);
+        return {
+          id,
+          nome: u?.nome || 'Desconhecido',
+          tipo: u?.tipo || '—',
+          municipio_id: u?.municipio_id || null,
+          suplente_id: u?.suplente_id || null,
+          superior_id: u?.superior_id || null,
+          total,
+          l: 0, c: 0, e: 0, f: 0, fern: 0, soc: 0 // placeholder fields for type-compat in list filter
+        };
+      })
+      .filter(u => u.total > 0)
+      .sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome));
+  }, [reunioes, usuarios]);
 
   /* ── Users list ── */
   const filteredUsers = useMemo(() => {
@@ -297,6 +341,7 @@ export default function AdminDashboard() {
   const resetFilters = () => {
     setSearchTerm(''); setRankingSearch(''); setExpandedUser(null);
     setExpandedTipo(null); setTipoFiltro('todos'); setRankingTipoUsuario('todos');
+    setRankingMetric('cadastros');
   };
 
   const handleGroupChange = (g: GroupId) => { setActiveGroup(g); setActiveView(defaultViewOf(g)); resetFilters(); };
@@ -326,12 +371,15 @@ export default function AdminDashboard() {
 
       {/* ══════════ RANKING ══════════ */}
       {activeView === 'ranking' && (() => {
-        let filtered = rankingUsuarios;
+        const isReunioes = rankingMetric === 'reunioes';
+        let filtered = isReunioes ? rankingReunioes : rankingUsuarios;
         if (rankingTipoUsuario !== 'todos') filtered = filtered.filter(u => u.tipo === rankingTipoUsuario);
-        if (tipoFiltro === 'lideranca') filtered = filtered.filter(u => u.l > 0);
-        else if (tipoFiltro === 'cabo')   filtered = filtered.filter(u => u.c > 0);
-        else if (tipoFiltro === 'eleitor') filtered = filtered.filter(u => u.e > 0);
-        else if (tipoFiltro === 'fiscal')  filtered = filtered.filter(u => u.f > 0);
+        if (!isReunioes) {
+          if (tipoFiltro === 'lideranca') filtered = filtered.filter(u => u.l > 0);
+          else if (tipoFiltro === 'cabo')   filtered = filtered.filter(u => u.c > 0);
+          else if (tipoFiltro === 'eleitor') filtered = filtered.filter(u => u.e > 0);
+          else if (tipoFiltro === 'fiscal')  filtered = filtered.filter(u => u.f > 0);
+        }
         if (rankingSearch) {
           const s = rankingSearch.toLowerCase();
           filtered = filtered.filter(u => u.nome.toLowerCase().includes(s) || (getCargoTag(u.suplente_id) || '').toLowerCase().includes(s));
@@ -340,6 +388,30 @@ export default function AdminDashboard() {
 
         return (
           <div className="space-y-3">
+            {/* Seletor de Métrica de Ranking */}
+            <div className="bg-muted p-1 rounded-2xl flex gap-1 border border-border">
+              <button
+                onClick={() => setRankingMetric('cadastros')}
+                className={`flex-1 h-9 rounded-xl text-xs font-bold transition-all ${
+                  rankingMetric === 'cadastros'
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                📊 Ranking de Cadastros
+              </button>
+              <button
+                onClick={() => setRankingMetric('reunioes')}
+                className={`flex-1 h-9 rounded-xl text-xs font-bold transition-all ${
+                  rankingMetric === 'reunioes'
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                📅 Ranking de Reuniões
+              </button>
+            </div>
+
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input type="text" placeholder="Buscar usuário..." value={rankingSearch} onChange={e => setRankingSearch(e.target.value)}
@@ -355,21 +427,23 @@ export default function AdminDashboard() {
               ))}
             </div>
 
-            <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
-              {(Object.keys(tipoFiltroLabels) as TipoFiltro[]).map(t => (
-                <button key={t} onClick={() => setTipoFiltro(t)}
-                  className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all active:scale-95 ${tipoFiltro === t ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground'}`}>
-                  {tipoFiltroLabels[t]}
-                </button>
-              ))}
-            </div>
+            {!isReunioes && (
+              <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+                {(Object.keys(tipoFiltroLabels) as TipoFiltro[]).map(t => (
+                  <button key={t} onClick={() => setTipoFiltro(t)}
+                    className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all active:scale-95 ${tipoFiltro === t ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground'}`}>
+                    {tipoFiltroLabels[t]}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {filtered.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">Nenhum usuário encontrado</p>
             ) : (
               <div className="space-y-2">
                 {/* Top 3 destaque */}
-                {!rankingSearch && rankingTipoUsuario === 'todos' && tipoFiltro === 'todos' && filtered.length >= 3 && (
+                {!rankingSearch && rankingTipoUsuario === 'todos' && (tipoFiltro === 'todos' || isReunioes) && filtered.length >= 3 && (
                   <div className="space-y-2 mb-3">
                     {filtered.slice(0, 3).map((u, i) => {
                       const styles = [
@@ -394,12 +468,16 @@ export default function AdminDashboard() {
                                   <Network size={8} /> {getUserName(u.superior_id)}
                                 </span>
                               )}
-                              <div className="flex gap-1">
-                                {u.l > 0 && <span className="text-[8px] font-semibold text-primary/70">Lid. {u.l}</span>}
-                                {u.c > 0 && <span className="text-[8px] font-semibold text-pink-600/70">Cabos {u.c}</span>}
-                                {u.e > 0 && <span className="text-[8px] font-semibold text-muted-foreground">Eleit. {u.e}</span>}
-                                {u.f > 0 && <span className="text-[8px] font-semibold text-amber-600/70">Fisc. {u.f}</span>}
-                              </div>
+                              {isReunioes ? (
+                                <span className="text-[8px] font-bold text-emerald-600">📅 {u.total} {u.total === 1 ? 'reunião' : 'reuniões'}</span>
+                              ) : (
+                                <div className="flex gap-1">
+                                  {u.l > 0 && <span className="text-[8px] font-semibold text-primary/70">Lid. {u.l}</span>}
+                                  {u.c > 0 && <span className="text-[8px] font-semibold text-pink-600/70">Cabos {u.c}</span>}
+                                  {u.e > 0 && <span className="text-[8px] font-semibold text-muted-foreground">Eleit. {u.e}</span>}
+                                  {u.f > 0 && <span className="text-[8px] font-semibold text-amber-600/70">Fisc. {u.f}</span>}
+                                </div>
+                              )}
                             </div>
                           </div>
                           <p className={`text-2xl font-black ${s.numColor} shrink-0`}>{u.total}</p>
@@ -410,8 +488,8 @@ export default function AdminDashboard() {
                 )}
 
                 {/* Restante do ranking */}
-                {filtered.slice((!rankingSearch && rankingTipoUsuario === 'todos' && tipoFiltro === 'todos' && filtered.length >= 3) ? 3 : 0).map((u, i) => {
-                  const pos = (!rankingSearch && rankingTipoUsuario === 'todos' && tipoFiltro === 'todos' && filtered.length >= 3) ? i + 3 : i;
+                {filtered.slice((!rankingSearch && rankingTipoUsuario === 'todos' && (tipoFiltro === 'todos' || isReunioes) && filtered.length >= 3) ? 3 : 0).map((u, i) => {
+                  const pos = (!rankingSearch && rankingTipoUsuario === 'todos' && (tipoFiltro === 'todos' || isReunioes) && filtered.length >= 3) ? i + 3 : i;
                   const pct = maxTotal > 0 ? Math.round((u.total / maxTotal) * 100) : 0;
                   const isExpanded = expandedUser === u.id;
                   const uLiderancas = filteredL.filter(r => r.cadastrado_por === u.id && r.tipo_lideranca !== 'Cabo Eleitoral');
@@ -437,17 +515,21 @@ export default function AdminDashboard() {
                             <p className="text-sm font-semibold text-foreground truncate">{u.nome}</p>
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{tipoLabel(u.tipo)}</span>
-                              <div className="flex gap-1">
-                                {u.l > 0 && <span className="text-[8px] font-semibold text-primary/70">Lid. {u.l}</span>}
-                                {u.c > 0 && <span className="text-[8px] font-semibold text-pink-600/70">Cabos {u.c}</span>}
-                                {u.e > 0 && <span className="text-[8px] font-semibold text-muted-foreground">Eleit. {u.e}</span>}
-                                {u.f > 0 && <span className="text-[8px] font-semibold text-amber-600/70">Fisc. {u.f}</span>}
-                              </div>
+                              {isReunioes ? (
+                                <span className="text-[8px] font-bold text-emerald-600">📅 {u.total} {u.total === 1 ? 'reunião' : 'reuniões'}</span>
+                              ) : (
+                                <div className="flex gap-1">
+                                  {u.l > 0 && <span className="text-[8px] font-semibold text-primary/70">Lid. {u.l}</span>}
+                                  {u.c > 0 && <span className="text-[8px] font-semibold text-pink-600/70">Cabos {u.c}</span>}
+                                  {u.e > 0 && <span className="text-[8px] font-semibold text-muted-foreground">Eleit. {u.e}</span>}
+                                  {u.f > 0 && <span className="text-[8px] font-semibold text-amber-600/70">Fisc. {u.f}</span>}
+                                </div>
+                              )}
                             </div>
                           </div>
                           <div className="text-right shrink-0">
                             <p className="text-lg font-bold text-primary">{u.total}</p>
-                            <p className="text-[8px] text-muted-foreground">cadastros</p>
+                            <p className="text-[8px] text-muted-foreground">{isReunioes ? (u.total === 1 ? 'reunião' : 'reuniões') : 'cadastros'}</p>
                           </div>
                           {isExpanded ? <ChevronUp size={14} className="text-muted-foreground shrink-0" /> : <ChevronDown size={14} className="text-muted-foreground shrink-0" />}
                         </div>
@@ -455,7 +537,40 @@ export default function AdminDashboard() {
 
                       {isExpanded && (
                         <div className="border-t border-border px-3 pb-3 pt-2 space-y-2">
-                          {isFernanda ? (
+                          {isReunioes ? (
+                            <>
+                              <div className="flex items-center justify-between px-1 border-b border-border/40 pb-1.5 mb-1.5">
+                                <span className="text-[11px] font-semibold text-emerald-600 uppercase tracking-wider flex items-center gap-1">
+                                  📅 Histórico de Reuniões ({u.total})
+                                </span>
+                              </div>
+                              <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-1">
+                                {reunioes.filter(r => r.usuario_id === u.id).length === 0 ? (
+                                  <p className="text-[10px] text-muted-foreground italic text-center py-4">Nenhuma reunião registrada ainda</p>
+                                ) : (
+                                  reunioes.filter(r => r.usuario_id === u.id).map(r => (
+                                    <div key={r.id} className="p-2.5 rounded-xl bg-muted/40 border border-border/50 space-y-0.5">
+                                      <div className="flex items-start justify-between gap-3">
+                                        <span className="text-[10px] font-bold text-foreground">
+                                          {new Date(r.data_reuniao).toLocaleDateString('pt-BR', {
+                                            day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+                                          })}
+                                        </span>
+                                        <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 font-semibold truncate max-w-[150px]">
+                                          📍 {r.local}
+                                        </span>
+                                      </div>
+                                      {r.observacoes && (
+                                        <p className="text-[9px] text-muted-foreground leading-normal pt-1 border-t border-border/30 mt-1 italic">
+                                          {r.observacoes}
+                                        </p>
+                                      )}
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            </>
+                          ) : isFernanda ? (
                             <>
                               <div className="flex items-center justify-between px-1">
                                 <span className="text-[11px] font-semibold text-primary uppercase tracking-wider">🩷 Cadastros Fernanda</span>
@@ -518,7 +633,7 @@ export default function AdminDashboard() {
                                       return (
                                         <div key={r.id} className="p-3 rounded-xl bg-muted/50 border border-border/50 space-y-2">
                                           <div className="flex items-start justify-between">
-                                            <p className="text-sm font-semibold text-foreground">{p.nome || '—'}</p>
+                                            <span className="text-xs font-semibold text-foreground truncate">{p.nome}</span>
                                             <span className="text-[10px] text-muted-foreground shrink-0">{new Date(r.criado_em).toLocaleDateString('pt-BR')}</span>
                                           </div>
                                           <div className="grid grid-cols-2 gap-1">
@@ -558,11 +673,13 @@ export default function AdminDashboard() {
                               className="flex-1 h-9 flex items-center justify-center gap-1.5 bg-primary/10 text-primary rounded-xl text-xs font-semibold active:scale-95 transition-all">
                               <Eye size={12} /> Ver detalhes
                             </button>
-                            <button onClick={() => handleExport(undefined, u.id, u.nome)} disabled={exporting}
-                              className="flex-1 h-9 flex items-center justify-center gap-1.5 bg-card border border-border rounded-xl text-xs font-medium text-foreground active:scale-95 transition-all disabled:opacity-50">
-                              {exporting ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
-                              Exportar
-                            </button>
+                            {!isReunioes && (
+                              <button onClick={() => handleExport(undefined, u.id, u.nome)} disabled={exporting}
+                                className="flex-1 h-9 flex items-center justify-center gap-1.5 bg-card border border-border rounded-xl text-xs font-medium text-foreground active:scale-95 transition-all disabled:opacity-50">
+                                {exporting ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+                                Exportar
+                              </button>
+                            )}
                           </div>
                         </div>
                       )}
@@ -572,11 +689,13 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            <button onClick={() => handleExport(tipoFiltro === 'todos' ? undefined : tipoFiltro as any)} disabled={exporting}
-              className="w-full h-10 flex items-center justify-center gap-2 bg-card border border-border rounded-xl text-sm font-medium text-foreground active:scale-[0.97] transition-all disabled:opacity-50">
-              {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-              Exportar Todos (Excel)
-            </button>
+            {!isReunioes && (
+              <button onClick={() => handleExport(tipoFiltro === 'todos' ? undefined : tipoFiltro as any)} disabled={exporting}
+                className="w-full h-10 flex items-center justify-center gap-2 bg-card border border-border rounded-xl text-sm font-medium text-foreground active:scale-[0.97] transition-all disabled:opacity-50">
+                {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                Exportar Todos (Excel)
+              </button>
+            )}
           </div>
         );
       })()}

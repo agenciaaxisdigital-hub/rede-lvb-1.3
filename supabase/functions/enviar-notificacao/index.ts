@@ -186,6 +186,33 @@ Deno.serve(async (req) => {
       tipo: aviso?.tipo || 'info',
     });
 
+    // Broadcast in-app sempre server-side (sem risco de CORS do browser)
+    try {
+      await fetch(`${Deno.env.get('SUPABASE_URL')}/realtime/v1/api/broadcast`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+          'apikey': Deno.env.get('SUPABASE_ANON_KEY')!,
+        },
+        body: JSON.stringify({
+          messages: [{
+            topic: 'app-notifications',
+            event: 'new_notification',
+            payload: {
+              aviso_id,
+              titulo: aviso?.titulo || 'Novo aviso',
+              corpo: aviso?.corpo || 'Abra o app para ver.',
+              tipo: aviso?.tipo || 'urgente',
+              target_ids: hierarquia_ids ?? [],
+            },
+          }],
+        }),
+      });
+    } catch (e) {
+      console.error('broadcast error:', e);
+    }
+
     let query = supabaseAdmin
       .from('push_subscriptions')
       .select('endpoint, p256dh, auth, hierarquia_id');

@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   LogOut, Shield, User, UserPlus, Loader2, Crown, Users, Eye, Copy, X, Network,
   Pencil, Trash2, Settings, Search, ArrowLeft, KeyRound, EyeOff, ChevronDown,
-  MapPin, Building2, Plus, ClipboardList, Instagram
+  MapPin, Building2, Plus, ClipboardList, Instagram, Calendar
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import ModulosUsuario from '@/components/ModulosUsuario';
@@ -21,6 +21,7 @@ const tipoLabels: Record<string, string> = {
   lideranca: 'Liderança',
   fernanda: 'Fernanda',
   social: 'Social',
+  agenda: 'Agenda',
 };
 
 const tipoIcons: Record<string, typeof Shield> = {
@@ -30,6 +31,7 @@ const tipoIcons: Record<string, typeof Shield> = {
   lideranca: Users,
   fernanda: ClipboardList,
   social: Users,
+  agenda: Calendar,
 };
 
 const tipoColors: Record<string, string> = {
@@ -39,6 +41,7 @@ const tipoColors: Record<string, string> = {
   lideranca: 'bg-purple-500/10 text-purple-600',
   fernanda: 'bg-primary/10 text-primary',
   social: 'bg-teal-500/15 text-teal-600',
+  agenda: 'bg-emerald-500/10 text-emerald-600',
 };
 
 const MODULOS_OPTIONS = MODULOS_FULL.map(m => ({ id: m.id, label: m.label }));
@@ -176,6 +179,14 @@ export default function TabPerfil() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
 
+  // Reuniões state
+  const [minhasReunioes, setMinhasReunioes] = useState<any[]>([]);
+  const [todasReunioes, setTodasReunioes] = useState<any[]>([]);
+  const [loadingReunioes, setLoadingReunioes] = useState(false);
+  const [modalReuniaoAberto, setModalReuniaoAberto] = useState(false);
+  const [formReuniao, setFormReuniao] = useState({ data: '', local: '', observacoes: '' });
+  const [salvandoReuniao, setSalvandoReuniao] = useState(false);
+
   // View mode
    const [view, setView] = useState<ViewMode>('list');
  
@@ -253,11 +264,86 @@ export default function TabPerfil() {
     supabase.functions.invoke('buscar-liderancas-externo')
       .then(({ data }) => { if (data && Array.isArray(data)) setLiderancas(data); })
       .catch(() => {});
+    
+    // Load all meetings for admin counts
+    supabase.from('reunioes').select('id, usuario_id, data_reuniao, local, observacoes')
+      .then(({ data }) => { if (data) setTodasReunioes(data); })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
     if (isAdmin) fetchAll();
   }, [isAdmin, fetchAll]);
+
+  const fetchMinhasReunioes = useCallback(async () => {
+    if (!usuario?.id) return;
+    setLoadingReunioes(true);
+    try {
+      const { data, error } = await supabase
+        .from('reunioes')
+        .select('*')
+        .eq('usuario_id', usuario.id)
+        .order('data_reuniao', { ascending: false });
+      if (error) throw error;
+      setMinhasReunioes(data || []);
+    } catch (e) {
+      console.error('[reunioes] Error fetching meetings:', e);
+    } finally {
+      setLoadingReunioes(false);
+    }
+  }, [usuario?.id]);
+
+  useEffect(() => {
+    fetchMinhasReunioes();
+  }, [fetchMinhasReunioes]);
+
+  const handleCriarReuniao = async () => {
+    if (!usuario?.id) return;
+    if (!formReuniao.data || !formReuniao.local) {
+      toast({ title: 'Preencha a data e o local da reunião', variant: 'destructive' });
+      return;
+    }
+    setSalvandoReuniao(true);
+    try {
+      const { error } = await supabase
+        .from('reunioes')
+        .insert({
+          usuario_id: usuario.id,
+          registrado_por: usuario.id,
+          data_reuniao: new Date(formReuniao.data).toISOString(),
+          local: formReuniao.local.trim(),
+          observacoes: formReuniao.observacoes.trim() || null,
+        });
+      if (error) throw error;
+      toast({ title: '✅ Reunião registrada com sucesso!' });
+      setFormReuniao({ data: '', local: '', observacoes: '' });
+      setModalReuniaoAberto(false);
+      fetchMinhasReunioes();
+    } catch (err: any) {
+      toast({ title: 'Erro ao registrar', description: err.message, variant: 'destructive' });
+    } finally {
+      setSalvandoReuniao(false);
+    }
+  };
+
+  const getGoogleCalendarUrl = (titulo: string, dataStr: string, local: string, observacoes = '') => {
+    try {
+      const data = new Date(dataStr);
+      const start = data.toISOString().replace(/-|:|\.\d\d\d/g, "");
+      const end = new Date(data.getTime() + 60 * 60 * 1000).toISOString().replace(/-|:|\.\d\d\d/g, "");
+      const params = new URLSearchParams({
+        action: "TEMPLATE",
+        text: titulo,
+        dates: `${start}/${end}`,
+        details: `${observacoes || "Reunião de campanha - Rede Sarelli"}\n\n👤 Participante: ${usuario?.nome || '—'}\n🔗 Rede Sarelli`,
+        location: local || "",
+      });
+      return `https://calendar.google.com/calendar/render?${params.toString()}`;
+    } catch (e) {
+      console.error('[cal] Error generating calendar url:', e);
+      return '#';
+    }
+  };
 
   // Suplentes já vinculados
   const suplentesJaVinculados = useMemo(() =>
@@ -698,6 +784,8 @@ export default function TabPerfil() {
                   { value: 'coordenador', label: '📋 Coordenador' },
                   { value: 'fernanda', label: '🩷 Fernanda' },
                   { value: 'social', label: '🌐 Social' },
+                  { value: 'afiliado', label: '🔗 Afiliado' },
+                  { value: 'agenda', label: '📅 Agenda' },
                 ].map(opt => (
                   <button
                     key={opt.value}
@@ -739,6 +827,18 @@ export default function TabPerfil() {
               <div className="rounded-xl border border-teal-500/20 bg-teal-500/5 px-3 py-2">
                 <p className="text-xs font-medium text-foreground">Acesso Social</p>
                 <p className="text-[10px] text-muted-foreground">Esse usuário entra direto na tela exclusiva de Cadastros Social.</p>
+              </div>
+            )}
+            {createMode === 'livre' && tipoNovo === 'afiliado' && (
+              <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-3 py-2">
+                <p className="text-xs font-medium text-foreground">Acesso Afiliado</p>
+                <p className="text-[10px] text-muted-foreground">Esse usuário possui tela própria e link público de captação de cadastros.</p>
+              </div>
+            )}
+            {createMode === 'livre' && tipoNovo === 'agenda' && (
+              <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
+                <p className="text-xs font-medium text-foreground">Acesso Agenda</p>
+                <p className="text-[10px] text-muted-foreground">Esse usuário entra direto na tela exclusiva de gestão de reuniões gerais e sincronização do Google Agenda.</p>
               </div>
             )}
 
@@ -1035,6 +1135,124 @@ export default function TabPerfil() {
       {/* Meus Objetivos (Metas) */}
       <MeusObjetivos />
 
+      {/* Reuniões Section */}
+      <div className="section-card space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
+              <Calendar size={18} className="text-emerald-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Minhas Reuniões</h3>
+              <p className="text-[11px] text-muted-foreground">Registre e acompanhe seus alinhamentos</p>
+            </div>
+          </div>
+          <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-700 text-xs font-bold">
+            {minhasReunioes.length} Realizada{minhasReunioes.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+
+        <button
+          onClick={() => setModalReuniaoAberto(true)}
+          className="w-full h-11 gradient-primary text-white text-sm font-semibold rounded-xl flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-md shadow-primary/20"
+        >
+          <Plus size={16} /> Marcar Reunião Realizada
+        </button>
+
+        {/* Modal/Form de registrar reunião */}
+        {modalReuniaoAberto && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center px-4 animate-in fade-in duration-200">
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setModalReuniaoAberto(false)} />
+            <div className="relative w-full max-w-sm bg-card border border-border rounded-2xl shadow-2xl p-5 space-y-3.5 animate-in zoom-in-95 duration-200">
+              <div className="flex items-center justify-between border-b border-border pb-2.5">
+                <h4 className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                  <Calendar size={16} className="text-primary" /> Marcar Reunião
+                </h4>
+                <button onClick={() => setModalReuniaoAberto(false)} className="p-1 rounded-lg hover:bg-muted"><X size={16} /></button>
+              </div>
+
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Data e Hora *</label>
+                  <input
+                    type="datetime-local"
+                    value={formReuniao.data}
+                    onChange={e => setFormReuniao(f => ({ ...f, data: e.target.value }))}
+                    className={inputCls}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Local *</label>
+                  <input
+                    type="text"
+                    value={formReuniao.local}
+                    onChange={e => setFormReuniao(f => ({ ...f, local: e.target.value }))}
+                    placeholder="Ex: Comitê Central, Bairro Jardim, etc."
+                    className={inputCls}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Observações (opcional)</label>
+                  <textarea
+                    value={formReuniao.observacoes}
+                    onChange={e => setFormReuniao(f => ({ ...f, observacoes: e.target.value }))}
+                    placeholder="Digite detalhes rápidos do alinhamento..."
+                    rows={2}
+                    className="w-full px-3 py-2 bg-card border border-border rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                  />
+                </div>
+              </div>
+
+              <button
+                onClick={handleCriarReuniao}
+                disabled={salvandoReuniao || !formReuniao.data || !formReuniao.local}
+                className="w-full h-11 bg-primary text-primary-foreground text-sm font-semibold rounded-xl flex items-center justify-center gap-2 active:scale-[0.97] transition-all disabled:opacity-50"
+              >
+                {salvandoReuniao ? <Loader2 size={16} className="animate-spin" /> : <Calendar size={16} />}
+                Confirmar Reunião
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Lista de reuniões */}
+        {loadingReunioes ? (
+          <div className="flex justify-center py-4"><Loader2 size={16} className="animate-spin text-primary" /></div>
+        ) : minhasReunioes.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-4">Nenhuma reunião registrada ainda.</p>
+        ) : (
+          <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+            {minhasReunioes.map((reuniao: any) => (
+              <div key={reuniao.id} className="p-3 bg-muted/40 border border-border/50 rounded-xl space-y-1.5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-foreground">
+                      {new Date(reuniao.data_reuniao).toLocaleDateString('pt-BR', {
+                        day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+                      })}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground truncate font-medium">📍 {reuniao.local}</p>
+                  </div>
+                  <a
+                    href={getGoogleCalendarUrl(`Reunião: ${usuario?.nome || 'Campanha'}`, reuniao.data_reuniao, reuniao.local, reuniao.observacoes)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-semibold bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 transition-all shrink-0 active:scale-95"
+                  >
+                    <Calendar size={8} /> Add Google
+                  </a>
+                </div>
+                {reuniao.observacoes && (
+                  <p className="text-[10px] text-muted-foreground leading-relaxed italic border-t border-border/40 pt-1.5">
+                    {reuniao.observacoes}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Gestão App — acesso para todos */}
       <button
         onClick={() => navigate('/gestao')}
@@ -1121,9 +1339,20 @@ export default function TabPerfil() {
                       <span className="text-sm font-bold text-primary">{u.nome.charAt(0).toUpperCase()}</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-foreground truncate">{u.nome}</p>
-                        {(u.tipo === 'super_admin' || u.tipo === 'coordenador') && <Crown size={12} className="text-primary shrink-0" />}
+                      <div className="flex items-center gap-2 justify-between">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <p className="text-sm font-semibold text-foreground truncate">{u.nome}</p>
+                          {(u.tipo === 'super_admin' || u.tipo === 'coordenador') && <Crown size={12} className="text-primary shrink-0" />}
+                        </div>
+                        {(() => {
+                          const count = todasReunioes.filter(r => r.usuario_id === u.id).length;
+                          if (count === 0) return null;
+                          return (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-[9px] font-bold text-emerald-700 uppercase shrink-0 ml-auto">
+                              <Calendar size={9} /> {count} R.
+                            </span>
+                          );
+                        })()}
                       </div>
                        <p className="text-[10px] text-muted-foreground flex flex-wrap items-center gap-x-1">
                          {tipoLabels[u.tipo as TipoUsuario] || u.tipo}

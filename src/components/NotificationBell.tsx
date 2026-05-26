@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Bell, X, Info, AlertTriangle, CheckCircle, Zap, BellRing } from 'lucide-react';
+import { Bell, X, Info, AlertTriangle, CheckCircle, Zap, BellRing, Share } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePushSubscription } from '@/hooks/usePushSubscription';
 
@@ -124,64 +124,113 @@ export default function NotificationBell() {
   const loadData = useCallback(async (isRealtime = false) => {
     if (!usuario?.id) return;
 
-    const { data: avisosData } = await (supabase as any)
-      .from('avisos_app')
-      .select('id, titulo, corpo, tipo, ativa, persistente, criado_em')
-      .eq('ativa', true)
-      .order('criado_em', { ascending: false });
+    try {
+      const { data: avisosData, error: avisosError } = await (supabase as any)
+        .from('avisos_app')
+        .select('id, titulo, corpo, tipo, ativa, persistente, criado_em')
+        .eq('ativa', true)
+        .order('criado_em', { ascending: false });
 
-    if (!avisosData) return;
+      if (avisosError) throw avisosError;
+      if (!avisosData) return;
 
-    const allIds = avisosData.map((a: any) => a.id);
+      const meuTipo = (usuario as any).tipo as string;
+      const meuId = usuario.id;
 
-    const { data: dests } = await (supabase as any)
-      .from('avisos_destinatarios')
-      .select('aviso_id, hierarquia_id, tipo_usuario')
-      .in('aviso_id', allIds);
+      let visiveis: Aviso[] = [];
+      let vizSet = new Set<string>();
 
-    const meuTipo = (usuario as any).tipo as string;
-    const meuId = usuario.id;
+      if (avisosData.length > 0) {
+        const allIds = avisosData.map((a: any) => a.id);
 
-    const visiveis: Aviso[] = avisosData.filter((a: any) => {
-      const d = (dests || []).filter((x: any) => x.aviso_id === a.id);
-      if (d.length === 0) return true;
-      return d.some((x: any) => x.hierarquia_id === meuId || x.tipo_usuario === meuTipo);
-    });
+        // Fetch recipients
+        const { data: dests, error: destsError } = await (supabase as any)
+          .from('avisos_destinatarios')
+          .select('aviso_id, hierarquia_id, tipo_usuario')
+          .in('aviso_id', allIds);
 
-    const { data: vizData } = await (supabase as any)
-      .from('avisos_visualizacoes')
-      .select('aviso_id')
-      .eq('hierarquia_id', meuId)
-      .in('aviso_id', allIds);
+        if (destsError) throw destsError;
 
-    const vizSet = new Set<string>((vizData || []).map((v: any) => v.aviso_id));
+        visiveis = avisosData.filter((a: any) => {
+          const d = (dests || []).filter((x: any) => x.aviso_id === a.id);
+          if (d.length === 0) return true; // public (visible to all)
+          return d.some((x: any) => x.hierarquia_id === meuId || x.tipo_usuario === meuTipo);
+        });
 
-    if (isRealtime && initialDoneRef.current) {
-      const novos = visiveis.filter(a => !knownIdsRef.current.has(a.id) && !vizSet.has(a.id));
-      if (novos.length > 0) {
-        triggerModal(novos[0]);
+        // Fetch read statuses
+        const { data: vizData, error: vizError } = await (supabase as any)
+          .from('avisos_visualizacoes')
+          .select('aviso_id')
+          .eq('hierarquia_id', meuId)
+          .in('aviso_id', allIds);
+
+        if (vizError) throw vizError;
+
+        vizSet = new Set<string>((vizData || []).map((v: any) => v.aviso_id));
+        
+        // Cache read statuses in localStorage
+        try {
+          localStorage.setItem(`visualizados_aviso_${meuId}`, JSON.stringify(Array.from(vizSet)));
+        } catch (e) {
+          console.warn('[bell] Failed to cache visualizados in localStorage:', e);
+        }
+      } else {
+        visiveis = [];
+        vizSet = new Set<string>();
       }
-    } else if (!initialDoneRef.current) {
-      const persistenteNaoVisto = visiveis.find(a => a.persistente && !vizSet.has(a.id));
-      if (persistenteNaoVisto) {
-        setPanelOpen(true);
-        playNotifSound(persistenteNaoVisto.tipo === 'urgente');
+
+      if (isRealtime && initialDoneRef.current) {
+        const novos = visiveis.filter(a => !knownIdsRef.current.has(a.id) && !vizSet.has(a.id));
+        if (novos.length > 0) {
+          triggerModal(novos[0]);
+        }
+      } else if (!initialDoneRef.current) {
+        const persistenteNaoVisto = visiveis.find(a => a.persistente && !vizSet.has(a.id));
+        if (persistenteNaoVisto) {
+          setPanelOpen(true);
+          playNotifSound(persistenteNaoVisto.tipo === 'urgente');
+        }
+        initialDoneRef.current = true;
       }
-      initialDoneRef.current = true;
+
+      knownIdsRef.current = new Set(visiveis.map(a => a.id));
+      setAvisos(visiveis);
+      setVisualizados(vizSet);
+    } catch (err) {
+      console.error('[bell] loadData error:', err);
+      
+      // Offline fallback: load cached read statuses from localStorage
+      const meuId = usuario.id;
+      try {
+        const cached = localStorage.getItem(`visualizados_aviso_${meuId}`);
+        if (cached) {
+          const cachedSet = new Set<string>(JSON.parse(cached));
+          setVisualizados(cachedSet);
+          console.log('[bell] Loaded visualizados from offline cache.');
+        }
+      } catch (e) {
+        console.warn('[bell] Failed to read from offline cache:', e);
+      }
     }
-
-    knownIdsRef.current = new Set(visiveis.map(a => a.id));
-    setAvisos(visiveis);
-    setVisualizados(vizSet);
   }, [usuario?.id, (usuario as any)?.tipo, triggerModal]);
 
   useEffect(() => {
     loadData(false);
 
+    let realtimeTimer: ReturnType<typeof setTimeout>;
+
     const channel = (supabase as any)
       .channel('notif-bell-v2')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'avisos_app' }, () => loadData(true))
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'avisos_app' }, () => loadData(true))
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'avisos_app' }, () => {
+        console.log('[bell] Postgres INSERT event received. Reloading with delay to avoid race condition...');
+        if (realtimeTimer) clearTimeout(realtimeTimer);
+        realtimeTimer = setTimeout(() => loadData(true), 800);
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'avisos_app' }, () => {
+        console.log('[bell] Postgres UPDATE event received. Reloading with delay...');
+        if (realtimeTimer) clearTimeout(realtimeTimer);
+        realtimeTimer = setTimeout(() => loadData(true), 800);
+      })
       .subscribe();
 
     const broadcastChannel = (supabase as any)
@@ -204,6 +253,7 @@ export default function NotificationBell() {
     return () => {
       (supabase as any).removeChannel(channel);
       (supabase as any).removeChannel(broadcastChannel);
+      if (realtimeTimer) clearTimeout(realtimeTimer);
       if (modalTimerRef.current) clearTimeout(modalTimerRef.current);
     };
   }, [loadData]);
@@ -216,7 +266,11 @@ export default function NotificationBell() {
       naoLidos.map(a => ({ aviso_id: a.id, hierarquia_id: usuario.id })),
       { onConflict: 'aviso_id,hierarquia_id', ignoreDuplicates: true }
     );
-    setVisualizados(prev => new Set([...prev, ...naoLidos.map(a => a.id)]));
+    const newViz = new Set([...visualizados, ...naoLidos.map(a => a.id)]);
+    setVisualizados(newViz);
+    try {
+      localStorage.setItem(`visualizados_aviso_${usuario.id}`, JSON.stringify(Array.from(newViz)));
+    } catch {}
   }
 
   async function handleClosePanel() {
@@ -226,6 +280,11 @@ export default function NotificationBell() {
 
   const unreadCount = avisos.filter(a => !visualizados.has(a.id)).length;
   const showPushBanner = supported && permission !== 'denied' && !subscribed;
+  
+  const isIOS = typeof navigator !== 'undefined' && (/ipad|iphone|ipod/.test(navigator.userAgent.toLowerCase()) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+  const isStandalone = typeof window !== 'undefined' && (window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone);
+  const showIOSGuide = isIOS && !isStandalone;
+
   const modalCfg = modalAviso ? (TIPO_CONFIG[modalAviso.tipo] ?? TIPO_CONFIG.info) : null;
   const ModalIcon = modalCfg?.icon ?? null;
 
@@ -344,6 +403,18 @@ export default function NotificationBell() {
                     <p className="text-[10px] text-muted-foreground">Receba avisos mesmo com o app fechado</p>
                   </div>
                 </button>
+              )}
+
+              {showIOSGuide && (
+                <div className="w-full p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-3">
+                  <BellRing size={20} className="text-amber-600 shrink-0 mt-0.5" />
+                  <div className="text-left flex-1">
+                    <p className="text-xs font-bold text-amber-700">📱 Habilitar Notificações (iPhone)</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5 leading-normal">
+                      Para receber notificações no seu iPhone, toque no botão de compartilhar <Share size={12} className="inline text-amber-600 mx-0.5" /> e selecione <strong>'Adicionar à Tela de Início'</strong>.
+                    </p>
+                  </div>
+                </div>
               )}
 
               {avisos.length === 0 ? (

@@ -23,6 +23,8 @@ export const PRESETS_TIPO: Record<string, string[]> = {
   lideranca:    ['cadastrar_liderancas', 'cadastrar_eleitores', 'ver_cadastros'],
   // Fernanda: segue como está
   fernanda:     ['ver_cadastros'],
+  // Agenda: pode acessar os cadastros básicos se necessário
+  agenda:       ['ver_cadastros'],
 };
 
 interface Props {

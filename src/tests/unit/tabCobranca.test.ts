@@ -186,29 +186,20 @@ describe('cálculo de dias desde último cadastro', () => {
 
 // ─── enviarBroadcast (mock Supabase) ─────────────────────────────────────────
 
-// vi.hoisted garante que os mocks estão disponíveis quando vi.mock é içado
-const { mockSend, mockSubscribe, mockRemoveChannel, mockChannel } = vi.hoisted(() => {
-  const mockSend = vi.fn().mockResolvedValue({});
-  const mockSubscribe = vi.fn();
-  const mockRemoveChannel = vi.fn();
-  const mockChannel = vi.fn().mockReturnValue({
-    subscribe: mockSubscribe,
-    send: mockSend,
-  });
-  return { mockSend, mockSubscribe, mockRemoveChannel, mockChannel };
-});
-
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
     auth: {
       getSession: vi.fn().mockResolvedValue({ data: { session: { access_token: 'tok' } } }),
     },
-    channel: mockChannel,
-    removeChannel: mockRemoveChannel,
     from: vi.fn().mockReturnValue({
       insert: vi.fn().mockReturnValue({
         select: vi.fn().mockReturnValue({
           single: vi.fn().mockResolvedValue({ data: { id: 'aviso-123' }, error: null }),
+        }),
+      }),
+      delete: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          lt: vi.fn().mockResolvedValue({ error: null }),
         }),
       }),
     }),
@@ -216,57 +207,52 @@ vi.mock('@/integrations/supabase/client', () => ({
 }));
 
 describe('enviarBroadcast', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSubscribe.mockImplementation((cb: (s: string) => void) => cb('SUBSCRIBED'));
+    fetchMock = vi.fn().mockResolvedValue({ ok: true, json: vi.fn().mockResolvedValue({}) });
+    global.fetch = fetchMock;
   });
 
-  it('cria canal app-notifications', async () => {
+  it('chama endpoint REST /realtime/v1/api/broadcast', async () => {
     const { enviarBroadcast: broadcast } = await import('@/components/gestao/TabCobranca');
-    broadcast('aviso-1', 'Título', 'Corpo', ['uid-1']);
-    expect(mockChannel).toHaveBeenCalledWith('app-notifications');
-  });
-
-  it('envia broadcast com event new_notification', async () => {
-    const { enviarBroadcast: broadcast } = await import('@/components/gestao/TabCobranca');
-    broadcast('aviso-1', 'Título test', 'Corpo test', ['uid-1', 'uid-2']);
-    expect(mockSend).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'broadcast',
-        event: 'new_notification',
-      })
+    await broadcast('aviso-1', 'Título', 'Corpo', ['uid-1']);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/realtime/v1/api/broadcast'),
+      expect.objectContaining({ method: 'POST' })
     );
+  });
+
+  it('envia com event new_notification no topic app-notifications', async () => {
+    const { enviarBroadcast: broadcast } = await import('@/components/gestao/TabCobranca');
+    await broadcast('aviso-1', 'Título', 'Corpo', ['uid-1']);
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.messages[0].topic).toBe('app-notifications');
+    expect(body.messages[0].event).toBe('new_notification');
   });
 
   it('inclui target_ids no payload', async () => {
     const { enviarBroadcast: broadcast } = await import('@/components/gestao/TabCobranca');
     const ids = ['user-a', 'user-b', 'user-c'];
-    broadcast('aviso-42', 'Título', 'Corpo', ids);
-    expect(mockSend).toHaveBeenCalledWith(
-      expect.objectContaining({
-        payload: expect.objectContaining({ target_ids: ids }),
-      })
-    );
+    await broadcast('aviso-42', 'Título', 'Corpo', ids);
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.messages[0].payload.target_ids).toEqual(ids);
   });
 
   it('inclui aviso_id e tipo urgente no payload', async () => {
     const { enviarBroadcast: broadcast } = await import('@/components/gestao/TabCobranca');
-    broadcast('aviso-99', 'T', 'C', ['x']);
-    expect(mockSend).toHaveBeenCalledWith(
-      expect.objectContaining({
-        payload: expect.objectContaining({
-          aviso_id: 'aviso-99',
-          tipo: 'urgente',
-        }),
-      })
-    );
+    await broadcast('aviso-99', 'T', 'C', ['x']);
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.messages[0].payload.aviso_id).toBe('aviso-99');
+    expect(body.messages[0].payload.tipo).toBe('urgente');
   });
 
-  it('não envia se channel não atingir SUBSCRIBED', async () => {
-    mockSubscribe.mockImplementation((cb: (s: string) => void) => cb('CHANNEL_ERROR'));
+  it('usa token do usuário no header Authorization', async () => {
     const { enviarBroadcast: broadcast } = await import('@/components/gestao/TabCobranca');
-    broadcast('aviso-1', 'T', 'C', ['x']);
-    expect(mockSend).not.toHaveBeenCalled();
+    await broadcast('aviso-1', 'T', 'C', ['x']);
+    const [, options] = fetchMock.mock.calls[0];
+    expect(options.headers['Authorization']).toBe('Bearer tok');
   });
 });
 

@@ -2,32 +2,17 @@
  * Testes de integração — Fluxo completo de notificações
  *
  * Objetivo: provar que o sistema entrega notificações corretamente em cada camada:
- *   DB  →  Push (Edge Function)  →  Broadcast (in-app)  →  Modal no usuário
+ *   DB  →  Push (Edge Function)  →  Broadcast REST (in-app)  →  Modal no usuário
  *
  * Cada describe cobre um cenário real que o admin dispara.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ─── Mocks de infraestrutura ──────────────────────────────────────────────────
 
-// Spy capturador do broadcast enviado (compartilhado entre sender e receiver)
-const broadcastBus: { payload: any }[] = [];
-
 const mockInsertAviso = vi.fn();
 const mockInsertDestinatarios = vi.fn();
-const mockInsertSubscribe = vi.fn();
-const mockSubscribe = vi.fn();
-const mockSend = vi.fn().mockImplementation(async (msg: any) => {
-  broadcastBus.push(msg);          // grava no bus de teste
-  return {};
-});
-const mockChannel = vi.fn().mockReturnValue({
-  subscribe: mockSubscribe,
-  send: mockSend,
-  on: vi.fn().mockReturnThis(),
-});
-const mockRemoveChannel = vi.fn();
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
@@ -36,14 +21,17 @@ vi.mock('@/integrations/supabase/client', () => ({
         data: { session: { access_token: 'fake-token' } },
       }),
     },
-    channel: mockChannel,
-    removeChannel: mockRemoveChannel,
     from: vi.fn().mockImplementation((table: string) => {
       if (table === 'avisos_app') {
         return {
           insert: mockInsertAviso.mockReturnValue({
             select: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({ data: { id: 'aviso-test-id' }, error: null }),
+            }),
+          }),
+          delete: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              lt: vi.fn().mockResolvedValue({ error: null }),
             }),
           }),
         };
@@ -60,7 +48,7 @@ vi.mock('@/hooks/use-toast', () => ({
   toast: vi.fn(),
 }));
 
-// Mock de fetch para a Edge Function de push
+// Mock de fetch — roteia por URL: push edge function vs. broadcast REST API
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
@@ -85,15 +73,21 @@ const makeUser = (overrides: Partial<Usuario> = {}): Usuario => ({
   ...overrides,
 });
 
-function setupPushResponse(enviados: number) {
-  mockFetch.mockResolvedValueOnce({
-    json: vi.fn().mockResolvedValue({ enviados }),
-    ok: true,
-  } as any);
+function setupMockFetch(enviados: number) {
+  mockFetch.mockImplementation((url: string) => {
+    if (String(url).includes('realtime/v1/api/broadcast')) {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    }
+    return Promise.resolve({ json: () => Promise.resolve({ enviados }), ok: true });
+  });
 }
 
-function setupSubscribeSuccess() {
-  mockSubscribe.mockImplementation((cb: (s: string) => void) => cb('SUBSCRIBED'));
+function getBroadcastPayload(): any | null {
+  const call = mockFetch.mock.calls.find((c: any[]) =>
+    String(c[0]).includes('realtime/v1/api/broadcast')
+  );
+  if (!call) return null;
+  return JSON.parse(call[1].body).messages[0].payload;
 }
 
 // ─── CENÁRIO 1: Notificar usuário individual com push ──────────────────────
@@ -103,9 +97,7 @@ describe('Cenário 1 — Notificar usuário individual (COM push ativo)', () => 
 
   beforeEach(() => {
     vi.clearAllMocks();
-    broadcastBus.length = 0;
-    setupSubscribeSuccess();
-    setupPushResponse(1);
+    setupMockFetch(1);
   });
 
   it('cria aviso com ativa: false (não polui o feed de avisos)', async () => {
@@ -147,12 +139,10 @@ describe('Cenário 1 — Notificar usuário individual (COM push ativo)', () => 
 
   it('envia broadcast com target_ids contendo APENAS o usuário notificado', async () => {
     const { enviarBroadcast } = await import('@/components/gestao/TabCobranca');
-    enviarBroadcast('aviso-test-id', 'Você não cadastrou hoje!', `${JOAO.nome}, não esqueça...`, [JOAO.id]);
-    expect(mockSend).toHaveBeenCalledWith(
-      expect.objectContaining({
-        payload: expect.objectContaining({ target_ids: ['joao-id'] }),
-      })
-    );
+    await enviarBroadcast('aviso-test-id', 'Você não cadastrou hoje!', `${JOAO.nome}, não esqueça...`, [JOAO.id]);
+    const payload = getBroadcastPayload();
+    expect(payload).not.toBeNull();
+    expect(payload.target_ids).toEqual(['joao-id']);
   });
 
   it('broadcast é recebido pelo usuário correto → modal deve abrir', () => {
@@ -163,7 +153,6 @@ describe('Cenário 1 — Notificar usuário individual (COM push ativo)', () => 
       tipo: 'urgente',
       target_ids: [JOAO.id],
     };
-    // Simula a lógica do guard em NotificationBell
     const targetIds: string[] = payload.target_ids ?? [];
     const meuId = JOAO.id;
     const deveExibir = !(targetIds.length > 0 && !targetIds.includes(meuId));
@@ -180,7 +169,7 @@ describe('Cenário 1 — Notificar usuário individual (COM push ativo)', () => 
 
   it('admin que disparou NÃO recebe a notificação', () => {
     const ADMIN_ID = 'admin-coordenador-id';
-    const targetIds = [JOAO.id]; // admin não está nos targets
+    const targetIds = [JOAO.id];
     const deveExibir = !(targetIds.length > 0 && !targetIds.includes(ADMIN_ID));
     expect(deveExibir).toBe(false);
   });
@@ -193,9 +182,7 @@ describe('Cenário 2 — Usuário SEM push ativo (recebe só in-app via broadcas
 
   beforeEach(() => {
     vi.clearAllMocks();
-    broadcastBus.length = 0;
-    setupSubscribeSuccess();
-    setupPushResponse(0); // 0 push enviado (sem subscription)
+    setupMockFetch(0); // 0 push enviado (sem subscription)
   });
 
   it('Edge Function retorna enviados:0 (sem subscription de push)', async () => {
@@ -205,8 +192,9 @@ describe('Cenário 2 — Usuário SEM push ativo (recebe só in-app via broadcas
 
   it('broadcast ainda é disparado mesmo com enviados:0', async () => {
     const { enviarBroadcast } = await import('@/components/gestao/TabCobranca');
-    enviarBroadcast('aviso-test-id', 'Você não cadastrou hoje!', 'Maria Santos, ...', [MARIA.id]);
-    expect(mockSend).toHaveBeenCalled();
+    await enviarBroadcast('aviso-test-id', 'Você não cadastrou hoje!', 'Maria Santos, ...', [MARIA.id]);
+    const payload = getBroadcastPayload();
+    expect(payload).not.toBeNull();
   });
 
   it('broadcast chega ao dispositivo da Maria (in-app) → modal exibe', () => {
@@ -236,7 +224,6 @@ describe('Cenário 2 — Usuário SEM push ativo (recebe só in-app via broadcas
     expect(semPush).toBe(1);
     expect(comPush).toBe(0);
 
-    // Simula a lógica da mensagem do toast
     let desc = '';
     if (0 > 0) desc = '0 push enviado(s)';
     if (semPush > 0) desc += (desc ? ' · ' : '') + `${semPush} sem push (verão no app)`;
@@ -253,9 +240,7 @@ describe('Cenário 3 — Notificar todos os suplentes sem cadastro', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    broadcastBus.length = 0;
-    setupSubscribeSuccess();
-    setupPushResponse(5); // 5 com push ativo
+    setupMockFetch(5); // 5 com push ativo
   });
 
   it('cria apenas UM aviso para todos os usuários', async () => {
@@ -265,7 +250,6 @@ describe('Cenário 3 — Notificar todos os suplentes sem cadastro', () => {
   });
 
   it('aviso criado tem corpo genérico (sem nome individual) para grupo', async () => {
-    const titulo = 'Você não cadastrou hoje!';
     const corpo = SUPLENTES.length > 1
       ? 'Não esqueça de registrar seus cadastros de hoje. Acesse o app agora!'
       : `${SUPLENTES[0].nome}, não esqueça...`;
@@ -276,12 +260,10 @@ describe('Cenário 3 — Notificar todos os suplentes sem cadastro', () => {
   it('broadcast inclui TODOS os IDs dos suplentes como target_ids', async () => {
     const ids = SUPLENTES.map(u => u.id);
     const { enviarBroadcast } = await import('@/components/gestao/TabCobranca');
-    enviarBroadcast('aviso-test-id', 'Você não cadastrou hoje!', 'Corpo', ids);
-    expect(mockSend).toHaveBeenCalledWith(
-      expect.objectContaining({
-        payload: expect.objectContaining({ target_ids: ids }),
-      })
-    );
+    await enviarBroadcast('aviso-test-id', 'Você não cadastrou hoje!', 'Corpo', ids);
+    const payload = getBroadcastPayload();
+    expect(payload).not.toBeNull();
+    expect(payload.target_ids).toEqual(ids);
   });
 
   it('cada suplente na lista recebe o broadcast (todos incluídos em target_ids)', () => {
@@ -309,7 +291,6 @@ describe('Cenário 3 — Notificar todos os suplentes sem cadastro', () => {
   });
 
   it('all 10 suplentes são notificados via broadcast independente de push', () => {
-    // Os 5 sem push também recebem via in-app broadcast
     const recebemInApp = SUPLENTES.filter(u => !u.temPush).length;
     expect(recebemInApp).toBe(5);
   });
@@ -370,7 +351,6 @@ describe('Cenário 5 — Modal do NotificationBell abre e fecha corretamente', (
       target_ids: ['joao-id'],
     };
 
-    // Replica o que NotificationBell faz ao receber o broadcast
     const aviso = {
       id: payload.aviso_id ?? `notif-${Date.now()}`,
       titulo: payload.titulo ?? 'Notificação',
@@ -471,7 +451,6 @@ describe('Cenário 6 — Push notification no Service Worker (app fechado)', () 
   it('tipo urgente ativa requireInteraction (não some sozinho da tela de bloqueio)', () => {
     const result = simulatePushHandler({ tipo: 'urgente', titulo: 'T', corpo: 'C' });
     expect(result.urgente).toBe(true);
-    // requireInteraction: true é usado quando urgente=true no SW
   });
 });
 
@@ -480,9 +459,7 @@ describe('Cenário 6 — Push notification no Service Worker (app fechado)', () 
 describe('Cenário 7 — Chain completa (admin dispara → usuário recebe)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    broadcastBus.length = 0;
-    setupSubscribeSuccess();
-    setupPushResponse(1);
+    setupMockFetch(1);
   });
 
   it('chain completa: criarAviso → broadcast → targeting → modal payload', async () => {
@@ -498,20 +475,16 @@ describe('Cenário 7 — Chain completa (admin dispara → usuário recebe)', ()
       expect.objectContaining({ ativa: false })
     );
 
-    // Passo 3: Broadcast disparado com o ID do usuário alvo
-    enviarBroadcast(avisoid, 'Você não cadastrou hoje!', `${USUARIO_ALVO.nome}, não esqueça...`, [USUARIO_ALVO.id]);
-    expect(mockSend).toHaveBeenCalledWith(
-      expect.objectContaining({
-        event: 'new_notification',
-        payload: expect.objectContaining({ target_ids: [USUARIO_ALVO.id] }),
-      })
-    );
+    // Passo 3: Broadcast disparado via REST API
+    await enviarBroadcast(avisoid, 'Você não cadastrou hoje!', `${USUARIO_ALVO.nome}, não esqueça...`, [USUARIO_ALVO.id]);
+    const broadcastPayload = getBroadcastPayload();
+    expect(broadcastPayload).not.toBeNull();
+    expect(broadcastPayload.target_ids).toContain(USUARIO_ALVO.id);
 
-    // Passo 4: Usuário alvo recebe
-    const broadcastPayload = mockSend.mock.calls[0][0].payload;
+    // Passo 4: Usuário alvo recebe, admin não
     const targetIds: string[] = broadcastPayload.target_ids;
-    expect(targetIds.includes(USUARIO_ALVO.id)).toBe(true);   // ✅ alvo recebe
-    expect(targetIds.includes(ADMIN_ID)).toBe(false);          // ✅ admin não recebe
+    expect(targetIds.includes(USUARIO_ALVO.id)).toBe(true);
+    expect(targetIds.includes(ADMIN_ID)).toBe(false);
 
     // Passo 5: Modal construído com dados corretos
     const modal = {
@@ -534,14 +507,14 @@ describe('Cenário 7 — Chain completa (admin dispara → usuário recebe)', ()
     const ids = LISTA.map(u => u.id);
 
     const { criarAviso, enviarBroadcast } = await import('@/components/gestao/TabCobranca');
-    const avisoid = await criarAviso('Você não cadastrou hoje!', 'Não esqueça...');
-    enviarBroadcast(avisoid, 'Você não cadastrou hoje!', 'Não esqueça...', ids);
+    await criarAviso('Você não cadastrou hoje!', 'Não esqueça...');
+    await enviarBroadcast('aviso-test-id', 'Você não cadastrou hoje!', 'Não esqueça...', ids);
 
     // 1 aviso, não 3
     expect(mockInsertAviso).toHaveBeenCalledTimes(1);
 
     // broadcast com todos os IDs
-    const broadcastPayload = mockSend.mock.calls[0][0].payload;
+    const broadcastPayload = getBroadcastPayload();
     expect(broadcastPayload.target_ids).toEqual(['u1', 'u2', 'u3']);
 
     // todos recebem — incluindo Bob (sem push) via in-app

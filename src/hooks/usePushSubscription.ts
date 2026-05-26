@@ -33,18 +33,88 @@ export function usePushSubscription() {
 
   useEffect(() => {
     if (!usuario?.id || !supported) return;
+    let active = true;
+
     (async () => {
-      const reg = await navigator.serviceWorker.ready;
-      const existing = await reg.pushManager.getSubscription();
-      if (existing) {
-        const { data } = await (supabase as any)
-          .from('push_subscriptions')
-          .select('id')
-          .eq('endpoint', existing.endpoint)
-          .maybeSingle();
-        setSubscribed(!!data);
+      try {
+        console.log('[push] Initializing subscription check...');
+        // Defensive check: if serviceWorker is not registered yet, wait for it with a timeout
+        const regPromise = navigator.serviceWorker.ready;
+        const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000));
+        const reg = await Promise.race([regPromise, timeoutPromise]);
+        
+        if (!reg) {
+          console.warn('[push] Service worker ready timed out.');
+          return;
+        }
+
+        if (!active) return;
+
+        const existing = await reg.pushManager.getSubscription();
+        if (existing) {
+          console.log('[push] Existing browser subscription found:', existing.endpoint);
+          
+          // Check database
+          const { data, error } = await (supabase as any)
+            .from('push_subscriptions')
+            .select('id, hierarquia_id')
+            .eq('endpoint', existing.endpoint)
+            .maybeSingle();
+
+          if (error) throw error;
+
+          if (!active) return;
+
+          if (data) {
+            if (data.hierarquia_id !== usuario.id) {
+              console.log('[push] Subscription belongs to different user. Migrating in database...', {
+                old: data.hierarquia_id,
+                new: usuario.id
+              });
+              const { error: updateErr } = await (supabase as any)
+                .from('push_subscriptions')
+                .update({ hierarquia_id: usuario.id })
+                .eq('endpoint', existing.endpoint);
+              if (updateErr) throw updateErr;
+              console.log('[push] Subscription migration successful.');
+            } else {
+              console.log('[push] Subscription is correctly matched in database.');
+            }
+            setSubscribed(true);
+          } else {
+            // Subscription exists in browser but not in DB! Sync it to DB.
+            console.log('[push] Subscription exists in browser but not in database. Syncing...');
+            const sub = existing.toJSON();
+            if (sub.endpoint && sub.keys?.p256dh && sub.keys?.auth) {
+              const { error: insertErr } = await (supabase as any).from('push_subscriptions').upsert({
+                hierarquia_id: usuario.id,
+                endpoint: sub.endpoint,
+                p256dh: sub.keys.p256dh,
+                auth: sub.keys.auth,
+                user_agent: navigator.userAgent.slice(0, 200),
+              }, { onConflict: 'endpoint' });
+
+              if (insertErr) throw insertErr;
+              console.log('[push] Synced existing subscription to database.');
+              setSubscribed(true);
+            } else {
+              console.warn('[push] Browser subscription is missing keys. Unsubscribing to refresh...');
+              await existing.unsubscribe();
+              setSubscribed(false);
+            }
+          }
+        } else {
+          console.log('[push] No existing browser subscription.');
+          setSubscribed(false);
+        }
+      } catch (err) {
+        console.error('[push] Error in subscription check:', err);
       }
     })();
+
+    return () => {
+      active = false;
+    };
   }, [usuario?.id, supported]);
 
   const subscribe = useCallback(async (): Promise<boolean> => {

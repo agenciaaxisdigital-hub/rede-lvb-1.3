@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCidade } from '@/contexts/CidadeContext';
 import { toast } from '@/hooks/use-toast';
 import {
-  Loader2, UserPlus, Users, User, CheckCircle2, Search, Eye, EyeOff, Shield, Plus, Pencil, Link2, Instagram
+  Loader2, UserPlus, Users, User, CheckCircle2, Search, Eye, EyeOff, Shield, Plus, Pencil, Link2, Instagram, Calendar
 } from 'lucide-react';
 
 interface SuplenteExterno {
@@ -33,7 +33,7 @@ interface HierarchyUser {
 }
 
 type VinculoTab = 'suplente' | 'lideranca';
-type TipoAcesso = 'suplente' | 'lideranca' | 'coordenador' | 'fernanda' | 'afiliado' | 'social';
+type TipoAcesso = 'suplente' | 'lideranca' | 'coordenador' | 'fernanda' | 'afiliado' | 'social' | 'agenda';
 
 export default function TabCriarUsuarios() {
   const { isAdmin } = useAuth();
@@ -417,6 +417,7 @@ export default function TabCriarUsuarios() {
                   { key: 'coordenador' as TipoAcesso, label: 'Coordenador', icon: Shield },
                   { key: 'fernanda' as TipoAcesso, label: 'Fernanda', icon: User },
                   { key: 'social' as TipoAcesso, label: 'Social', icon: Users },
+                  { key: 'agenda' as TipoAcesso, label: 'Agenda', icon: Calendar },
                 ]).map(({ key, label, icon: Icon }) => (
                   <button key={key}
                     onClick={() => setTipoAcesso(key)}
@@ -555,6 +556,7 @@ export default function TabCriarUsuarios() {
                   { key: 'fernanda' as TipoAcesso, label: 'Fernanda', icon: User },
                   { key: 'afiliado' as TipoAcesso, label: 'Afiliado', icon: Link2 },
                   { key: 'social' as TipoAcesso, label: 'Social', icon: Users },
+                  { key: 'agenda' as TipoAcesso, label: 'Agenda', icon: Calendar },
                 ]).map(({ key, label, icon: Icon }) => (
                   <button key={key}
                     onClick={() => setTipoAcesso(key)}
@@ -573,11 +575,12 @@ export default function TabCriarUsuarios() {
                 {tipoAcesso === 'fernanda' && 'Fernanda: acesso exclusivo à tela "Cadastros Fernanda"'}
                 {tipoAcesso === 'afiliado' && 'Afiliado: tela própria + link público para captar cadastros'}
                 {tipoAcesso === 'social' && 'Social: acesso exclusivo à tela "Cadastros Social"'}
+                {tipoAcesso === 'agenda' && 'Agenda: perfil dedicado com tela simplificada para marcar e gerenciar reuniões gerais'}
               </p>
             </div>
 
             {/* Profissão / Cargo — tag de filtro (apenas para suplente/lideranca/coordenador) */}
-            {tipoAcesso !== 'fernanda' && tipoAcesso !== 'afiliado' && tipoAcesso !== 'social' && (
+            {tipoAcesso !== 'fernanda' && tipoAcesso !== 'afiliado' && tipoAcesso !== 'social' && tipoAcesso !== 'agenda' && (
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground">Profissão / Cargo (tag)</label>
                 <input type="text" value={novoProfissao} onChange={e => setNovoProfissao(e.target.value)} className={inputCls} placeholder="Ex: Assistente Social, Vereador, Empresário..." />

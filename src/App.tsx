@@ -13,6 +13,7 @@ import LoadingScreen from "@/components/LoadingScreen";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { startAutoSync, syncOfflineData } from "@/services/offlineSync";
 import SyncStatusBanner from "@/components/SyncStatusBanner";
+import InstallBanner from "@/components/InstallBanner";
 import { createIdbPersister } from "@/lib/queryPersistence";
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
@@ -26,6 +27,7 @@ const HomeFernanda = lazy(() => import("./pages/HomeFernanda"));
 const HomeAfiliado = lazy(() => import("./pages/HomeAfiliado"));
 const CadastroPublicoAfiliado = lazy(() => import("./pages/CadastroPublicoAfiliado"));
 const GestaoApp = lazy(() => import("./pages/GestaoApp"));
+const HomeAgenda = lazy(() => import("./pages/HomeAgenda"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -42,7 +44,7 @@ const idbPersister = createIdbPersister();
 
 const PERSISTED_QUERY_PREFIXES = ['liderancas', 'eleitores', 'fiscais', 'contagens', 'hierarquia_usuarios'];
 
-function PrivateRoute({ children, allowFernanda = false, allowAfiliado = false }: { children: React.ReactNode; allowFernanda?: boolean; allowAfiliado?: boolean }) {
+function PrivateRoute({ children, allowFernanda = false, allowAfiliado = false, allowAgenda = false }: { children: React.ReactNode; allowFernanda?: boolean; allowAfiliado?: boolean; allowAgenda?: boolean }) {
   const { user, loading, usuario } = useAuth();
   if (loading) return <LoadingScreen message="Verificando acesso" showProgress />;
   if (!user) return <Navigate to="/login" replace />;
@@ -54,6 +56,10 @@ function PrivateRoute({ children, allowFernanda = false, allowAfiliado = false }
   // Redirect Afiliado users to their dedicated screen
   if ((usuario.tipo as string) === 'afiliado' && !allowAfiliado) {
     return <Navigate to="/afiliado" replace />;
+  }
+  // Redirect Agenda users to their dedicated screen
+  if ((usuario.tipo as string) === 'agenda' && !allowAgenda) {
+    return <Navigate to="/agenda" replace />;
   }
   return <>{children}</>;
 }
@@ -80,6 +86,7 @@ function AppRoutes() {
         <Route path="/admin" element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
         <Route path="/fernanda" element={<PrivateRoute allowFernanda><HomeFernanda /></PrivateRoute>} />
         <Route path="/afiliado" element={<PrivateRoute allowAfiliado><HomeAfiliado /></PrivateRoute>} />
+        <Route path="/agenda" element={<PrivateRoute allowAgenda><HomeAgenda /></PrivateRoute>} />
         <Route path="/gestao" element={<PrivateRoute><GestaoApp /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
@@ -314,6 +321,7 @@ function App() {
                   <PwaSilentUpdater />
                   <OfflineSyncManager />
                   <SyncStatusBanner />
+                  <InstallBanner />
                   <AppRoutes />
                 </ErrorBoundary>
               </EventoProvider>

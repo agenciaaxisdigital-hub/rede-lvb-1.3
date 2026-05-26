@@ -52,16 +52,22 @@ export async function criarAviso(titulo: string, corpo: string): Promise<string>
   return data.id as string;
 }
 
-export function enviarBroadcast(avisoid: string, titulo: string, corpo: string, ids: string[]) {
-  const ch = (supabase as any).channel('app-notifications');
-  ch.subscribe((status: string) => {
-    if (status !== 'SUBSCRIBED') return;
-    ch.send({
-      type: 'broadcast',
-      event: 'new_notification',
-      payload: { aviso_id: avisoid, titulo, corpo, tipo: 'urgente', target_ids: ids },
-    });
-    setTimeout(() => (supabase as any).removeChannel(ch), 3000);
+export async function enviarBroadcast(avisoid: string, titulo: string, corpo: string, ids: string[]): Promise<void> {
+  const { data: { session } } = await supabase.auth.getSession();
+  await fetch(`${import.meta.env.VITE_SUPABASE_URL}/realtime/v1/api/broadcast`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session?.access_token ?? import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify({
+      messages: [{
+        topic: 'app-notifications',
+        event: 'new_notification',
+        payload: { aviso_id: avisoid, titulo, corpo, tipo: 'urgente', target_ids: ids },
+      }],
+    }),
   });
 }
 
@@ -162,8 +168,9 @@ export default function TabCobranca() {
     await (supabase as any).from('avisos_destinatarios').insert(
       ids.map(id => ({ aviso_id: avisoid, hierarquia_id: id }))
     );
-    const result = await enviarPush(avisoid, ids);
-    enviarBroadcast(avisoid, titulo, corpo, ids);
+    const result = await enviarPush(avisoid, ids); // edge function envia push + broadcast
+    const cutoff = new Date(Date.now() - 86400000).toISOString();
+    (supabase as any).from('avisos_app').delete().eq('ativa', false).lt('criado_em', cutoff);
     const comPush = lista.filter(u => u.temPush).length;
     const semPush = lista.length - comPush;
     let desc = '';

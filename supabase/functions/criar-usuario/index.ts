@@ -9,7 +9,7 @@ const corsHeaders = {
 const bodySchema = z.object({
   nome: z.string().trim().min(1, 'Nome é obrigatório').max(120, 'Nome muito longo'),
   senha: z.string().min(6, 'Senha deve ter ao menos 6 caracteres').max(72, 'Senha muito longa'),
-  tipo: z.enum(['super_admin', 'coordenador', 'suplente', 'lideranca', 'fiscal', 'fernanda', 'afiliado', 'promotor', 'social']).optional().default('suplente'),
+  tipo: z.enum(['super_admin', 'coordenador', 'suplente', 'lideranca', 'fiscal', 'fernanda', 'afiliado', 'promotor', 'social', 'agenda']).optional().default('suplente'),
   superior_id: z.string().uuid().nullable().optional(),
   suplente_id: z.string().uuid().nullable().optional(),
   municipio_id: z.string().uuid().nullable().optional(),
@@ -53,10 +53,8 @@ Deno.serve(async (req) => {
 
     // Check if auth user already exists
     let authUserId: string | null = null;
-
-    // Try to create user first, handle duplicate gracefully
     let existingUser: any = null;
-    
+
     // Attempt creation first (faster path for new users)
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
@@ -67,13 +65,10 @@ Deno.serve(async (req) => {
 
     if (authError) {
       if (authError.message?.includes('already been registered')) {
-        // Find existing user by listing with filter
-        const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1 });
-        // Search by iterating (Supabase doesn't have email filter on listUsers)
-        // Use a workaround: try to sign in or look up
+        // Find existing user by listing all users and filtering by email
         const { data: usersData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
         existingUser = usersData?.users?.find(u => u.email === email) || null;
-        
+
         if (!existingUser) {
           return new Response(
             JSON.stringify({ error: 'Email já registrado mas não encontrado. Contate o administrador.' }),
@@ -90,7 +85,7 @@ Deno.serve(async (req) => {
     }
 
     if (existingUser) {
-      // Check if already linked in hierarquia
+      // Check if already linked in hierarquia (active)
       const { data: existingHier } = await supabaseAdmin
         .from('hierarquia_usuarios')
         .select('id')
@@ -113,7 +108,6 @@ Deno.serve(async (req) => {
       });
       authUserId = existingUser.id;
     } else {
-      // New user was already created above
       authUserId = authData?.user?.id || null;
     }
 
@@ -121,6 +115,49 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'Usuário de autenticação não foi criado corretamente' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check for any existing hierarquia record (including inactive) to avoid unique constraint violation
+    const { data: existingHierAll } = await supabaseAdmin
+      .from('hierarquia_usuarios')
+      .select('id, ativo')
+      .eq('auth_user_id', authUserId)
+      .maybeSingle();
+
+    if (existingHierAll) {
+      // Reactivate and update the existing record instead of inserting
+      const { data: hierarquiaData, error: hierarquiaError } = await supabaseAdmin
+        .from('hierarquia_usuarios')
+        .update({
+          nome: nome.trim(),
+          tipo,
+          superior_id: superior_id || null,
+          suplente_id: suplente_id || null,
+          municipio_id: municipio_id || null,
+          instagram: instagramLimpo,
+          ativo: true,
+        })
+        .eq('id', existingHierAll.id)
+        .select('id')
+        .single();
+
+      if (hierarquiaError) {
+        console.error('Hierarquia update error:', hierarquiaError);
+        return new Response(
+          JSON.stringify({ error: `Erro ao reativar usuário: ${hierarquiaError.message}` }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: `Usuário "${nome}" reativado com sucesso`,
+          hierarquia_id: hierarquiaData.id,
+          auth_user_id: authUserId,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -141,17 +178,19 @@ Deno.serve(async (req) => {
 
     if (hierarquiaError) {
       console.error('Hierarquia insert error:', hierarquiaError);
-      // Rollback auth user
-      await supabaseAdmin.auth.admin.deleteUser(authUserId);
+      // Rollback: delete auth user only if we just created it (not reused)
+      if (!existingUser) {
+        await supabaseAdmin.auth.admin.deleteUser(authUserId);
+      }
       return new Response(
-        JSON.stringify({ error: 'Erro ao registrar usuário no sistema. Tente novamente.' }),
+        JSON.stringify({ error: `Erro ao registrar usuário: ${hierarquiaError.message}` }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         message: `Usuário "${nome}" criado com sucesso`,
         hierarquia_id: hierarquiaData.id,
         auth_user_id: authUserId,
