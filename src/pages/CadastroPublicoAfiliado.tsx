@@ -85,6 +85,7 @@ export default function CadastroPublicoAfiliado() {
   const [capSaving, setCapSaving] = useState(false);
   const [capSuccess, setCapSuccess] = useState(false);
   const [capErrors, setCapErrors] = useState<Record<string, string>>({});
+  const [capSubmitError, setCapSubmitError] = useState('');
   const [countdown, setCountdown] = useState(3);
 
   // Pessoais
@@ -229,11 +230,15 @@ export default function CadastroPublicoAfiliado() {
     }
     if (Object.keys(erros).length > 0) { setCapErrors(erros); return; }
     setCapErrors({});
+    setCapSubmitError('');
     setCapSaving(true);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
     try {
       const url = `${SUPABASE_URL}/functions/v1/captacao-afiliado`;
       const r = await fetch(url, {
         method: 'POST',
+        signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
           'apikey': SUPABASE_ANON_KEY,
@@ -263,14 +268,21 @@ export default function CadastroPublicoAfiliado() {
           cidade: capCidade.trim() || capRegiao.trim() || null,
         }),
       });
-      const j = await r.json();
+      clearTimeout(timeoutId);
+      let j: any = {};
+      try { j = await r.json(); } catch { /* resposta não-JSON */ }
       if (!r.ok || j?.error) {
-        const msg = typeof j?.error === 'string' ? j.error : 'Erro ao enviar cadastro';
+        const msg = typeof j?.error === 'string' ? j.error : 'Erro ao enviar cadastro. Tente novamente.';
         throw new Error(msg);
       }
       setCapSuccess(true);
     } catch (err: any) {
-      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+      clearTimeout(timeoutId);
+      const msg = err?.name === 'AbortError'
+        ? 'Tempo esgotado. Verifique sua conexão e tente novamente.'
+        : (err?.message || 'Erro ao enviar cadastro. Tente novamente.');
+      setCapSubmitError(msg);
+      toast({ title: 'Erro no cadastro', description: msg, variant: 'destructive' });
       setCapSaving(false);
     }
   };
@@ -602,6 +614,11 @@ export default function CadastroPublicoAfiliado() {
               {capSaving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
               {capSaving ? 'Enviando...' : 'Quero fazer parte'}
             </button>
+            {capSubmitError && (
+              <div className="w-full rounded-xl bg-destructive/10 border border-destructive/30 px-4 py-3 text-sm text-destructive text-center font-medium">
+                {capSubmitError}
+              </div>
+            )}
           </form>
 
           <div className="text-center space-y-1 pb-4">

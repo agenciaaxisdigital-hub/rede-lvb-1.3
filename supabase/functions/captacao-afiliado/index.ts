@@ -173,18 +173,30 @@ Deno.serve(async (req) => {
 
     // ─── AFILIADO (cadastro genérico simples) ──────────────────────────────
     if (tipoDestino === 'afiliado') {
-      const { error: insErr } = await supabaseAdmin.from('cadastros_afiliados').insert({
+      const payload: Record<string, any> = {
         afiliado_id: afiliado.id,
         nome: p.nome.trim(),
         telefone: whatsappFinal,
         data_nascimento: p.data_nascimento || null,
         cep: p.cep?.trim() || null,
+        cidade: p.cidade?.trim() || null,
         rede_social: p.rede_social?.trim() || p.instagram?.trim() || null,
         origem: 'link_publico_afiliado',
-      });
+      };
+      let { error: insErr } = await supabaseAdmin.from('cadastros_afiliados').insert(payload);
+      // Retry sem campos opcionais em caso de violação de constraint
+      if (insErr?.code === '23502' || insErr?.code === '23505') {
+        const retry = await supabaseAdmin.from('cadastros_afiliados').insert({
+          afiliado_id: afiliado.id,
+          nome: p.nome.trim(),
+          telefone: whatsappFinal,
+          origem: 'link_publico_afiliado',
+        });
+        insErr = retry.error;
+      }
       if (insErr) {
-        console.error('cadastros_afiliados insert error:', insErr);
-        return jres({ error: 'Erro ao salvar cadastro' }, 500);
+        console.error('cadastros_afiliados insert error:', JSON.stringify(insErr));
+        return jres({ error: `Erro ao salvar cadastro (${insErr.code || insErr.message})` }, 500);
       }
       return jres({ ok: true, redirect_url: 'https://www.instagram.com/drafernandasarelli/' });
     }
