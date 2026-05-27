@@ -149,8 +149,10 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
 
   const handleSave = async () => {
     if (!form.nome.trim()) { toast({ title: 'Preencha o nome', variant: 'destructive' }); return; }
-    if (!form.cpf || form.cpf.length !== 11) { toast({ title: 'Informe o CPF', variant: 'destructive' }); return; }
-    if (form.cpf.length === 11 && !validateCPF(form.cpf)) { toast({ title: 'CPF inválido', variant: 'destructive' }); return; }
+    if (form.cpf && form.cpf.length > 0) {
+      if (form.cpf.length !== 11) { toast({ title: 'O CPF deve ter 11 dígitos', variant: 'destructive' }); return; }
+      if (!validateCPF(form.cpf)) { toast({ title: 'CPF inválido', variant: 'destructive' }); return; }
+    }
     if (!form.whatsapp.trim()) { toast({ title: 'Informe o WhatsApp', variant: 'destructive' }); return; }
     if (igStatus === 'invalido') { toast({ title: 'Instagram inválido', description: 'O formato do @ informado não é aceito pelo Instagram.', variant: 'destructive' }); return; }
     if (igStatus === 'nao_existe') { toast({ title: 'Instagram não existe', description: 'Esta conta não foi encontrada no Instagram.', variant: 'destructive' }); return; }
@@ -390,8 +392,9 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
             <input type="text" value={form.nome} onChange={e => update('nome', e.target.value)} placeholder="Nome da liderança" className={inputCls} />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">
-              CPF <span className="text-primary">*</span>
+            <label className="text-xs font-medium text-muted-foreground flex items-center justify-between">
+              <span>CPF</span>
+              <span className="text-[10px] text-muted-foreground font-normal lowercase">(opcional)</span>
             </label>
             <input type="text" inputMode="numeric" value={formatCPF(form.cpf)} onChange={e => handleCPFChange(e.target.value)} placeholder="000.000.000-00" className={inputCls} maxLength={14} />
           </div>

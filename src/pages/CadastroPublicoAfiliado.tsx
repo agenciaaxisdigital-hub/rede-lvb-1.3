@@ -657,7 +657,10 @@ export default function CadastroPublicoAfiliado() {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className={labelCls}>CPF</label>
+                <label className={labelCls + " flex items-center justify-between"}>
+                  <span>CPF</span>
+                  <span className="text-[10px] text-muted-foreground font-normal lowercase">(opcional)</span>
+                </label>
                 <input type="text" value={cpf} onChange={e => { setCpf(e.target.value); setMainErrors(p => ({ ...p, cpf: '' })); }} className={inputCls + (mainErrors.cpf ? ' border-destructive' : '')} maxLength={14} placeholder="000.000.000-00" />
                 {mainErrors.cpf && <p className="text-[10px] text-destructive mt-1">{mainErrors.cpf}</p>}
               </div>
