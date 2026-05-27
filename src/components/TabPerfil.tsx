@@ -403,7 +403,7 @@ export default function TabPerfil() {
     setTipoNovo('suplente');
     setSenhaNova('');
     setShowSenha(false);
-    setSelectedModulos(new Set(['cadastrar_liderancas', 'cadastrar_fiscais', 'cadastrar_eleitores']));
+    setSelectedModulos(new Set(['cadastrar_liderancas', 'cadastrar_cabos', 'cadastrar_fiscais', 'cadastrar_eleitores']));
     setExternalSearch('');
     setCreateCidade(municipios.length === 1 ? municipios[0].id : '');
     setCargoTagPerfil('');

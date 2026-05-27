@@ -23,8 +23,8 @@ Deno.serve(async (req) => {
     const PRESETS: Record<string, string[]> = {
       super_admin:  ['master'],
       coordenador:  ['coordenador_vinculos'],
-      suplente:     ['cadastrar_liderancas', 'cadastrar_fiscais', 'cadastrar_eleitores', 'ver_cadastros'],
-      lideranca:    ['cadastrar_liderancas', 'cadastrar_eleitores', 'ver_cadastros'],
+      suplente:     ['cadastrar_liderancas', 'cadastrar_cabos', 'cadastrar_fiscais', 'cadastrar_eleitores', 'ver_cadastros'],
+      lideranca:    ['cadastrar_liderancas', 'cadastrar_cabos', 'cadastrar_eleitores', 'ver_cadastros'],
       fernanda:     ['ver_cadastros'],
     };
 
@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
     }
 
     // Atribuir módulos padrão para todos suplentes e lideranças
-    const modulos = ['cadastrar_liderancas', 'cadastrar_fiscais', 'cadastrar_eleitores'];
+    const modulos = ['cadastrar_liderancas', 'cadastrar_cabos', 'cadastrar_fiscais', 'cadastrar_eleitores'];
 
     const { data: usuarios } = await supabaseAdmin
       .from('hierarquia_usuarios')

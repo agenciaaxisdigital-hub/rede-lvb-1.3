@@ -94,9 +94,7 @@ export default function Home() {
            return;
          }
 
-         if (activeTab === 'cabos' && !hasMaster && !modulos.has('cadastrar_liderancas')) {
-           // Suplentes e lideranças sempre podem acessar a aba Cabos
-           if (isSuplente || isLideranca) return;
+         if (activeTab === 'cabos' && !hasMaster && !modulos.has('cadastrar_cabos')) {
            handleTabChange('cadastros');
            return;
          }

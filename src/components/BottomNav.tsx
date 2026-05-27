@@ -14,7 +14,7 @@ interface Props {
 }
 
 const ALL_TABS: { id: TabId; icon: typeof Users; label: string; module?: string }[] = [
-  { id: 'cabos', icon: UserPlus, label: 'Cabos', module: 'cadastrar_liderancas' },
+  { id: 'cabos', icon: UserPlus, label: 'Cabos', module: 'cadastrar_cabos' },
   { id: 'liderancas', icon: Users, label: 'Lideranças', module: 'cadastrar_liderancas' },
   { id: 'promotores', icon: Megaphone, label: 'Promotores', module: 'cadastrar_liderancas' },
   { id: 'fiscais', icon: Search, label: 'Fiscais', module: 'cadastrar_fiscais' },
@@ -56,7 +56,7 @@ export default function BottomNav({ active, onChange }: Props) {
     if (!usuario?.id) return;
     // Super admin / coordenador see everything
     if (tipoUsuario === 'super_admin' || tipoUsuario === 'coordenador') {
-      setModulos(new Set(['master', 'cadastrar_liderancas', 'cadastrar_fiscais', 'cadastrar_eleitores']));
+      setModulos(new Set(['master', 'cadastrar_liderancas', 'cadastrar_cabos', 'cadastrar_fiscais', 'cadastrar_eleitores']));
       setLoaded(true);
       return;
     }
@@ -89,8 +89,8 @@ export default function BottomNav({ active, onChange }: Props) {
     // Cadastros (meus cadastros) - visible to everyone except social
     if (tab.id === 'cadastros') return true;
 
-    // Suplentes e Lideranças sempre enxergam Cabos e Lideranças
-    if ((tab.id === 'cabos' || tab.id === 'liderancas') && isSuplementeOrLideranca) return true;
+    // Lideranças e Suplentes enxergam a aba Liderança por padrão (como âncora principal)
+    if (tab.id === 'liderancas' && isSuplementeOrLideranca) return true;
 
     // Promotores: apenas admin/coord (já retornou acima) ou tipo promotor
     if (tab.id === 'promotores') return tipoUsuario === 'promotor';

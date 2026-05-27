@@ -6,6 +6,7 @@ import { Loader2, Sparkles } from 'lucide-react';
 export const MODULOS = [
   { id: 'master', label: '🔑 Acesso Master', desc: 'Acesso total — vê e faz tudo no sistema' },
   { id: 'cadastrar_liderancas', label: '👥 Lideranças', desc: 'Visualizar e cadastrar lideranças' },
+  { id: 'cadastrar_cabos', label: '👥 Cabos Eleitorais', desc: 'Visualizar e cadastrar cabos eleitorais' },
   { id: 'cadastrar_fiscais', label: '🔍 Fiscais', desc: 'Visualizar e cadastrar fiscais' },
   { id: 'cadastrar_eleitores', label: '🎯 Eleitores', desc: 'Visualizar e cadastrar eleitores' },
   { id: 'ver_cadastros', label: '📋 Tela de Cadastros', desc: 'Visualizar a tela de cadastros' },
@@ -18,9 +19,9 @@ export const PRESETS_TIPO: Record<string, string[]> = {
   // Coordenador: vincula pessoas a outros usuários
   coordenador:  ['coordenador_vinculos'],
   // Suplente: cadastra Lideranças, Fiscais, Eleitores e vê a tela de Cadastros
-  suplente:     ['cadastrar_liderancas', 'cadastrar_fiscais', 'cadastrar_eleitores', 'ver_cadastros'],
+  suplente:     ['cadastrar_liderancas', 'cadastrar_cabos', 'cadastrar_fiscais', 'cadastrar_eleitores', 'ver_cadastros'],
   // Liderança: cadastra Lideranças e Eleitores e vê a tela de Cadastros (somente os seus)
-  lideranca:    ['cadastrar_liderancas', 'cadastrar_eleitores', 'ver_cadastros'],
+  lideranca:    ['cadastrar_liderancas', 'cadastrar_cabos', 'cadastrar_eleitores', 'ver_cadastros'],
   // Fernanda: segue como está
   fernanda:     ['ver_cadastros'],
   // Agenda: pode acessar os cadastros básicos se necessário
