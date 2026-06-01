@@ -233,6 +233,41 @@ export default function AdminDashboard() {
     return { l, c, e: filteredE.length, f: filteredF.length, fern, total: l + c + filteredE.length + filteredF.length + fern };
   }, [filteredL, filteredE, filteredF, filteredFern]);
 
+  /* ── 7-Day Trend calculation helper ── */
+  const getTrend = useCallback((items: any[]) => {
+    const counts = Array(7).fill(0);
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    items.forEach(item => {
+      if (!item.criado_em) return;
+      const d = new Date(item.criado_em);
+      d.setHours(0, 0, 0, 0);
+      const diffTime = now.getTime() - d.getTime();
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      if (diffDays >= 0 && diffDays < 7) {
+        counts[6 - diffDays]++; // 0 is 6 days ago, 6 is today
+      }
+    });
+    return counts;
+  }, []);
+
+  const trends = useMemo(() => {
+    const lTrend = getTrend(filteredL.filter(r => r.tipo_lideranca !== 'Cabo Eleitoral'));
+    const cTrend = getTrend(filteredL.filter(r => r.tipo_lideranca === 'Cabo Eleitoral'));
+    const eTrend = getTrend(filteredE);
+    const fTrend = getTrend(filteredF);
+    const fernTrend = getTrend(filteredFern);
+
+    // Sum up elements element-wise to get the total trend
+    const totalTrend = Array(7).fill(0);
+    for (let i = 0; i < 7; i++) {
+      totalTrend[i] = lTrend[i] + cTrend[i] + eTrend[i] + fTrend[i] + fernTrend[i];
+    }
+
+    return { l: lTrend, c: cTrend, e: eTrend, f: fTrend, fern: fernTrend, total: totalTrend };
+  }, [filteredL, filteredE, filteredF, filteredFern, getTrend]);
+
   /* ── Ranking ── */
   const rankingUsuarios = useMemo(() => {
     const map: Record<string, { l:number; c:number; e:number; f:number; fern:number; soc:number }> = {};
@@ -404,7 +439,7 @@ export default function AdminDashboard() {
       onViewChange={handleViewChange}
     >
       {/* Estatísticas globais + período */}
-      <AdminStatsStrip totais={totais} periodo={periodo} onPeriodoChange={setPeriodo} variant="full" />
+      <AdminStatsStrip totais={totais} trends={trends} periodo={periodo} onPeriodoChange={setPeriodo} variant="full" />
 
       {/* Seletores de contexto */}
       {municipios.length > 1 && <SeletorCidade />}
