@@ -179,52 +179,11 @@ export default function AdminDashboard() {
     const limit = periodo === 'hoje' ? hoje : periodo === 'semana' ? inicioSemana : inicioMes;
     return new Date(criado_em) >= limit;
   }, [periodo, hoje, inicioSemana, inicioMes]);
-
-  const filteredL = useMemo(() => {
-    return liderancas.filter(r => {
-      if (!dateFilter(r.criado_em)) return false;
-      if (filtroMunicipioId && r.municipio_id !== filtroMunicipioId) return false;
-      return true;
-    });
-  }, [liderancas, dateFilter, filtroMunicipioId]);
-
-  const filteredE = useMemo(() => {
-    return eleitores.filter(r => {
-      if (!dateFilter(r.criado_em)) return false;
-      if (filtroMunicipioId && r.municipio_id !== filtroMunicipioId) return false;
-      return true;
-    });
-  }, [eleitores, dateFilter, filtroMunicipioId]);
-
-  const filteredF = useMemo(() => {
-    return fiscais.filter(r => {
-      if (!r.criado_em || !dateFilter(r.criado_em)) return false;
-      if (filtroMunicipioId && r.municipio_id !== filtroMunicipioId) return false;
-      return true;
-    });
-  }, [fiscais, dateFilter, filtroMunicipioId]);
-
-  const filteredFern = useMemo(() => {
-    return cadastrosFernanda.filter(r => {
-      if (!dateFilter(r.criado_em)) return false;
-      if (cidadeAtiva) {
-        if (!r.cidade) return false;
-        return r.cidade.toLowerCase().trim() === cidadeAtiva.nome.toLowerCase().trim();
-      }
-      return true;
-    });
-  }, [cadastrosFernanda, dateFilter, cidadeAtiva]);
-
-  const filteredSoc = useMemo(() => {
-    return cadastrosSocial.filter(r => {
-      if (!dateFilter(r.criado_em)) return false;
-      if (cidadeAtiva && r.regiao) {
-        return r.regiao.toLowerCase().includes(cidadeAtiva.nome.toLowerCase()) ||
-               cidadeAtiva.nome.toLowerCase().includes(r.regiao.toLowerCase());
-      }
-      return true;
-    });
-  }, [cadastrosSocial, dateFilter, cidadeAtiva]);
+  const filteredL    = useMemo(() => liderancas.filter(r => dateFilter(r.criado_em)), [liderancas, dateFilter]);
+  const filteredE    = useMemo(() => eleitores.filter(r => dateFilter(r.criado_em)),  [eleitores, dateFilter]);
+  const filteredF    = useMemo(() => fiscais.filter(r => r.criado_em && dateFilter(r.criado_em)), [fiscais, dateFilter]);
+  const filteredFern = useMemo(() => cadastrosFernanda.filter(r => dateFilter(r.criado_em)), [cadastrosFernanda, dateFilter]);
+  const filteredSoc  = useMemo(() => cadastrosSocial.filter(r => dateFilter(r.criado_em)),   [cadastrosSocial, dateFilter]);
 
   const totais = useMemo(() => {
     const l = filteredL.filter(r => r.tipo_lideranca !== 'Cabo Eleitoral').length;
@@ -1201,7 +1160,7 @@ export default function AdminDashboard() {
       {/* ══════════ FERNANDA ══════════ */}
       {activeView === 'fernanda' && (
         <Suspense fallback={<FallbackLoader />}>
-          <AdminCadastrosFernanda periodo={periodo} cidadeAtiva={cidadeAtiva} />
+          <AdminCadastrosFernanda periodo={periodo} />
         </Suspense>
       )}
 
