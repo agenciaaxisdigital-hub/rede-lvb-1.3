@@ -81,15 +81,19 @@ Deno.serve(async (req) => {
     // Default: diagnostic
     const [
       { data: usuarios },
-      { count: totalLid },
+      { count: totalLidExcludingCabos },
+      { count: totalCabos },
       { count: totalEle },
       { count: totalFis },
+      { count: totalFernanda },
       { data: suplentes },
     ] = await Promise.all([
       supabaseAdmin.from('hierarquia_usuarios').select('id, nome, tipo, suplente_id, municipio_id, ativo').eq('ativo', true).order('nome'),
-      supabaseAdmin.from('liderancas').select('id', { count: 'exact', head: true }),
+      supabaseAdmin.from('liderancas').select('id', { count: 'exact', head: true }).neq('tipo_lideranca', 'Cabo Eleitoral'),
+      supabaseAdmin.from('liderancas').select('id', { count: 'exact', head: true }).eq('tipo_lideranca', 'Cabo Eleitoral'),
       supabaseAdmin.from('possiveis_eleitores').select('id', { count: 'exact', head: true }),
       supabaseAdmin.from('fiscais').select('id', { count: 'exact', head: true }),
+      supabaseAdmin.from('cadastros_fernanda').select('id', { count: 'exact', head: true }),
       supabaseAdmin.from('suplentes').select('id, nome, cargo_disputado'),
     ]);
 
@@ -108,9 +112,11 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({
       usuarios_ativos: usuarios?.length || 0,
       lista_usuarios: usuarios,
-      total_liderancas: totalLid || 0,
+      total_liderancas: totalLidExcludingCabos || 0,
+      total_cabos: totalCabos || 0,
       total_eleitores: totalEle || 0,
       total_fiscais: totalFis || 0,
+      total_fernanda: totalFernanda || 0,
       recentes_24h: {
         liderancas: recentLidCount || 0,
         eleitores: recentEleCount || 0,

@@ -61,7 +61,7 @@ export interface CadastroSocial {
   cadastrado_por: string | null; criado_em: string;
 }
 
-export interface Totais { l: number; c: number; e: number; f: number; total: number; }
+export interface Totais { l: number; c: number; e: number; f: number; fern?: number; total: number; }
 
 export interface RankingEntry {
   id: string; nome: string; tipo: string; municipio_id: string | null;

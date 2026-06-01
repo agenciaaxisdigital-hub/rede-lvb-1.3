@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Search, Edit2, Trash2, X, Save, Loader2, Phone, Instagram, MapPin, User, Download, ClipboardList } from 'lucide-react';
+import { Periodo } from './admin/adminTypes';
 
 interface CadastroFernanda {
   id: string;
@@ -21,7 +22,12 @@ interface FormState {
   instagram: string;
 }
 
-export default function AdminCadastrosFernanda() {
+interface AdminCadastrosFernandaProps {
+  periodo?: Periodo;
+  cidadeAtiva?: { id: string; nome: string } | null;
+}
+
+export default function AdminCadastrosFernanda({ periodo, cidadeAtiva }: AdminCadastrosFernandaProps = {}) {
   const [cadastros, setCadastros] = useState<CadastroFernanda[]>([]);
   const [autores, setAutores] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -127,6 +133,26 @@ export default function AdminCadastrosFernanda() {
     // Esconder cadastros de "Usuários Desconhecidos" (outras aplicações)
     if (c.cadastrado_por && !autores[c.cadastrado_por]) {
       return false;
+    }
+
+    // Aplicar filtro de período, se fornecido
+    if (periodo && periodo !== 'total') {
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
+      const inicioSemana = new Date(hoje);
+      inicioSemana.setDate(hoje.getDate() - hoje.getDay());
+      const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+
+      const criadoEmDate = new Date(c.criado_em);
+      if (periodo === 'hoje' && criadoEmDate < hoje) return false;
+      if (periodo === 'semana' && criadoEmDate < inicioSemana) return false;
+      if (periodo === 'mes' && criadoEmDate < inicioMes) return false;
+    }
+
+    // Aplicar filtro de cidade ativa, se fornecida
+    if (cidadeAtiva) {
+      if (!c.cidade) return false;
+      if (c.cidade.toLowerCase().trim() !== cidadeAtiva.nome.toLowerCase().trim()) return false;
     }
 
     const q = busca.toLowerCase().trim();
