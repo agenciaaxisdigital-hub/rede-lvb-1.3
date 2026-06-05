@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Loader2, Search, ChevronRight, ArrowLeft, Phone, MessageCircle, Trash2, Download, WifiOff, ExternalLink, Eye } from 'lucide-react';
+import { Loader2, Search, ChevronRight, ArrowLeft, Phone, MessageCircle, Trash2, Download, WifiOff, ExternalLink, Eye, Pencil } from 'lucide-react';
+import EditCadastroModal from '@/components/EditCadastroModal';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useInvalidarCadastros } from '@/hooks/useDataCache';
@@ -100,6 +101,7 @@ export default function TabFiscais({ refreshKey, onSaved, viewOnly }: Props) {
   const invalidarCadastros = useInvalidarCadastros();
   const { data: cachedData, isLoading: cacheLoading } = useFiscais();
   const [mode, setMode] = useState<'list' | 'form' | 'detail'>('list');
+  const [showEdit, setShowEdit] = useState(false);
   const [data, setData] = useState<FiscalRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -304,10 +306,37 @@ export default function TabFiscais({ refreshKey, onSaved, viewOnly }: Props) {
           {isAdmin && f.hierarquia_usuarios && (
             <p className="text-[10px] text-primary/70 mt-1">Por: {f.hierarquia_usuarios.nome} · {new Date(f.criado_em).toLocaleDateString('pt-BR')}</p>
           )}
-          <div className="flex gap-2 pt-2">
+          <div className="flex gap-2 pt-2 flex-wrap">
             {p.whatsapp && <a href={`https://wa.me/55${p.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener" className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500/10 text-emerald-600 rounded-lg text-xs font-medium"><MessageCircle size={14} /> WhatsApp</a>}
+            <button onClick={() => setShowEdit(true)} className="flex items-center gap-1 px-3 py-1.5 bg-primary/10 text-primary rounded-lg text-xs font-medium active:scale-95">
+              <Pencil size={14} /> Editar
+            </button>
           </div>
         </div>
+        {showEdit && (
+          <EditCadastroModal
+            tipo="fiscal"
+            registroId={f.id}
+            pessoaId={(f.pessoas as any).id}
+            inicial={{
+              nome: p.nome,
+              cpf: p.cpf,
+              whatsapp: p.whatsapp,
+              instagram: p.instagram,
+              titulo_eleitor: p.titulo_eleitor,
+              zona_eleitoral: p.zona_eleitoral,
+              secao_eleitoral: p.secao_eleitoral,
+              municipio_eleitoral: p.municipio_eleitoral,
+              uf_eleitoral: p.uf_eleitoral,
+              zona_fiscal: f.zona_fiscal,
+              secao_fiscal: f.secao_fiscal,
+              colegio_fiscal: f.colegio_eleitoral,
+              observacoes: f.observacoes,
+            }}
+            onClose={() => setShowEdit(false)}
+            onSaved={() => { fetchDetalhe(f.id); invalidarCadastros(); }}
+          />
+        )}
         <div className="section-card">
           <h3 className="section-title">👤 Dados Pessoais</h3>
           <Info label="CPF" value={p.cpf ? formatCPF(p.cpf) : null} />

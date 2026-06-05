@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
- import { Search, ChevronRight, Phone, MessageCircle, Trash2, ArrowLeft, XCircle, Download, Loader2, ExternalLink, PlusCircle, CloudOff, Network, Eye } from 'lucide-react';
+import { Search, ChevronRight, Phone, MessageCircle, Trash2, ArrowLeft, XCircle, Download, Loader2, ExternalLink, PlusCircle, CloudOff, Network, Eye, Pencil } from 'lucide-react';
 import { exportAllCadastros } from '@/lib/exportXlsx';
+import EditCadastroModal from '@/components/EditCadastroModal';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLiderancas, useInvalidarCadastros } from '@/hooks/useDataCache';
@@ -71,6 +72,7 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
   const offlineItems = useOfflineItems('lideranca');
   const invalidarCadastros = useInvalidarCadastros();
   const [mode, setMode] = useState<'list' | 'form' | 'detail'>('list');
+  const [showEdit, setShowEdit] = useState(false);
   const [data, setData] = useState<LiderancaRow[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -324,10 +326,38 @@ export default function TabLiderancas({ refreshKey, onSaved, viewOnly }: Props) 
               )}
             </div>
           </div>
-          <div className="flex gap-2 pt-2">
+          <div className="flex gap-2 pt-2 flex-wrap">
             {p.whatsapp && <a href={`https://wa.me/55${p.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener" className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-medium"><MessageCircle size={14} /> WhatsApp</a>}
+            <button onClick={() => setShowEdit(true)} className="flex items-center gap-1 px-3 py-1.5 bg-primary/10 text-primary rounded-lg text-xs font-medium active:scale-95">
+              <Pencil size={14} /> Editar
+            </button>
           </div>
         </div>
+        {showEdit && (
+          <EditCadastroModal
+            tipo={l.tipo_lideranca === 'Cabo Eleitoral' ? 'cabo' : l.tipo_lideranca === 'Promotor' ? 'promotor' : 'lideranca'}
+            registroId={l.id}
+            pessoaId={(l.pessoas as any).id}
+            inicial={{
+              nome: p.nome,
+              cpf: p.cpf,
+              whatsapp: p.whatsapp,
+              instagram: p.instagram,
+              titulo_eleitor: p.titulo_eleitor,
+              zona_eleitoral: p.zona_eleitoral,
+              secao_eleitoral: p.secao_eleitoral,
+              municipio_eleitoral: p.municipio_eleitoral,
+              uf_eleitoral: p.uf_eleitoral,
+              colegio_eleitoral: p.colegio_eleitoral,
+              regiao_atuacao: l.regiao_atuacao,
+              nivel_comprometimento: l.nivel_comprometimento,
+              apoiadores_estimados: l.apoiadores_estimados,
+              observacoes: l.observacoes,
+            }}
+            onClose={() => setShowEdit(false)}
+            onSaved={() => { fetchDetalhe(l.id); invalidarCadastros(); }}
+          />
+        )}
         <div className="section-card">
           <h3 className="section-title">👤 Dados Pessoais</h3>
           <Info label="CPF" value={p.cpf ? formatCPF(p.cpf) : null} />
