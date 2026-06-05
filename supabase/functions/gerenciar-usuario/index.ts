@@ -138,12 +138,24 @@ Deno.serve(async (req) => {
           resolvedAuthUserId = targetUser.auth_user_id;
         }
 
+        let authUserExists = false;
         if (resolvedAuthUserId) {
+          try {
+            const { data: authUserCheck, error: authUserCheckError } = await supabaseAdmin.auth.admin.getUserById(resolvedAuthUserId);
+            if (!authUserCheckError && authUserCheck?.user) {
+              authUserExists = true;
+            }
+          } catch (e) {
+            console.error('Erro ao verificar usuário no auth:', e);
+          }
+        }
+
+        if (resolvedAuthUserId && authUserExists) {
           // Simply update password on existing auth account
           const { error } = await supabaseAdmin.auth.admin.updateUserById(resolvedAuthUserId, { password: nova_senha });
           if (error) throw error;
         } else {
-          // No auth account exists — create one
+          // No auth account exists (or it was deleted/not found) — create one
           const baseName = (trimmedNome || targetUser.nome || '').trim();
           const slug = baseName.toLowerCase().replace(/\s+/g, '.').replace(/[^a-z0-9.]/g, '');
 
@@ -193,11 +205,22 @@ Deno.serve(async (req) => {
       // Update auth email/name if nome changed and user has auth account
       if (trimmedNome && resolvedAuthUserId) {
         const newEmail = trimmedNome.toLowerCase().replace(/\s+/g, '.').replace(/[^a-z0-9.]/g, '') + '@rede.sarelli.com';
-        const { error: authUpdateError } = await supabaseAdmin.auth.admin.updateUserById(resolvedAuthUserId, {
-          email: newEmail,
-          user_metadata: { name: trimmedNome },
-        });
-        if (authUpdateError) throw authUpdateError;
+        try {
+          const { error: authUpdateError } = await supabaseAdmin.auth.admin.updateUserById(resolvedAuthUserId, {
+            email: newEmail,
+            user_metadata: { name: trimmedNome },
+          });
+          if (authUpdateError) throw authUpdateError;
+        } catch (e) {
+          console.error('Erro ao atualizar email do usuário (tentando apenas nome):', e);
+          // Fallback: update only name in metadata, keep old email
+          const { error: authNameOnlyError } = await supabaseAdmin.auth.admin.updateUserById(resolvedAuthUserId, {
+            user_metadata: { name: trimmedNome },
+          });
+          if (authNameOnlyError) {
+            console.error('Erro ao atualizar apenas nome:', authNameOnlyError);
+          }
+        }
       }
 
       if (Object.keys(updates).length > 0) {
