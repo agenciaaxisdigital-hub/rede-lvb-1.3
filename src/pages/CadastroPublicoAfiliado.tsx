@@ -49,6 +49,9 @@ export default function CadastroPublicoAfiliado() {
     : tipoParam === 'social'
     ? 'Cadastro Social'
     : null;
+  const exigeEleitoral = useMemo(() => {
+    return tipoParam === 'lideranca' || tipoParam === 'cabo' || tipoParam === 'promotor' || tipoParam === 'fiscal' || tipoParam === 'eleitor';
+  }, [tipoParam]);
 
   // Detecção de modo: 'captacao' (link de afiliado ativo, formulário simples)
   // ou 'criar_acesso' (registro pendente do próprio afiliado, fluxo completo)
@@ -220,7 +223,6 @@ export default function CadastroPublicoAfiliado() {
     const instagramInformado = capInstagramAlvo.trim();
     if (!instagramInformado && !isSocial) erros.instagram = 'Instagram obrigatório';
     // CPF oculto temporariamente
-    const exigeEleitoral = tipoParam === 'lideranca' || tipoParam === 'cabo' || tipoParam === 'promotor' || tipoParam === 'fiscal' || tipoParam === 'eleitor';
     if (exigeEleitoral) {
       if (!capTitulo.trim()) erros.titulo = 'Título de eleitor obrigatório';
       if (!capZona.trim()) erros.zona = 'Zona eleitoral obrigatória';
@@ -526,8 +528,8 @@ export default function CadastroPublicoAfiliado() {
               </div>
             )}
 
-            {/* Bloco eleitoral — somente para liderança / fiscal / eleitor */}
-            {(tipoParam === 'lideranca' || tipoParam === 'fiscal' || tipoParam === 'eleitor') && (
+            {/* Bloco eleitoral — somente para quem exige dados eleitorais */}
+            {exigeEleitoral && (
               <div className="section-card space-y-3 shadow-sm">
                 <h2 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5 pb-1 border-b border-border">
                   🗳️ Dados eleitorais
