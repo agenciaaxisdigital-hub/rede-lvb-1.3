@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import type { PopupUserData } from '@/components/admin/adminTypes';
+import type { PopupUserData, RankingEntry } from '@/components/admin/adminTypes';
 
 interface ExportRow {
   tipo: string;
@@ -367,4 +367,55 @@ export async function exportPopupUserData(userName: string, data: PopupUserData)
 
   const safeName = (userName || 'usuario').split(' ')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
   XLSX.writeFile(wb, `cadastros_${safeName}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+export async function exportRankingCadastros(entries: RankingEntry[]) {
+  const XLSX = await import('xlsx');
+
+  const tipoLabel: Record<string, string> = {
+    super_admin: 'Admin', coordenador: 'Coordenador', suplente: 'Suplente',
+    lideranca: 'Liderança', fernanda: 'Fernanda', afiliado: 'Afiliado',
+    promotor: 'Promotor', social: 'Social',
+  };
+
+  const headers = [
+    'Posição', 'Nome', 'Tipo', 'Total', 'Lideranças', 'Cabos',
+    'Eleitores', 'Fiscais', 'Fernanda', 'Social',
+  ];
+
+  const rows = entries.map((u, i) => [
+    i + 1,
+    u.nome,
+    tipoLabel[u.tipo] || u.tipo,
+    u.total,
+    u.l,
+    u.c,
+    u.e,
+    u.f,
+    u.fern,
+    u.soc,
+  ]);
+
+  const wsData = [headers, ...rows];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // Cabeçalho em negrito + fundo colorido
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+  for (let c = range.s.c; c <= range.e.c; c++) {
+    const addr = XLSX.utils.encode_cell({ r: 0, c });
+    if (ws[addr]) ws[addr].s = { font: { bold: true }, fill: { fgColor: { rgb: 'D0E8FF' } } };
+  }
+
+  // Largura automática das colunas
+  ws['!cols'] = headers.map((h, i) => {
+    let max = h.length;
+    rows.forEach(r => { const len = String(r[i] ?? '').length; if (len > max) max = len; });
+    return { wch: Math.min(max + 3, 40) };
+  });
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Ranking');
+
+  const date = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `ranking_cadastros_${date}.xlsx`);
 }

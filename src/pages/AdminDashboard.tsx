@@ -11,7 +11,7 @@ import {
   Phone, Mail, FileSpreadsheet, ChevronLeft, ChevronRight, Calendar,
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { exportCadastrosFiltered } from '@/lib/exportXlsx';
+import { exportCadastrosFiltered, exportRankingCadastros } from '@/lib/exportXlsx';
 import SeletorCidade from '@/components/SeletorCidade';
 import SeletorEvento from '@/components/SeletorEvento';
 import GerenciarEventos from '@/components/GerenciarEventos';
@@ -471,6 +471,17 @@ export default function AdminDashboard() {
                   </button>
                 ))}
               </div>
+            )}
+
+            {/* Botão exportar ranking */}
+            {!isReunioes && filtered.length > 0 && (
+              <button
+                onClick={() => exportRankingCadastros(filtered)}
+                className="w-full h-10 flex items-center justify-center gap-2 bg-card border border-border rounded-xl text-xs font-medium text-foreground active:scale-[0.97] transition-all hover:bg-muted"
+              >
+                <Download size={14} className="text-emerald-600" />
+                Exportar ranking (Excel)
+              </button>
             )}
 
             {filtered.length === 0 ? (
